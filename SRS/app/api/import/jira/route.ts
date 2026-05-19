@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
             reporter,
             description: String(fields.summary ?? ""),
             comments,
-            isInProgress: status.toLowerCase() === "in progress" || status.toLowerCase() === "в процессе",
+            isInProgress: status.toLowerCase() === "in progress" || status.toLowerCase() === "РІ РїСЂРѕС†РµСЃСЃРµ",
             source: "JIRA",
             sourceHash,
           },

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+ï»¿import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 type JiraIssue = {
@@ -86,11 +86,11 @@ function collectStrings(value: unknown, out: string[] = []): string[] {
 }
 
 function isServiceRequestText(text: string) {
-  return /ñåğâèñí\w*\s+çàïğîñ|service\s+request/i.test(text);
+  return /ÑĞµÑ€Ğ²Ğ¸ÑĞ½\w*\s+Ğ·Ğ°Ğ¿Ñ€Ğ¾Ñ|service\s+request/i.test(text);
 }
 
 function isGenericProblemText(text: string) {
-  return /^(ïğîáëåìà|problem|èíöèäåíò|incident|çàÿâêà|request)(\s*\(.*\))?$/i.test(text.trim());
+  return /^(Ğ¿Ñ€Ğ¾Ğ±Ğ»ĞµĞ¼Ğ°|problem|Ğ¸Ğ½Ñ†Ğ¸Ğ´ĞµĞ½Ñ‚|incident|Ğ·Ğ°ÑĞ²ĞºĞ°|request)(\s*\(.*\))?$/i.test(text.trim());
 }
 
 function isBadEquipmentText(text: string) {
@@ -100,8 +100,8 @@ function isBadEquipmentText(text: string) {
 
 function normalizeEquipmentTitle(title: string) {
   return title
-    .replace(/^\s*(ñåğâèñí\w*\s+çàïğîñ|service\s+request)\s*[:\-–—]?\s*/i, "")
-    .replace(/^\s*(ïğîáëåìà|problem|èíöèäåíò|incident|çàÿâêà|request)\s*[:\-–—]?\s*/i, "")
+    .replace(/^\s*(ÑĞµÑ€Ğ²Ğ¸ÑĞ½\w*\s+Ğ·Ğ°Ğ¿Ñ€Ğ¾Ñ|service\s+request)\s*[:\-â€“â€”]?\s*/i, "")
+    .replace(/^\s*(Ğ¿Ñ€Ğ¾Ğ±Ğ»ĞµĞ¼Ğ°|problem|Ğ¸Ğ½Ñ†Ğ¸Ğ´ĞµĞ½Ñ‚|incident|Ğ·Ğ°ÑĞ²ĞºĞ°|request)\s*[:\-â€“â€”]?\s*/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -120,11 +120,11 @@ function parseEquipment(raw: string, summary?: string) {
   }
 
   let fallbackTitle = normalizeEquipmentTitle((summary ?? "").trim());
-  if (!fallbackTitle || isBadEquipmentText(fallbackTitle)) fallbackTitle = "Íå óêàçàíî";
+  if (!fallbackTitle || isBadEquipmentText(fallbackTitle)) fallbackTitle = "ĞĞµ ÑƒĞºĞ°Ğ·Ğ°Ğ½Ğ¾";
   return {
     equipmentUid,
     equipmentTitle: (isBadEquipmentText(normalizeEquipmentTitle(title)) ? "" : normalizeEquipmentTitle(title)) || fallbackTitle,
-    factoryNumber: factoryNumber || "Íå óêàçàí",
+    factoryNumber: factoryNumber || "ĞĞµ ÑƒĞºĞ°Ğ·Ğ°Ğ½",
   };
 }
 
@@ -174,7 +174,7 @@ export async function getMockIssues() {
         const score = (s: string) => {
           let v = 0;
           if (/\d{3,}/.test(s)) v += 3;
-          if (/èíâ|çàâ|óñòàíîâêà|êîìïëåêñ|óñòğîéñòâî|êàìåğà|ñòàíîê|ëèíèÿ|class|unit/i.test(s)) v += 2;
+          if (/Ğ¸Ğ½Ğ²|Ğ·Ğ°Ğ²|ÑƒÑÑ‚Ğ°Ğ½Ğ¾Ğ²ĞºĞ°|ĞºĞ¾Ğ¼Ğ¿Ğ»ĞµĞºÑ|ÑƒÑÑ‚Ñ€Ğ¾Ğ¹ÑÑ‚Ğ²Ğ¾|ĞºĞ°Ğ¼ĞµÑ€Ğ°|ÑÑ‚Ğ°Ğ½Ğ¾Ğº|Ğ»Ğ¸Ğ½Ğ¸Ñ|class|unit/i.test(s)) v += 2;
           if (s.length >= 12) v += 1;
           return v;
         };

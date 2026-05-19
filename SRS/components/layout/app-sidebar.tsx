@@ -1,13 +1,12 @@
-"use client";
+п»ї"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
-  LayoutDashboard,
+  BarChart3,
   Gauge,
   UsersRound,
-  FileText,
   Settings,
   ChevronDown
 } from "lucide-react";
@@ -23,16 +22,15 @@ interface NavItem {
   description: string;
   href: string;
   icon: ReactNode;
-  roles?: Array<"VIEWER" | "EDITOR" | "ADMIN">;
+  roles?: Array<"VIEWER" | "ANALYST" | "ADMIN">;
   children?: NavItem[];
 }
 
 const navItems: NavItem[] = [
-  { label: ru.sidebar.dashboard, description: "KPI, динамика событий и загрузка оборудования", href: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" />, roles: ["VIEWER", "EDITOR", "ADMIN"] },
-  { label: ru.sidebar.equipment, description: "Карта тепла, фильтры и таймлайны простоев", href: "/failures", icon: <Gauge className="h-5 w-5" />, roles: ["VIEWER", "EDITOR", "ADMIN"] },
-  { label: ru.sidebar.myRequests, description: "Анализ исполнителей, длительности и пиков", href: "/employees", icon: <UsersRound className="h-5 w-5" />, roles: ["EDITOR", "ADMIN"] },
-  { label: ru.sidebar.approvals, description: "Отчеты и аналитика", href: "/reports", icon: <FileText className="h-5 w-5" />, roles: ["VIEWER", "EDITOR", "ADMIN"] },
-  { label: ru.sidebar.settings, description: "Подключение Jira, тест соединения и запуск импорта", href: "/settings", icon: <Settings className="h-5 w-5" />, roles: ["ADMIN"] }
+  { label: ru.sidebar.dashboard, description: "KPI, РґРёРЅР°РјРёРєР° СЃРѕР±С‹С‚РёР№ Рё Р·Р°РіСЂСѓР·РєР° РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ", href: "/dashboard", icon: <BarChart3 className="h-5 w-5" />, roles: ["VIEWER", "ANALYST", "ADMIN"] },
+  { label: ru.sidebar.equipment, description: "РљР°СЂС‚Р° С‚РµРїР»Р°, С„РёР»СЊС‚СЂС‹ Рё С‚Р°Р№РјР»Р°Р№РЅС‹ РїСЂРѕСЃС‚РѕРµРІ", href: "/failures", icon: <Gauge className="h-5 w-5" />, roles: ["VIEWER", "ANALYST", "ADMIN"] },
+  { label: ru.sidebar.myRequests, description: "РђРЅР°Р»РёР· РёСЃРїРѕР»РЅРёС‚РµР»РµР№, РґР»РёС‚РµР»СЊРЅРѕСЃС‚Рё Рё РїРёРєРѕРІ", href: "/employees", icon: <UsersRound className="h-5 w-5" />, roles: ["ANALYST", "ADMIN"] },
+  { label: "РќР°СЃС‚СЂРѕР№РєРё", description: "РџРѕРґРєР»СЋС‡РµРЅРёРµ Jira, С‚РµСЃС‚ СЃРѕРµРґРёРЅРµРЅРёСЏ Рё Р·Р°РїСѓСЃРє РёРјРїРѕСЂС‚Р°", href: "/settings", icon: <Settings className="h-5 w-5" />, roles: ["ADMIN", "ANALYST"] }
 ];
 
 export function AppSidebar() {
@@ -54,13 +52,13 @@ export function AppSidebar() {
         <div className="flex items-center gap-3 px-2 py-1">
           <Image
             src="/eps-logo-v2.png"
-            alt="SRS"
+            alt="EFA"
             width={36}
             height={36}
             className="h-9 w-9 shrink-0 rounded-md object-cover ring-1 ring-sidebar-border/60"
           />
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold leading-5 text-sidebar-foreground">SRS</div>
+            <div className="truncate text-[15px] font-semibold leading-5 text-sidebar-foreground">EFA</div>
             <div className="truncate text-[11px] leading-4 text-sidebar-foreground/70">{ru.sidebar.equipmentCaption}</div>
           </div>
         </div>

@@ -1,16 +1,16 @@
-export const ru = {
+п»їexport const ru = {
   sidebar: {
-    dashboard: "Панель управления",
-    equipment: "Простои оборудования",
-    documents: "Простои",
-    myRequests: "Сотрудники",
-    approvals: "Отчеты",
-    changeHistory: "Настройки",
-    auditLog: "Аудит",
-    settings: "Параметры",
-    equipmentCaption: "Анализ отказов оборудования",
-    systemStatus: "Статус системы",
-    systemOk: "Сервис активен"
+    dashboard: "РџР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ",
+    equipment: "РџСЂРѕСЃС‚РѕРё РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ",
+    documents: "РџСЂРѕСЃС‚РѕРё",
+    myRequests: "РЎРѕС‚СЂСѓРґРЅРёРєРё",
+    approvals: "РћС‚С‡РµС‚С‹",
+    changeHistory: "РќР°СЃС‚СЂРѕР№РєРё",
+    auditLog: "РђСѓРґРёС‚",
+    settings: "РџР°СЂР°РјРµС‚СЂС‹",
+    equipmentCaption: "РђРЅР°Р»РёР· РѕС‚РєР°Р·РѕРІ РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ",
+    systemStatus: "РЎС‚Р°С‚СѓСЃ СЃРёСЃС‚РµРјС‹",
+    systemOk: "РЎРµСЂРІРёСЃ Р°РєС‚РёРІРµРЅ"
   }
 };
 

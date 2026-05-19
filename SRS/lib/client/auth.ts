@@ -1,4 +1,4 @@
-export type ClientRole = "ADMIN" | "EDITOR" | "VIEWER";
+﻿export type ClientRole = "ADMIN" | "ANALYST" | "VIEWER";
 
 export type ClientUser = {
   id?: string;

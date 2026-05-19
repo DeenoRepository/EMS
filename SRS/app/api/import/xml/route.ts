@@ -7,7 +7,7 @@ import { getSession, hasRole } from "@/lib/server/session";
 import { parseXmlEvents } from "@/lib/server/xml-parser";
 import { issueSourceHash } from "@/lib/server/dedupe";
 
-const allowedStatuses = new Set(["resolved", "done", "closed", "in progress", "решено", "закрыто", "в процессе", "в работе"]);
+const allowedStatuses = new Set(["resolved", "done", "closed", "in progress", "СЂРµС€РµРЅРѕ", "Р·Р°РєСЂС‹С‚Рѕ", "РІ РїСЂРѕС†РµСЃСЃРµ", "РІ СЂР°Р±РѕС‚Рµ"]);
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
