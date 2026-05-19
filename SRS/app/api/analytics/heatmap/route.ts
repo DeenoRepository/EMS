@@ -1,14 +1,9 @@
-export const dynamic = 'force-dynamic';
-
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { getSession, hasRole } from "@/lib/server/session";
-import { buildIssueFilters } from "@/lib/server/filters";
-import { getFilteredMockIssues } from "@/lib/server/mock-jira";
-
+﻿import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
+import { requireAnyRole } from "@/lib/auth/rbac";
+import { buildIssueFilters } from "@/lib/srs/filters";
+import { getFilteredMockIssues } from "@/lib/srs/mock-jira";
 const APP_TZ = process.env.APP_TIMEZONE || "Asia/Novosibirsk";
-
 function dateKeyInTz(date: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TZ,
@@ -21,7 +16,6 @@ function dateKeyInTz(date: Date) {
   const day = parts.find((p) => p.type === "day")?.value ?? "01";
   return `${year}-${month}-${day}`;
 }
-
 function monthKeyInTz(date: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TZ,
@@ -32,17 +26,13 @@ function monthKeyInTz(date: Date) {
   const month = parts.find((p) => p.type === "month")?.value ?? "01";
   return `${year}-${month}`;
 }
-
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
-
+  await requireAnyRole(["ADMIN", "EDITOR", "VIEWER"]);
   const mode = (req.nextUrl.searchParams.get("mode") ?? "FAILURES").toUpperCase();
   const period = (req.nextUrl.searchParams.get("period") ?? "day").toLowerCase();
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
   const useMock = req.nextUrl.searchParams.get("mock") === "1" || process.env.USE_MOCK_DATA === "1";
-
   if (useMock) {
     const events = await getFilteredMockIssues(req.nextUrl.searchParams);
     const counts = new Map<string, number>();
@@ -51,9 +41,8 @@ export async function GET(req: NextRequest) {
       const key = period === "month" ? monthKeyInTz(event.startAt) : dateKeyInTz(event.startAt);
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
-    return ok({ mode, period, items: Array.from(counts.entries()).map(([date, count]) => ({ date, count })) });
+    return NextResponse.json({ mode, period, items: Array.from(counts.entries()).map(([date, count]) => ({ date, count })) });
   }
-
   const where: any = buildIssueFilters(req);
   if (from || to) {
     where.startAt = {};
@@ -70,10 +59,8 @@ export async function GET(req: NextRequest) {
     }
   }
   if (mode === "DOWNTIME") where.endAt = { not: null };
-
   const events = await prisma.issue.findMany({ select: { startAt: true }, where, orderBy: { startAt: "asc" } });
   const counts = new Map<string, number>();
-
   for (const event of events as any[]) {
     const key = period === "month" ? monthKeyInTz(event.startAt) : dateKeyInTz(event.startAt);
     if (period === "day") {
@@ -82,6 +69,5 @@ export async function GET(req: NextRequest) {
     }
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-
-  return ok({ mode, period, items: Array.from(counts.entries()).map(([date, count]) => ({ date, count })) });
+  return NextResponse.json({ mode, period, items: Array.from(counts.entries()).map(([date, count]) => ({ date, count })) });
 }

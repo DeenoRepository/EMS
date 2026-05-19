@@ -70,8 +70,7 @@ class MockProvider implements AuthProvider {
   async authenticate(): Promise<ExternalIdentity | null> {
     const cookieStore = await cookies();
     const headerStore = await headers();
-    const email = cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(DEMO_COOKIE)?.value || headerStore.get("x-user-email");
-    if (!email) return null;
+    const email = cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(DEMO_COOKIE)?.value || headerStore.get("x-user-email") || "admin@enterprise.local";
     return this.authenticateFromLogin(email);
   }
 
@@ -261,6 +260,8 @@ class LdapProvider implements AuthProvider {
         groups,
         dn: found.dn
       };
+    } catch {
+      return null;
     } finally {
       await client.unbind().catch(() => undefined);
     }

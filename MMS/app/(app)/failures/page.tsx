@@ -375,7 +375,7 @@ export default function FailuresPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "Отказы и RCA" }]} />
         <h1 className="mt-4 text-3xl font-bold">Журнал отказов и RCA</h1>

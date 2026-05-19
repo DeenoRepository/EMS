@@ -1,10 +1,7 @@
-export const dynamic = "force-dynamic";
-
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { getSession, hasRole } from "@/lib/server/session";
-import { issueSourceHash } from "@/lib/server/dedupe";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
+import { requireAnyRole } from "@/lib/auth/rbac";
+import { issueSourceHash } from "@/lib/srs/dedupe";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
@@ -84,8 +81,7 @@ async function loadJiraIssues(apiUrl: string, username: string, password: string
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
+  await requireAnyRole(["ADMIN", "EDITOR"]);
 
   const runs = await prisma.importRun.findMany({
     where: { sourceType: "JIRA" },
@@ -93,7 +89,7 @@ export async function GET(req: NextRequest) {
     take: 20,
   });
 
-  return ok(
+  return NextResponse.json(
     runs.map((r) => ({
       id: r.id.toString(),
       status: r.status,
@@ -108,16 +104,15 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
+  const session = await requireAnyRole(["ADMIN", "EDITOR"]);
 
   const settings = await prisma.jiraSettings.findUnique({ where: { id: 1 } });
-  if (!settings) return fail("jira settings not configured", 400);
+  if (!settings) return NextResponse.json({ error: "jira settings not configured" }, { status: 400 });
   const parsed = runSchema.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return fail("password is required", 400);
+  if (!parsed.success) return NextResponse.json({ error: "password is required" }, { status: 400 });
 
   const run = await prisma.importRun.create({
-    data: { sourceType: "JIRA", status: "RUNNING", initiatedBy: session.login },
+    data: { sourceType: "JIRA", status: "RUNNING", initiatedBy: session.email },
   });
 
   try {
@@ -199,7 +194,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return ok({
+    return NextResponse.json({
       importRunId: run.id.toString(),
       itemsTotal: collected.length,
       itemsLoaded: loaded,
@@ -214,6 +209,6 @@ export async function POST(req: NextRequest) {
         errorText: e instanceof Error ? e.message : "unknown error",
       },
     });
-    return fail(e instanceof Error ? e.message : "jira import failed", 500);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "jira import failed" }, { status: 500 });
   }
 }

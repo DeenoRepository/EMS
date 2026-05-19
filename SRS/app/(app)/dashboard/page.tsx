@@ -1,8 +1,12 @@
-export const dynamic = "force-dynamic";
+﻿export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { getMockIssues } from "@/lib/server/mock-jira";
+import { prisma } from "@/lib/db/prisma";
+import { getMockIssues } from "@/lib/srs/mock-jira";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { KpiCard } from "@/components/ui/summary-card";
 import { DashboardFilters } from "./dashboard-filters";
 
 type DashboardRow = {
@@ -324,101 +328,147 @@ export default async function DashboardPage({
   const labels6m = metrics6m.map((m) => m.label);
 
   return (
-    <>
-      <header className="header">
-        <div className="rounded-xl border bg-white p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="title">Панель управления</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Ключевые показатели отказов оборудования, SLA и MTTR в едином срезе.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {[7, 14, 30, 90].map((days) => (
-                <Link key={days} href={`/dashboard?days=${days}`} className={`rounded-md border px-3 py-1.5 ${rangeDays === days ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted/50"}`}>
-                  {days} дн
-                </Link>
-              ))}
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Breadcrumbs items={[{ label: "Панель управления" }]} />
+          <h1 className="mt-4 text-3xl font-bold">Панель мониторинга отказов</h1>
+          <p className="mt-1 text-muted-foreground">Ключевые показатели отказов оборудования, SLA и MTTR в едином срезе.</p>
         </div>
-      </header>
+        <div className="flex flex-wrap gap-2">
+          {[7, 14, 30, 90].map((days) => (
+            <Link key={days} href={`/dashboard?days=${days}`}>
+              <span className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${rangeDays === days ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted/50"}`}>
+                {days} дн
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-      <section className="card-grid mt-4">
-        <article className="card"><div className="metric-label">События</div><div className="metric-value">{totalEvents}</div></article>
-        <article className="card"><div className="metric-label">В работе</div><div className="metric-value">{inProgress}</div><div className="mt-1 text-xs text-muted-foreground">Закрыто: {completed}</div></article>
-        <article className="card"><div className="metric-label">Суммарный простой</div><div className="metric-value">{downtimeHours.toFixed(1)} ч</div><div className="mt-1 text-xs text-muted-foreground">Средний MTTR: {avgHours.toFixed(2)} ч</div></article>
-        <article className="card"><div className="metric-label">Охват оборудования</div><div className="metric-value">{impactShare.toFixed(1)}%</div><div className="mt-1 text-xs text-muted-foreground">{impactedEquipment} из {totalEquipment}</div></article>
-      </section>
-      
-      <DashboardFilters
-        subdivisions={subdivisions}
-        initialSubdivision={filterSubdivision}
-      />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="События" value={totalEvents} />
+        <KpiCard label="В работе" value={inProgress} hint={`Закрыто: ${completed}`} />
+        <KpiCard label="Суммарный простой" value={`${downtimeHours.toFixed(1)} ч`} hint={`MTTR: ${avgHours.toFixed(2)} ч`} />
+        <KpiCard label="Охват оборудования" value={`${impactShare.toFixed(1)}%`} hint={`${impactedEquipment} из ${totalEquipment}`} />
+      </div>
 
-      <section className="mt-4 grid gap-4 lg:grid-cols-4">
-        <article className="card"><h2 className="mb-3 text-sm font-semibold">События</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.events)} strokeClass="stroke-blue-500" pointColor="#3b82f6" valueFormatter={(v) => `${Math.round(v)}`} legendLabel="Количество событий" legendColorClass="bg-blue-500" /></article>
-        <article className="card"><h2 className="mb-3 text-sm font-semibold">SLA</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.sla)} strokeClass="stroke-emerald-500" pointColor="#10b981" valueFormatter={(v) => `${Math.round(v)}%`} legendLabel="SLA, %" legendColorClass="bg-emerald-500" /></article>
-        <article className="card"><h2 className="mb-3 text-sm font-semibold">MTTR</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.mttr)} strokeClass="stroke-amber-500" pointColor="#f59e0b" valueFormatter={(v) => `${v.toFixed(1)}`} legendLabel="MTTR, ч" legendColorClass="bg-amber-500" /></article>
-        <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">Типы работ</h2>
-          <MultiLineChart
-            labels={workType6m.map((x) => x.label)}
-            seriesA={workType6m.map((x) => x.repairs)}
-            seriesB={workType6m.map((x) => x.setups)}
-            colorA="stroke-red-500"
-            colorB="stroke-yellow-500"
-          />
-        </article>
-      </section>
+      <DashboardFilters subdivisions={subdivisions} initialSubdivision={filterSubdivision} />
 
-      <section className="mt-4 grid gap-4 xl:grid-cols-3">
-        <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">Топ исполнителей: ремонты</h2>
-          <div className="space-y-2 text-xs">
-            {topPeopleRepairs.map((row, idx) => <div key={`${row.name}-r`} className="flex items-center justify-between rounded border p-2"><span className="truncate pr-2">{idx + 1}. {row.name}</span><span className="font-semibold">{row.count}</span></div>)}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">События</h2>
           </div>
-        </article>
-        <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">Топ исполнителей: настройки</h2>
-          <div className="space-y-2 text-xs">
-            {topPeopleSetups.map((row, idx) => <div key={`${row.name}-s`} className="flex items-center justify-between rounded border p-2"><span className="truncate pr-2">{idx + 1}. {row.name}</span><span className="font-semibold">{row.count}</span></div>)}
+          <div className="mt-3">
+            <LineChart labels={labels6m} values={metrics6m.map((m) => m.events)} strokeClass="stroke-blue-500" pointColor="#3b82f6" valueFormatter={(v) => `${Math.round(v)}`} legendLabel="Количество событий" legendColorClass="bg-blue-500" />
           </div>
-        </article>
-        <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">Топ оборудования</h2>
-          <div className="space-y-2 text-xs">
-            {topEquipment.map((row, idx) => <div key={row.name} className="flex items-center justify-between rounded border p-2"><span className="truncate pr-2">{idx + 1}. {row.name}</span><span className="font-semibold">{row.count}</span></div>)}
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">SLA</h2>
           </div>
-        </article>
-      </section>
+          <div className="mt-3">
+            <LineChart labels={labels6m} values={metrics6m.map((m) => m.sla)} strokeClass="stroke-emerald-500" pointColor="#10b981" valueFormatter={(v) => `${Math.round(v)}%`} legendLabel="SLA, %" legendColorClass="bg-emerald-500" />
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">MTTR</h2>
+          </div>
+          <div className="mt-3">
+            <LineChart labels={labels6m} values={metrics6m.map((m) => m.mttr)} strokeClass="stroke-amber-500" pointColor="#f59e0b" valueFormatter={(v) => `${v.toFixed(1)}`} legendLabel="MTTR, ч" legendColorClass="bg-amber-500" />
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Типы работ</h2>
+          </div>
+          <div className="mt-3">
+            <MultiLineChart
+              labels={workType6m.map((x) => x.label)}
+              seriesA={workType6m.map((x) => x.repairs)}
+              seriesB={workType6m.map((x) => x.setups)}
+              colorA="stroke-red-500"
+              colorB="stroke-yellow-500"
+            />
+          </div>
+        </Card>
+      </div>
 
-      <section className="card mt-4">
-        <h2 className="mb-3 text-sm font-semibold">Последние события</h2>
-        <div className="max-h-[360px] overflow-auto rounded border">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-muted/40">
-              <tr>
-                <th className="px-2 py-2 text-left font-semibold">Jira</th>
-                <th className="px-2 py-2 text-left font-semibold">Оборудование</th>
-                <th className="px-2 py-2 text-left font-semibold">Тип</th>
-                <th className="px-2 py-2 text-left font-semibold">Статус</th>
-                <th className="px-2 py-2 text-left font-semibold">Начало</th>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Топ исполнителей: ремонты</h2>
+          </div>
+          <div className="mt-3 space-y-2 text-sm">
+            {topPeopleRepairs.map((row, idx) => (
+              <div key={`${row.name}-r`} className="flex items-center justify-between rounded border p-3">
+                <span className="truncate pr-2">{idx + 1}. {row.name}</span>
+                <span className="font-semibold">{row.count}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Топ исполнителей: настройки</h2>
+          </div>
+          <div className="mt-3 space-y-2 text-sm">
+            {topPeopleSetups.map((row, idx) => (
+              <div key={`${row.name}-s`} className="flex items-center justify-between rounded border p-3">
+                <span className="truncate pr-2">{idx + 1}. {row.name}</span>
+                <span className="font-semibold">{row.count}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Топ оборудования</h2>
+          </div>
+          <div className="mt-3 space-y-2 text-sm">
+            {topEquipment.map((row, idx) => (
+              <div key={row.name} className="flex items-center justify-between rounded border p-3">
+                <span className="truncate pr-2">{idx + 1}. {row.name}</span>
+                <span className="font-semibold">{row.count}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Последние события</h2>
+        </div>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Jira</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Оборудование</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Тип</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Статус</th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Начало</th>
               </tr>
             </thead>
             <tbody>
               {recentRows.map((row) => (
-                <tr key={row.id} className="border-t">
-                  <td className="px-2 py-2 font-mono">{row.key}</td>
-                  <td className="px-2 py-2">{row.equipment}</td>
-                  <td className="px-2 py-2">{row.type}</td>
-                  <td className="px-2 py-2"><span className={`rounded border px-2 py-0.5 text-[11px] ${statusTone(row.status)}`}>{row.status}</span></td>
-                  <td className="px-2 py-2 whitespace-nowrap">{prettyDate(row.startAt)}</td>
+                <tr key={row.id} className="border-b transition-colors hover:bg-muted/40">
+                  <td className="p-4 align-middle font-mono">{row.key}</td>
+                  <td className="p-4 align-middle">{row.equipment}</td>
+                  <td className="p-4 align-middle">{row.type}</td>
+                  <td className="p-4 align-middle">
+                    <Badge className={`rounded-full border ${statusTone(row.status)}`}>{row.status}</Badge>
+                  </td>
+                  <td className="p-4 align-middle whitespace-nowrap">{prettyDate(row.startAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </section>
-    </>
+      </Card>
+    </div>
   );
 }

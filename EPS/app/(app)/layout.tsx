@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="ml-72 flex flex-1 flex-col">
           <AppHotkeys />
           <TopBar />
-          <main id="main-content" className="flex-1 overflow-y-auto">{children}</main>
+          <main id="main-content" className="flex-1 overflow-y-auto bg-background p-6">{children}</main>
         </div>
       </div>
     </AuthShell>

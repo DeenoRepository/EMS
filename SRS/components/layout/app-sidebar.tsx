@@ -52,13 +52,13 @@ export function AppSidebar() {
         <div className="flex items-center gap-3 px-2 py-1">
           <Image
             src="/eps-logo-v2.png"
-            alt="EFA"
+            alt="SRS"
             width={36}
             height={36}
             className="h-9 w-9 shrink-0 rounded-md object-cover ring-1 ring-sidebar-border/60"
           />
           <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold leading-5 text-sidebar-foreground">EFA</div>
+            <div className="truncate text-[15px] font-semibold leading-5 text-sidebar-foreground">SRS</div>
             <div className="truncate text-[11px] leading-4 text-sidebar-foreground/70">{ru.sidebar.equipmentCaption}</div>
           </div>
         </div>
@@ -66,7 +66,7 @@ export function AppSidebar() {
 
       <nav className="space-y-1 px-3">
         {visibleItems.map((item) => (
-          <div key={item.label}>
+          <div key={item.href}>
             <Link
               href={item.href as any}
               onClick={(e) => {

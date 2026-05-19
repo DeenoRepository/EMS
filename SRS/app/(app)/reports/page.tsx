@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/states/empty-state";
 
 type ReportHistory = {
   id: string;
@@ -66,51 +71,67 @@ export default function Page() {
   };
 
   return (
-    <>
-      <header className="header"><h1 className="title">Отчеты</h1></header>
-      <div className="card space-y-3">
-        <div className="grid gap-2 md:grid-cols-3">
-          <label className="text-sm">С <input type="date" className="ml-2 rounded border px-2 py-1" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-          <label className="text-sm">По <input type="date" className="ml-2 rounded border px-2 py-1" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-          <label className="text-sm">Группировка
-            <select className="ml-2 rounded border px-2 py-1" value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)}>
+    <div className="space-y-6">
+      <div>
+        <Breadcrumbs items={[{ label: "Отчеты" }]} />
+        <h1 className="mt-4 text-3xl font-bold">Отчеты</h1>
+        <p className="mt-1 text-muted-foreground">Формирование HTML-отчетов и история запусков.</p>
+      </div>
+
+      <Card className="p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Параметры отчета</h2>
+            <p className="text-sm text-muted-foreground">Диапазон дат, группировка и блоки отчета.</p>
+          </div>
+          <Button onClick={createReport} disabled={loading}>{loading ? "Формируется..." : "Сформировать HTML отчет"}</Button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <label className="text-sm"><span className="mb-1 block text-muted-foreground">С</span><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+          <label className="text-sm"><span className="mb-1 block text-muted-foreground">По</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+          <label className="text-sm"><span className="mb-1 block text-muted-foreground">Группировка</span>
+            <select className="mt-1 w-full rounded border px-2 py-2" value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)}>
               <option value="day">day</option>
               <option value="month">month</option>
               <option value="employee">employee</option>
               <option value="equipment">equipment</option>
             </select>
           </label>
-          <label className="text-sm">Фильтр длительности (мин)
-            <input className="ml-2 w-24 rounded border px-2 py-1" value={durationMinutesFrom} onChange={(e) => setDurationMinutesFrom(e.target.value)} />
-          </label>
+          <label className="text-sm"><span className="mb-1 block text-muted-foreground">Фильтр длительности (мин)</span><Input value={durationMinutesFrom} onChange={(e) => setDurationMinutesFrom(e.target.value)} /></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyInProgress} onChange={(e) => setOnlyInProgress(e.target.checked)} />Только «в процессе»</label>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
           <span className="text-muted-foreground">Блоки отчета:</span>
           <label className="flex items-center gap-1"><input type="checkbox" checked={blockDashboard} onChange={(e) => setBlockDashboard(e.target.checked)} />dashboard</label>
           <label className="flex items-center gap-1"><input type="checkbox" checked={blockDowntime} onChange={(e) => setBlockDowntime(e.target.checked)} />downtime</label>
           <label className="flex items-center gap-1"><input type="checkbox" checked={blockEmployee} onChange={(e) => setBlockEmployee(e.target.checked)} />employee</label>
         </div>
 
-        <button className="rounded bg-primary px-3 py-2 text-primary-foreground" onClick={createReport} disabled={loading}>{loading ? "Формируется..." : "Сформировать HTML отчет"}</button>
-        <iframe className="h-[420px] w-full rounded border" srcDoc={html} />
+        {html && <iframe className="mt-4 h-[420px] w-full rounded border" srcDoc={html} />}
+      </Card>
 
-        <div className="rounded border p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-semibold">История запусков</h3>
-            <button className="rounded border px-2 py-1 text-xs" onClick={loadHistory}>Обновить</button>
-          </div>
-          <div className="space-y-2">
-            {history.map((x) => (
-              <button key={x.id} className="w-full rounded border p-2 text-left text-xs hover:bg-muted" onClick={() => void openRun(x.id)}>
-                <div className="font-semibold">Report #{x.id}</div>
-                <div>{new Date(x.createdAt).toLocaleString()} | {x.createdBy ?? "system"}</div>
-              </button>
-            ))}
-          </div>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">История запусков</h2>
+          <Button variant="outline" size="sm" onClick={loadHistory}>Обновить</Button>
         </div>
-      </div>
-    </>
+        <div className="mt-3">
+          {history.length === 0 ? (
+            <EmptyState text="История запусков пока пуста." />
+          ) : (
+            <div className="divide-y divide-border">
+              {history.map((x) => (
+                <button key={x.id} className="w-full p-4 text-left transition-colors hover:bg-muted/40" onClick={() => void openRun(x.id)}>
+                  <div className="font-medium">Report #{x.id}</div>
+                  <div className="text-sm text-muted-foreground">{new Date(x.createdAt).toLocaleString()} | {x.createdBy ?? "system"}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }

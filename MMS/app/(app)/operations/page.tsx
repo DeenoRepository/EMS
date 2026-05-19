@@ -402,7 +402,7 @@ export default function OperationsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Breadcrumbs items={[{ label: "Операции ТОиР" }]} />

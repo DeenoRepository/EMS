@@ -67,7 +67,7 @@ export default function WmsDashboardPage() {
   if (error) return <ErrorState text={error} onRetry={() => void load()} />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Breadcrumbs items={[{ label: "WMS" }]} />

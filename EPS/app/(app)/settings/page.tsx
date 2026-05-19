@@ -457,7 +457,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <Breadcrumbs items={[{ label: "Настройки" }]} />

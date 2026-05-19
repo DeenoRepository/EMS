@@ -1,7 +1,7 @@
-export const dynamic = 'force-dynamic';
-
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
+import { checkAuthProviderHealth } from "@/lib/auth/provider";
+import { log } from "@/lib/observability/logger";
 
 export async function GET() {
   let database = { ok: false, message: "unreachable" };
@@ -12,12 +12,23 @@ export async function GET() {
     database = { ok: false, message: "unreachable" };
   }
 
-  return NextResponse.json(
-    {
-      ok: database.ok,
-      timestamp: new Date().toISOString(),
-      checks: { database }
-    },
-    { status: database.ok ? 200 : 503 }
-  );
+  const auth = await checkAuthProviderHealth();
+
+  const ok = database.ok && auth.ok;
+
+  if (!ok) {
+    log.warn("health_check_failed", {
+      database,
+      auth
+    });
+  }
+
+  return NextResponse.json({
+    ok,
+    timestamp: new Date().toISOString(),
+    checks: {
+      database,
+      auth
+    }
+  });
 }

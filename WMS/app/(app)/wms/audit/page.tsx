@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
@@ -75,7 +75,7 @@ export default function WmsAuditPage() {
   if (error && items.length === 0) return <ErrorState text={error} onRetry={() => void load()} />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Аудит" }]} />
         <h1 className="mt-4 text-3xl font-bold">Журнал аудита</h1>

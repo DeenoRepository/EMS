@@ -8,7 +8,7 @@ import { EquipmentForm } from "@/components/equipment/equipment-form";
 
 export default function CreateEquipmentPage() {
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/equipment">
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0">

@@ -890,7 +890,7 @@ export default function EquipmentDetailsPage() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-2">
           <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={goBack} title="Назад">

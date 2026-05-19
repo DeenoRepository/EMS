@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const authProvider = (process.env.NEXT_PUBLIC_AUTH_PROVIDER || "ldap").toUpperCase();
+  const isPasswordRequired = authProvider === "LDAP";
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -95,7 +96,7 @@ export default function LoginPage() {
 
           {error ? <p className="text-sm text-status-error">{error}</p> : null}
 
-          <Button type="submit" className="h-11 w-full" disabled={loading || !login.trim() || !password.trim()}>
+          <Button type="submit" className="h-11 w-full" disabled={loading || !login.trim() || (isPasswordRequired && !password.trim())}>
             {loading ? "Проверка учетных данных..." : "Войти в систему"}
           </Button>
         </form>

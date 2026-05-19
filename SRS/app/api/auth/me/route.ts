@@ -1,11 +1,7 @@
-export const dynamic = 'force-dynamic';
+import { NextResponse } from "next/server";
+import { requireAnyRole } from "@/lib/auth/rbac";
 
-import { NextRequest } from "next/server";
-import { ok, fail } from "@/lib/http";
-import { getSession } from "@/lib/server/session";
-
-export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return fail("unauthorized", 401);
-  return ok(session);
+export async function GET() {
+  const user = await requireAnyRole(["VIEWER", "EDITOR", "ADMIN"]);
+  return NextResponse.json(user);
 }

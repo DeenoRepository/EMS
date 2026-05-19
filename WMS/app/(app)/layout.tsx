@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <AppHotkeys />
           <CommandPalette />
           <TopBar />
-          <main id="main-content" className="flex-1 overflow-y-auto">
+          <main id="main-content" className="flex-1 overflow-y-auto bg-background p-6">
             {children}
           </main>
         </div>

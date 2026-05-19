@@ -73,7 +73,7 @@ export default function WarehouseDetailsPage() {
   if (!warehouse) return <div className="p-6">Загрузка...</div>;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Склады", href: "/wms/warehouses" }, { label: warehouse.name }]} />
         <h1 className="mt-4 text-3xl font-bold">{warehouse.name}</h1>

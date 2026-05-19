@@ -47,7 +47,7 @@ export default function WarehousesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Склады" }]} />

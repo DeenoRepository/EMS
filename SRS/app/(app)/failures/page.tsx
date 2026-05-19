@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/states/empty-state";
 
 type HeatItem = { date: string; count: number };
 type FilterOptions = {
@@ -267,30 +273,34 @@ export default function FailuresPage() {
   }
 
   return (
-    <>
-      <header className="header rounded-xl border bg-white p-4">
-        <h1 className="title">Простои оборудования</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Карта тепла, фильтры и таймлайны работ по выбранному дню.</p>
-      </header>
+    <div className="space-y-6">
+      <div>
+        <Breadcrumbs items={[{ label: "Простои оборудования" }]} />
+        <h1 className="mt-4 text-3xl font-bold">Простои оборудования</h1>
+        <p className="mt-1 text-muted-foreground">Карта тепла, фильтры и таймлайны работ по выбранному дню.</p>
+      </div>
 
-      <section className="card mt-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm font-semibold">Фильтр</div>
-          <button className="rounded border px-3 py-1.5 text-xs" onClick={() => setIsFilterOpen((v) => !v)}>{isFilterOpen ? "Свернуть" : "Развернуть"}</button>
+      <Card className="p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Фильтр</h2>
+            <p className="text-sm text-muted-foreground">Год, статусы, типы работ, исполнители и оборудование.</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setIsFilterOpen((v) => !v)}>{isFilterOpen ? "Свернуть" : "Развернуть"}</Button>
         </div>
         {isFilterOpen ? (
-          <div className="grid gap-3 md:grid-cols-6">
-            <label className="text-xs md:col-span-2"><span className="mb-1 block">Год</span><input type="date" className="w-full rounded border px-3 py-2" value={anchorDate} onChange={(e) => setAnchorDate(e.target.value)} /></label>
-            <label className="text-xs md:col-span-2"><span className="mb-1 block">Статус</span><select className="w-full rounded border px-3 py-2" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Все статусы</option>{filters.statuses.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label className="text-xs md:col-span-2"><span className="mb-1 block">Тип</span><select className="w-full rounded border px-3 py-2" value={type} onChange={(e) => setType(e.target.value)}><option value="">Все типы</option>{filters.types.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label className="text-xs md:col-span-2"><span className="mb-1 block">Исполнитель</span><select className="w-full rounded border px-3 py-2" value={responsible} onChange={(e) => setResponsible(e.target.value)}><option value="">Все исполнители</option>{filters.responsibles.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label className="text-xs md:col-span-2"><span className="mb-1 block">Группа</span><select className="w-full rounded border px-3 py-2" value={subdivision} onChange={(e) => setSubdivision(e.target.value)}><option value="">Все группы</option>{filters.subdivisions.map((x) => <option key={x}>{x}</option>)}</select></label>
-            <label className="text-xs md:col-span-2"><span className="mb-1 block">Оборудование</span><input className="w-full rounded border px-3 py-2" list="equipment-options" value={equipment} onChange={(e) => setEquipment(e.target.value)} /><datalist id="equipment-options">{filters.equipment.map((x) => <option key={x} value={x} />)}</datalist></label>
+          <div className="mt-4 grid gap-3 md:grid-cols-6">
+            <label className="text-xs md:col-span-2"><span className="mb-1 block text-muted-foreground">Год</span><input type="date" className="w-full rounded border px-3 py-2" value={anchorDate} onChange={(e) => setAnchorDate(e.target.value)} /></label>
+            <label className="text-xs md:col-span-2"><span className="mb-1 block text-muted-foreground">Статус</span><select className="w-full rounded border px-3 py-2" value={status} onChange={(e) => setStatus(e.target.value)}><option value="">Все статусы</option>{filters.statuses.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label className="text-xs md:col-span-2"><span className="mb-1 block text-muted-foreground">Тип</span><select className="w-full rounded border px-3 py-2" value={type} onChange={(e) => setType(e.target.value)}><option value="">Все типы</option>{filters.types.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label className="text-xs md:col-span-2"><span className="mb-1 block text-muted-foreground">Исполнитель</span><select className="w-full rounded border px-3 py-2" value={responsible} onChange={(e) => setResponsible(e.target.value)}><option value="">Все исполнители</option>{filters.responsibles.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label className="text-xs md:col-span-2"><span className="mb-1 block text-muted-foreground">Группа</span><select className="w-full rounded border px-3 py-2" value={subdivision} onChange={(e) => setSubdivision(e.target.value)}><option value="">Все группы</option>{filters.subdivisions.map((x) => <option key={x}>{x}</option>)}</select></label>
+            <label className="text-xs md:col-span-2"><span className="mb-1 block text-muted-foreground">Оборудование</span><Input className="w-full" list="equipment-options" value={equipment} onChange={(e) => setEquipment(e.target.value)} /><datalist id="equipment-options">{filters.equipment.map((x) => <option key={x} value={x} />)}</datalist></label>
           </div>
         ) : null}
-      </section>
+      </Card>
 
-      <section className="card mt-4">
+      <Card className="p-4">
         <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
           <span>Диапазон: 1 - {maxCount}</span>
           <span>{loading ? "Обновление..." : `Выбрано: ${selectedDay}`}</span>
@@ -326,40 +336,44 @@ export default function FailuresPage() {
             );
           })}
         </div>
-      </section>
+      </Card>
 
-      <section className="card mt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Оборудование за день: {selectedDay}</h2>
-          <span className="text-xs text-muted-foreground">Карточек: {equipmentRows.length}</span>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Оборудование за день</h2>
+            <p className="text-sm text-muted-foreground">{selectedDay} • Карточек: {equipmentRows.length}</p>
+          </div>
         </div>
-        {error ? <div className="mb-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-        <div className="space-y-3">
-          {equipmentRows.map((row) => (
-            <button key={row.key} className="w-full rounded border p-3 text-left text-xs hover:bg-muted/20" onClick={() => setModalKey(row.key)}>
-              <div className="grid gap-3 md:grid-cols-12">
-                <div className="md:col-span-3">
-                  <div className="mb-1 text-[11px] text-muted-foreground">Наименование оборудования</div>
-                  <div className="font-semibold">{row.equipmentTitle}</div>
-                  <div className="mt-2 text-[11px] text-muted-foreground">Инвентарный номер</div>
-                  <div className="font-semibold">{row.equipmentUid}</div>
-                  <div className="mt-2 text-[11px] text-muted-foreground">Группа обслуживания</div>
-                  <div className="font-semibold">{row.subdivision}</div>
+        <div className="mt-3">
+          {error ? <div className="mb-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
+          <div className="space-y-3">
+            {equipmentRows.map((row) => (
+              <button key={row.key} className="w-full rounded border p-3 text-left text-xs hover:bg-muted/20" onClick={() => setModalKey(row.key)}>
+                <div className="grid gap-3 md:grid-cols-12">
+                  <div className="md:col-span-3">
+                    <div className="mb-1 text-[11px] text-muted-foreground">Наименование оборудования</div>
+                    <div className="font-semibold">{row.equipmentTitle}</div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">Инвентарный номер</div>
+                    <div className="font-semibold">{row.equipmentUid}</div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">Группа обслуживания</div>
+                    <div className="font-semibold">{row.subdivision}</div>
+                  </div>
+                  <div className="md:col-span-9">{renderTimeline(row.items, true)}</div>
                 </div>
-                <div className="md:col-span-9">{renderTimeline(row.items, true)}</div>
-              </div>
-            </button>
-          ))}
-          {equipmentRows.length === 0 ? <p className="text-xs text-muted-foreground">По выбранной дате событий нет.</p> : null}
+              </button>
+            ))}
+            {equipmentRows.length === 0 && <EmptyState text="По выбранной дате событий нет." />}
+          </div>
         </div>
-      </section>
+      </Card>
 
       {selectedEquipment ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModalKey(null)}>
           <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded bg-white p-4" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-semibold">Детализация установки: {selectedEquipment.equipmentTitle}</h3>
-              <button className="rounded border px-3 py-1 text-sm" onClick={() => setModalKey(null)}>Закрыть</button>
+              <Button variant="outline" size="sm" onClick={() => setModalKey(null)}>Закрыть</Button>
             </div>
             <div className="mb-4 grid gap-3 text-sm md:grid-cols-4">
               <div><div className="text-xs text-muted-foreground">Инвентарный номер</div><div className="font-semibold">{selectedEquipment.equipmentUid}</div></div>
@@ -381,8 +395,8 @@ export default function FailuresPage() {
                 >
                   <div className="mb-1 flex flex-wrap items-center gap-2">
                     <span className="font-semibold">{task.type}</span>
-                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px]">{task.status}</span>
-                    <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700">{task.jiraIssueKey || "без Jira key"}</span>
+                    <Badge className="bg-slate-100">{task.status}</Badge>
+                    <Badge className="bg-blue-50 text-blue-700">{task.jiraIssueKey || "без Jira key"}</Badge>
                   </div>
                   <div className="grid gap-2 md:grid-cols-2">
                     <div>Исполнитель: {task.responsible || "Не указан"}</div>
@@ -398,7 +412,7 @@ export default function FailuresPage() {
           </div>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 

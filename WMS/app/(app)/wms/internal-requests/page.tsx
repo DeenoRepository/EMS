@@ -186,7 +186,7 @@ export default function InternalRequestsPage() {
   const activeRequests = rows.filter((r) => !["FULFILLED", "CANCELLED"].includes(r.status)).length;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Мои заявки" }]} />
         <h1 className="mt-4 text-3xl font-bold">Мои заявки</h1>

@@ -1,42 +1,107 @@
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { verifyPassword } from "@/lib/server/password";
-import { createSessionToken, sessionCookieHeader } from "@/lib/server/auth";
-import { authenticateFromLogin } from "@/lib/server/ldap";
+import { lookupExternalIdentity } from "@/lib/auth/provider";
+import { AUTH_COOKIE, DEMO_COOKIE, clearCookieOptions, sessionCookieOptions } from "@/lib/auth/session";
+import { checkRateLimit, enforceSameOrigin, getClientIp, rateLimitResponse } from "@/lib/security/request";
+import { writeAuditLog } from "@/lib/audit";
+import { log } from "@/lib/observability/logger";
+import { prisma } from "@/lib/db/prisma";
+import type { RoleKey } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null) as { login?: string; password?: string } | null;
-  if (!body?.login || !body.password) return fail("login and password are required", 400);
+  enforceSameOrigin(req);
+
+  const ip = getClientIp(req);
+  const limit = checkRateLimit({ key: `auth:login:${ip}`, limit: 20, windowMs: 60_000 });
+  if (!limit.allowed) {
+    log.warn("auth_login_rate_limited", { ip, resetInMs: limit.resetInMs });
+    return rateLimitResponse(limit.resetInMs);
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const login = typeof body?.login === "string" ? body.login.trim().toLowerCase() : "";
+  const password = typeof body?.password === "string" ? body.password : "";
+
+  if (!login) {
+    log.warn("auth_login_failed_empty_login", { ip });
+    return NextResponse.json({ error: "Логин обязателен" }, { status: 400 });
+  }
 
   const isLdap = (process.env.AUTH_PROVIDER || "mock").toLowerCase() === "ldap";
-  if (isLdap) {
-    const ldapResponse = await authenticateFromLogin(body.login, body.password);
-    if (!ldapResponse) return fail("invalid credentials", 401);
-    return ldapResponse;
+  if (isLdap && !password.trim()) {
+    log.warn("auth_login_failed_empty_password", { ip, login });
+    return NextResponse.json({ error: "Пароль обязателен" }, { status: 400 });
   }
 
-  try {
-    const user = await prisma.user.findUnique({
-      where: { login: body.login },
-      include: { userRoles: { include: { role: true } } }
+  const result = await lookupExternalIdentity(login, password);
+  if (!result.identity) {
+    log.warn("auth_login_failed", { ip, login, provider: result.provider });
+    await writeAuditLog({
+      actor: login,
+      action: "LOGIN",
+      entity: "Auth",
+      entityId: "login",
+      payload: { ok: false, reason: "invalid_credentials_or_not_found", ip, login, provider: result.provider }
     });
-
-    if (!user || !verifyPassword(body.password, user.passwordHash)) return fail("invalid credentials", 401);
-
-    const roles = user.userRoles.map((x) => x.role.name);
-    const token = createSessionToken(user.id.toString(), user.login, roles);
-    const res = NextResponse.json({ ok: true, data: { login: user.login, displayName: user.displayName, roles } });
-    res.headers.set("Set-Cookie", sessionCookieHeader(token));
-    return res;
-  } catch {
-    if (body.login !== "admin" || body.password !== "admin123") return fail("invalid credentials", 401);
-    const roles = ["ADMIN"];
-    const token = createSessionToken("0", "admin", roles);
-    const res = NextResponse.json({ ok: true, data: { login: "admin", displayName: "DEA Admin", roles, degradedMode: true } });
-    res.headers.set("Set-Cookie", sessionCookieHeader(token));
-    return res;
+    return NextResponse.json({ error: "Неверный логин или пароль" }, { status: 401 });
   }
+
+  await writeAuditLog({
+    actor: result.identity.email.trim().toLowerCase(),
+    action: "LOGIN",
+    entity: "Auth",
+    entityId: "login",
+    payload: { ok: true, provider: result.provider, roles: result.roles, ip }
+  });
+  log.info("auth_login_success", { ip, email: result.identity.email, provider: result.provider });
+
+  const normalizedEmail = result.identity.email.trim().toLowerCase();
+  const user = await prisma.user.upsert({
+    where: { email: normalizedEmail },
+    update: {
+      displayName: result.identity.displayName
+    },
+    create: {
+      email: normalizedEmail,
+      displayName: result.identity.displayName,
+      passwordHash: ""
+    }
+  });
+
+  const baseRoles: RoleKey[] = ["VIEWER", "EDITOR", "APPROVER", "ADMIN"];
+  await Promise.all(
+    baseRoles.map((key) =>
+      prisma.role.upsert({
+        where: { key },
+        update: {},
+        create: { key, name: key }
+      })
+    )
+  );
+
+  const existingRoles = await prisma.userRole.findMany({
+    where: { userId: user.id },
+    include: { role: true }
+  });
+  const existingRoleKeys = Array.from(new Set(existingRoles.map((item) => item.role.key as RoleKey)));
+  const hasElevatedExistingRole = existingRoleKeys.some((role) => role === "ADMIN" || role === "APPROVER" || role === "EDITOR");
+
+  let rolesToApply = result.roles as RoleKey[];
+  const isLdapProvider = result.provider === "ldap";
+  const isViewerOnly = rolesToApply.length === 1 && rolesToApply[0] === "VIEWER";
+
+  if (isLdapProvider && isViewerOnly && hasElevatedExistingRole) {
+    rolesToApply = existingRoleKeys;
+  }
+
+  const effectiveRoleRecords = await prisma.role.findMany({ where: { key: { in: rolesToApply } } });
+  await prisma.userRole.deleteMany({ where: { userId: user.id } });
+  await prisma.userRole.createMany({
+    data: effectiveRoleRecords.map((role) => ({ userId: user.id, roleId: role.id })),
+    skipDuplicates: true
+  });
+
+  const res = NextResponse.json({ ok: true, email: normalizedEmail, roles: rolesToApply, provider: result.provider });
+  res.cookies.set(AUTH_COOKIE, normalizedEmail, sessionCookieOptions());
+  res.cookies.set(DEMO_COOKIE, "", { ...clearCookieOptions(), maxAge: 0 });
+  return res;
 }

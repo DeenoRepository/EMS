@@ -1,10 +1,7 @@
-export const dynamic = "force-dynamic";
-
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { getSession, hasRole } from "@/lib/server/session";
-import { addAudit } from "@/lib/server/audit";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
+import { requireAnyRole } from "@/lib/auth/rbac";
+import { addAudit } from "@/lib/srs/audit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -82,13 +79,12 @@ async function jiraPing(apiUrl: string, username: string, password: string, jql:
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession(req);
-    if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
+    await requireAnyRole(["ADMIN", "EDITOR"]);
 
     const settings = await prisma.jiraSettings.findUnique({ where: { id: 1 } });
-    if (!settings) return ok(null);
+    if (!settings) return NextResponse.json(null);
 
-    return ok({
+    return NextResponse.json({
       id: settings.id,
       apiUrl: settings.apiUrl,
       username: settings.username,
@@ -99,17 +95,16 @@ export async function GET(req: NextRequest) {
       updatedAt: settings.updatedAt,
     });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "settings load failed", 500);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "settings load failed" }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getSession(req);
-    if (!session) return fail("forbidden", 403);
+    const session = await requireAnyRole(["ADMIN", "EDITOR"]);
 
     const parsed = schema.safeParse(await req.json());
-    if (!parsed.success) return fail(parsed.error.message);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
     const p = parsed.data;
 
@@ -135,13 +130,13 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    await addAudit(session.login, "update", "jira_settings", "1", {
+    await addAudit(session.email, "update", "jira_settings", "1", {
       apiUrl: p.apiUrl,
       filterIds: p.filterIds,
       autoImportEnabled: p.autoImportEnabled,
     });
 
-    return ok({
+    return NextResponse.json({
       id: settings.id,
       apiUrl: settings.apiUrl,
       username: settings.username,
@@ -152,29 +147,28 @@ export async function PUT(req: NextRequest) {
       updatedAt: settings.updatedAt,
     });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "settings save failed", 500);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "settings save failed" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
+  const session = await requireAnyRole(["ADMIN", "EDITOR"]);
 
   const parsed = testSchema.safeParse(await req.json());
-  if (!parsed.success) return fail(parsed.error.message);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
   try {
     const p = parsed.data;
     const password = p.password?.trim() || p.token?.trim();
-    if (!password) return fail("password is required", 400);
+    if (!password) return NextResponse.json({ error: "password is required" }, { status: 400 });
     const jql = buildSearchJql(p.jql, p.filterIds);
     const result = await jiraPing(p.apiUrl, p.username, password, jql);
-    return ok({
+    return NextResponse.json({
       connection: "ok",
       jql,
       foundIssues: result.total,
     });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "jira connection failed", 500);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "jira connection failed" }, { status: 500 });
   }
 }

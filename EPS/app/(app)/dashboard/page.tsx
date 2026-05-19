@@ -6,7 +6,7 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SummaryCard } from "@/components/ui/summary-card";
+import { KpiCard } from "@/components/ui/summary-card";
 import { EmptyState } from "@/components/states/empty-state";
 import { LoadingState } from "@/components/states/loading-state";
 import { ErrorState } from "@/components/states/error-state";
@@ -237,7 +237,7 @@ export default function DashboardPage() {
   if (error) return <ErrorState text={error} />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "Панель управления" }]} />
         <h1 className="mt-4 text-3xl font-bold">Центр мониторинга оборудования</h1>
@@ -246,13 +246,15 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-7">
         {metrics.map((metric) => (
-          <SummaryCard key={metric.label} label={metric.label} value={metric.value} />
+          <KpiCard key={metric.label} label={metric.label} value={metric.value} />
         ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="p-4">
-          <h2 className="text-lg font-semibold">Зоны внимания</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Зоны внимания</h2>
+          </div>
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Просроченное ТО</span>
@@ -276,7 +278,9 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="text-lg font-semibold">Распределение оборудования</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Распределение оборудования</h2>
+          </div>
           <div className="mt-3 space-y-2 text-sm">
             {Object.entries(analytics.statusCounts).map(([key, value]) => (
               <div key={key} className="flex items-center justify-between">
@@ -302,58 +306,64 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="text-lg font-semibold">Покрытие документами</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Покрытие обязательных документов: {analytics.complianceRate}%</p>
-          <div className="mt-3 h-2 rounded bg-muted">
-            <div className="h-2 rounded bg-primary" style={{ width: `${analytics.complianceRate}%` }} />
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Покрытие документами</h2>
           </div>
-          <div className="mt-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Чаще всего отсутствуют</p>
-            <div className="mt-2 space-y-1 text-sm">
-              {analytics.missingByDocType.length === 0 ? (
-                <p className="text-muted-foreground">Критичных пробелов не найдено</p>
-              ) : (
-                analytics.missingByDocType.map(([docType, count]) => (
-                  <div key={docType} className="flex items-center justify-between">
-                    <span className="text-muted-foreground">{docType}</span>
-                    <span className="font-semibold">{count}</span>
-                  </div>
-                ))
-              )}
+          <div className="mt-3">
+            <p className="text-sm text-muted-foreground">Покрытие обязательных документов: {analytics.complianceRate}%</p>
+            <div className="mt-3 h-2 rounded bg-muted">
+              <div className="h-2 rounded bg-primary" style={{ width: `${analytics.complianceRate}%` }} />
+            </div>
+            <div className="mt-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Чаще всего отсутствуют</p>
+              <div className="mt-2 space-y-1 text-sm">
+                {analytics.missingByDocType.length === 0 ? (
+                  <p className="text-muted-foreground">Критичных пробелов не найдено</p>
+                ) : (
+                  analytics.missingByDocType.map(([docType, count]) => (
+                    <div key={docType} className="flex items-center justify-between">
+                      <span className="text-muted-foreground">{docType}</span>
+                      <span className="font-semibold">{count}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <div className="border-b border-border p-4">
+        <Card className="xl:col-span-2 p-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Последняя активность</h2>
           </div>
-          {events.length === 0 ? (
-            <EmptyState text="Недавние события не найдены." />
-          ) : (
-            <div className="divide-y divide-border">
-              {events.slice(0, 5).map((event) => (
-                <div key={event.id} className="flex items-start justify-between gap-4 p-4">
-                  <div>
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {event.equipment.name} - {event.actor?.displayName || "Система"}
-                    </p>
+          <div className="mt-3">
+            {events.length === 0 ? (
+              <EmptyState text="Недавние события не найдены." />
+            ) : (
+              <div className="divide-y divide-border">
+                {events.slice(0, 5).map((event) => (
+                  <div key={event.id} className="flex items-start justify-between gap-4 p-4">
+                    <div>
+                      <p className="font-medium">{event.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {event.equipment.name} - {event.actor?.displayName || "Система"}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{new Date(event.createdAt).toLocaleString()}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{new Date(event.createdAt).toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
 
-        <Card>
-          <div className="border-b border-border p-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Очередь согласований</h2>
           </div>
-          <div className="space-y-3 p-4">
+          <div className="mt-3 space-y-3">
             {pendingApprovals.length === 0 ? (
               <EmptyState text="Нет ожидающих согласований." />
             ) : (
@@ -375,38 +385,40 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <Card>
-          <div className="border-b border-border p-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Критические объекты</h2>
           </div>
-          {analytics.attention.length === 0 ? (
-            <EmptyState text="Критические объекты не выявлены." />
-          ) : (
-            <div className="divide-y divide-border">
-              {analytics.attention.map(({ item, reasons }) => (
-                <div key={item.id} className="p-4">
-                  <Link href={`/equipment/${item.id}`} className="font-medium text-primary hover:underline">
-                    {item.name}
-                  </Link>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.department || "Подразделение не задано"}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {reasons.slice(0, 3).map((reason) => (
-                      <Badge key={`${item.id}-${reason}`} className="border-0 bg-status-error/15 text-status-error">
-                        {reason}
-                      </Badge>
-                    ))}
+          <div className="mt-3">
+            {analytics.attention.length === 0 ? (
+              <EmptyState text="Критические объекты не выявлены." />
+            ) : (
+              <div className="divide-y divide-border">
+                {analytics.attention.map(({ item, reasons }) => (
+                  <div key={item.id} className="p-4">
+                    <Link href={`/equipment/${item.id}`} className="font-medium text-primary hover:underline">
+                      {item.name}
+                    </Link>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.department || "Подразделение не задано"}</p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {reasons.slice(0, 3).map((reason) => (
+                        <Badge key={`${item.id}-${reason}`} className="border-0 bg-status-error/15 text-status-error">
+                          {reason}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
 
-        <Card>
-          <div className="border-b border-border p-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Статусы согласований</h2>
           </div>
-          <div className="space-y-2 p-4 text-sm">
+          <div className="mt-3 space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Черновики</span>
               <span className="font-semibold">{analytics.approvalsByStatus.DRAFT}</span>
@@ -431,27 +443,29 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <div className="border-b border-border p-4">
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Ближайшее и просроченное обслуживание</h2>
         </div>
-        {upcomingMaintenance.length === 0 && analytics.overdueMaintenance.length === 0 ? (
-          <EmptyState text="Нет ближайших задач по обслуживанию." />
-        ) : (
-          <div className="divide-y divide-border">
-            {[...analytics.overdueMaintenance, ...upcomingMaintenance.filter((item) => !isOverdue(item.serviceDueDate))].map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-4">
-                <div>
-                  <Link href={`/equipment/${item.id}`} className="font-medium text-primary hover:underline">{item.name}</Link>
-                  <p className="text-sm text-muted-foreground">Дата ТО: {item.serviceDueDate?.slice(0, 10)}</p>
+        <div className="mt-3">
+          {upcomingMaintenance.length === 0 && analytics.overdueMaintenance.length === 0 ? (
+            <EmptyState text="Нет ближайших задач по обслуживанию." />
+          ) : (
+            <div className="divide-y divide-border">
+              {[...analytics.overdueMaintenance, ...upcomingMaintenance.filter((item) => !isOverdue(item.serviceDueDate))].map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-4">
+                  <div>
+                    <Link href={`/equipment/${item.id}`} className="font-medium text-primary hover:underline">{item.name}</Link>
+                    <p className="text-sm text-muted-foreground">Дата ТО: {item.serviceDueDate?.slice(0, 10)}</p>
+                  </div>
+                  <Badge className={`border-0 ${isOverdue(item.serviceDueDate) ? "bg-status-error/20 text-status-error" : "bg-status-warning/20 text-status-warning"}`}>
+                    {isOverdue(item.serviceDueDate) ? "Просрочено" : "Скоро"}
+                  </Badge>
                 </div>
-                <Badge className={`border-0 ${isOverdue(item.serviceDueDate) ? "bg-status-error/20 text-status-error" : "bg-status-warning/20 text-status-warning"}`}>
-                  {isOverdue(item.serviceDueDate) ? "Просрочено" : "Скоро"}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );

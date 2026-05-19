@@ -458,7 +458,7 @@ export default function DocumentsPage() {
   const isAllSelected = items.length > 0 && selectedIds.length === items.length;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <Breadcrumbs items={[{ label: "Документы" }]} />

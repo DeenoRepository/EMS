@@ -465,7 +465,7 @@ export default function MovementsPage() {
   if (error && items.length === 0) return <ErrorState text={error} onRetry={() => void load()} />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Движения" }]} />
         <h1 className="mt-4 text-3xl font-bold">Движения</h1>

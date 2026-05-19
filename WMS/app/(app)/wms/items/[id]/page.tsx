@@ -78,7 +78,7 @@ export default function ItemDetailsPage() {
   if (!item) return <div className="p-6">Загрузка...</div>;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Номенклатура", href: "/wms/items" }, { label: item.name }]} />
         <h1 className="mt-4 text-3xl font-bold">{item.sku} | {item.name}</h1>

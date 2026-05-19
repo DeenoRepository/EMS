@@ -289,7 +289,7 @@ export default function EquipmentPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <Breadcrumbs items={[{ label: "Оборудование" }]} />

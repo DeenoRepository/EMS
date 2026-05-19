@@ -77,7 +77,7 @@ export default function EditEquipmentPage() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={goBack} title="Назад">
           <ArrowLeft className="h-5 w-5" />

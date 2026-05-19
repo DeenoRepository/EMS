@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { KpiCard } from "@/components/ui/summary-card";
+import { EmptyState } from "@/components/states/empty-state";
+import { LoadingState } from "@/components/states/loading-state";
+import { ErrorState } from "@/components/states/error-state";
 
 type Summary = {
   totalEmployees: number;
@@ -62,6 +71,16 @@ function formatDT(value?: string | null) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Не указано";
   return d.toLocaleString("ru-RU");
+}
+
+function statusTone(status: string) {
+  if (/cancel|canceled|cancelled|отмен/i.test(status)) return "bg-slate-100 text-slate-700 border-slate-200";
+  if (/resolved|done|closed|решен|заверш/i.test(status)) return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (/ожидание поддержки|waiting.*support|support/i.test(status)) return "bg-violet-100 text-violet-700 border-violet-200";
+  if (/ожидание|pending|queued/i.test(status)) return "bg-blue-100 text-blue-700 border-blue-200";
+  if (/progress|в работе|in progress/i.test(status)) return "bg-amber-100 text-amber-800 border-amber-200";
+  if (/blocked|блок/i.test(status)) return "bg-rose-100 text-rose-700 border-rose-200";
+  return "bg-sky-100 text-sky-700 border-sky-200";
 }
 
 export default function EmployeesPage() {
@@ -160,100 +179,122 @@ export default function EmployeesPage() {
     );
   }
 
+  if (loading) return <LoadingState text="Загрузка данных сотрудников..." />;
+  if (error) return <ErrorState text={error} onRetry={load} />;
+
   return (
-    <>
-      <header className="header rounded-xl border bg-white p-4">
-        <h1 className="title">Сотрудники</h1>
-        <p className="mt-1 text-sm text-muted-foreground">KPI сотрудников и детальный таймлайн работ по выбранному исполнителю.</p>
-      </header>
+    <div className="space-y-6">
+      <div>
+        <Breadcrumbs items={[{ label: "Сотрудники" }]} />
+        <h1 className="mt-4 text-3xl font-bold">Сотрудники</h1>
+        <p className="mt-1 text-muted-foreground">KPI сотрудников и детальный таймлайн работ по выбранному исполнителю.</p>
+      </div>
 
-      <section className="card-grid mt-4">
-        <article className="card"><div className="metric-label">Сотрудники</div><div className="metric-value">{summary?.totalEmployees ?? 0}</div></article>
-        <article className="card"><div className="metric-label">События</div><div className="metric-value">{summary?.totalEvents ?? 0}</div></article>
-        <article className="card"><div className="metric-label">В процессе</div><div className="metric-value">{summary?.inProgress ?? 0}</div></article>
-        <article className="card"><div className="metric-label">Пиковый час</div><div className="metric-value">{summary?.peakHour ?? "-"}</div><div className="mt-1 text-xs text-muted-foreground">Событий: {summary?.peakHourEvents ?? 0}</div></article>
-      </section>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="Сотрудники" value={summary?.totalEmployees ?? 0} />
+        <KpiCard label="События" value={summary?.totalEvents ?? 0} />
+        <KpiCard label="В процессе" value={summary?.inProgress ?? 0} />
+        <KpiCard label="Пиковый час" value={summary?.peakHour ?? "-"} hint={`${summary?.peakHourEvents ?? 0} событий`} />
+      </div>
 
-      <section className="card mt-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Фильтр</div>
-          <button className="rounded border px-3 py-1.5 text-xs" onClick={() => setOpenFilter((v) => !v)}>{openFilter ? "Свернуть" : "Развернуть"}</button>
-        </div>
-        {openFilter ? (
-          <div className="grid gap-3 md:grid-cols-4">
-            <label className="text-xs"><span className="mb-1 block">Период: с</span><input type="date" className="w-full rounded border px-3 py-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-            <label className="text-xs"><span className="mb-1 block">Период: по</span><input type="date" className="w-full rounded border px-3 py-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-            <label className="text-xs"><span className="mb-1 block">Дата таймлайна</span><input type="date" className="w-full rounded border px-3 py-2" value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} /></label>
-            <div className="flex items-end"><button className="rounded border px-3 py-2 text-sm" onClick={load} disabled={loading}>{loading ? "Загрузка..." : "Обновить"}</button></div>
+      <Card className="p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Фильтр</h2>
+            <p className="text-sm text-muted-foreground">Период анализа и дата таймлайна.</p>
           </div>
-        ) : null}
-        {error ? <div className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">{error}</div> : null}
-      </section>
-
-      <section className="card mt-4">
-        <h2 className="mb-2 text-sm font-semibold">Рейтинг сотрудников</h2>
-        <div className="overflow-x-auto rounded border">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="px-2 py-2 text-left">Сотрудник</th>
-                <th className="px-2 py-2 text-right">События</th>
-                <th className="px-2 py-2 text-right">В процессе</th>
-                <th className="px-2 py-2 text-right">Средняя длительность, ч</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((x) => (
-                <tr key={x.name} className={`cursor-pointer border-t ${selectedEmployee === x.name ? "bg-sky-50" : ""}`} onClick={() => setSelectedEmployee(x.name)}>
-                  <td className="px-2 py-2">{x.name}</td>
-                  <td className="px-2 py-2 text-right">{x.totalEvents}</td>
-                  <td className="px-2 py-2 text-right">{x.inProgress}</td>
-                  <td className="px-2 py-2 text-right">{x.avgDowntimeHours}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Button variant="outline" size="sm" onClick={() => setOpenFilter((v) => !v)}>{openFilter ? "Свернуть" : "Развернуть"}</Button>
         </div>
-      </section>
+        {openFilter && (
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <label className="text-sm"><span className="mb-1 block text-muted-foreground">Период: с</span><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+            <label className="text-sm"><span className="mb-1 block text-muted-foreground">Период: по</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+            <label className="text-sm"><span className="mb-1 block text-muted-foreground">Дата таймлайна</span><Input type="date" value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} /></label>
+            <div className="flex items-end"><Button variant="outline" onClick={load}>Обновить</Button></div>
+          </div>
+        )}
+      </Card>
 
-      <section className="card mt-4">
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Рейтинг сотрудников</h2>
+        </div>
+        <div className="mt-3">
+          {employees.length === 0 ? (
+            <EmptyState text="Нет данных по сотрудникам за выбранный период." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Сотрудник</th>
+                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">События</th>
+                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">В процессе</th>
+                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Средняя длительность, ч</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.map((x) => (
+                    <tr key={x.name} className={`cursor-pointer border-b transition-colors hover:bg-muted/40 ${selectedEmployee === x.name ? "bg-sky-50" : ""}`} onClick={() => setSelectedEmployee(x.name)}>
+                      <td className="p-4 align-middle font-medium">{x.name}</td>
+                      <td className="p-4 text-right align-middle">{x.totalEvents}</td>
+                      <td className="p-4 text-right align-middle">{x.inProgress}</td>
+                      <td className="p-4 text-right align-middle">{x.avgDowntimeHours}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Таймлайн работы сотрудника</h2>
-          <button className="rounded border px-3 py-1.5 text-xs" onClick={() => setOpenTaskList((v) => !v)}>{openTaskList ? "Скрыть список" : "Показать список"}</button>
+          <div>
+            <h2 className="text-lg font-semibold">Таймлайн работы сотрудника</h2>
+            {selectedEmployee && <p className="text-sm text-muted-foreground">{selectedEmployee} • {selectedDay} • {dayItems.length} задач</p>}
+          </div>
+          {selectedEmployee && (
+            <Button variant="outline" size="sm" onClick={() => setOpenTaskList((v) => !v)}>{openTaskList ? "Скрыть список" : "Показать список"}</Button>
+          )}
         </div>
-        {!selectedEmployee ? <p className="text-xs text-muted-foreground">Выберите сотрудника в таблице выше.</p> : null}
-        {selectedEmployee ? (
+        {!selectedEmployee && <p className="text-sm text-muted-foreground">Выберите сотрудника в таблице выше.</p>}
+        {selectedEmployee && (
           <>
-            <div className="mb-2 text-xs text-muted-foreground">Исполнитель: {selectedEmployee} | Дата: {selectedDay} | Задач: {dayItems.length}</div>
-            {renderLane("Ремонт", dayItems.filter((x) => isRepair(x.type)), "bg-red-500")}
-            {renderLane("Настройка", dayItems.filter((x) => !isRepair(x.type)), "bg-yellow-500")}
-            {openTaskList ? (
+            {dayItems.length === 0 ? (
+              <EmptyState text="По выбранному сотруднику и дате событий нет." />
+            ) : (
+              <>
+                {renderLane("Ремонт", dayItems.filter((x) => isRepair(x.type)), "bg-red-500")}
+                {renderLane("Настройка", dayItems.filter((x) => !isRepair(x.type)), "bg-yellow-500")}
+              </>
+            )}
+            {openTaskList && selectedEmployee && (
               <div className="mt-3 space-y-2">
                 {dayItems.map((task) => (
                   <div
                     key={task.id}
                     ref={(n) => { taskRefs.current[task.id] = n; }}
-                    className={`rounded border p-2 text-xs ${activeTaskId === task.id || selectedTaskId === task.id ? "border-sky-500 bg-sky-50" : ""}`}
+                    className={`rounded border p-3 text-sm ${activeTaskId === task.id || selectedTaskId === task.id ? "border-sky-500 bg-sky-50" : ""}`}
                     onMouseEnter={() => setActiveTaskId(task.id)}
                     onMouseLeave={() => setActiveTaskId(null)}
                     onClick={() => setSelectedTaskId(task.id)}
                   >
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{task.type}</span>
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px]">{task.status}</span>
+                      <Badge className={`rounded-full border ${statusTone(task.status)}`}>{task.status}</Badge>
                     </div>
-                    <div>{task.equipmentTitle} ({task.equipmentUid})</div>
-                    <div className="text-muted-foreground">Начало: {formatDT(task.startAt)} | Окончание: {formatDT(task.endAt)}</div>
-                    <div className="text-muted-foreground">Длительность: {task.durationHours?.toFixed(2) ?? "0"} ч</div>
+                    <p>{task.equipmentTitle} ({task.equipmentUid})</p>
+                    <p className="text-muted-foreground">Начало: {formatDT(task.startAt)} | Окончание: {formatDT(task.endAt)}</p>
+                    <p className="text-muted-foreground">Длительность: {task.durationHours?.toFixed(2) ?? "0"} ч</p>
                   </div>
                 ))}
-                {dayItems.length === 0 ? <p className="text-xs text-muted-foreground">По выбранному сотруднику событий нет.</p> : null}
               </div>
-            ) : null}
+            )}
           </>
-        ) : null}
-      </section>
-    </>
+        )}
+      </Card>
+    </div>
   );
 }
-

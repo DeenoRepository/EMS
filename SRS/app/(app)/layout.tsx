@@ -5,13 +5,13 @@ import { AuthShell } from "@/components/layout/auth-shell";
 import { AppHotkeys } from "@/components/layout/app-hotkeys";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSessionCookieName, parseSessionToken } from "@/lib/server/auth";
+import { AUTH_COOKIE } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
-export default function AppLayout({ children }: { children: ReactNode }) {
-  const token = cookies().get(getSessionCookieName())?.value;
-  const session = parseSessionToken(token);
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const session = cookieStore.get(AUTH_COOKIE)?.value;
   if (!session) redirect("/login");
 
   return (

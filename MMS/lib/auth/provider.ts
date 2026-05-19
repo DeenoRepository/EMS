@@ -260,6 +260,8 @@ class LdapProvider implements AuthProvider {
         groups,
         dn: found.dn
       };
+    } catch {
+      return null;
     } finally {
       await client.unbind().catch(() => undefined);
     }

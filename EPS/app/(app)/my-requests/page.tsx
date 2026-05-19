@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -328,7 +328,7 @@ export default function MyRequestsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "Мои заявки" }]} />
         <h1 className="mt-4 text-3xl font-bold">Мои заявки</h1>

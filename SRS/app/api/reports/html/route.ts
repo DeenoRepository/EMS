@@ -1,12 +1,8 @@
-export const dynamic = 'force-dynamic';
-
-import { NextRequest } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { getSession, hasRole } from "@/lib/server/session";
-import { getFilteredMockIssues } from "@/lib/server/mock-jira";
-
+import { prisma } from "@/lib/db/prisma";
+import { requireAnyRole } from "@/lib/auth/rbac";
+import { getFilteredMockIssues } from "@/lib/srs/mock-jira";
 const schema = z.object({
   from: z.string(),
   to: z.string(),
@@ -15,18 +11,13 @@ const schema = z.object({
   durationMinutesFrom: z.number().int().min(0).optional(),
   onlyInProgress: z.boolean().default(false)
 });
-
 export async function POST(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
-
+  const session = await requireAnyRole(["ADMIN", "EDITOR", "VIEWER"]);
   const parsed = schema.safeParse(await req.json());
-  if (!parsed.success) return fail(parsed.error.message);
-
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   const start = new Date(parsed.data.from);
   const end = new Date(parsed.data.to);
   const useMock = req.nextUrl.searchParams.get("mock") === "1" || process.env.USE_MOCK_DATA === "1";
-
   let rowsFiltered: Array<{
     startAt: Date;
     endAt: Date | null;
@@ -36,7 +27,6 @@ export async function POST(req: NextRequest) {
     responsible: string;
     jiraIssueKey: string;
   }> = [];
-
   if (useMock) {
     const params = new URLSearchParams({
       from: parsed.data.from,
@@ -77,15 +67,12 @@ export async function POST(req: NextRequest) {
       jiraIssueKey: r.jiraIssueKey ?? ""
     }));
   }
-
   const report = await prisma.reportRun.create({
     data: {
       paramsJson: parsed.data,
-      createdBy: session.login
+      createdBy: session.email
     }
   });
-
   const html = `<!doctype html><html><head><meta charset="utf-8"/><title>EFA Report</title><style>body{font-family:Inter,Arial,sans-serif;padding:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;font-size:12px}th{background:#f5f5f5}</style></head><body><h1>EFA Report</h1><p>Period: ${parsed.data.from} - ${parsed.data.to}</p><p>Total rows: ${rowsFiltered.length}</p><table><thead><tr><th>Start</th><th>End</th><th>Equipment</th><th>Status</th><th>Type</th><th>Responsible</th><th>Jira</th></tr></thead><tbody>${rowsFiltered.map((r)=>`<tr><td>${r.startAt.toISOString()}</td><td>${r.endAt ? r.endAt.toISOString() : ""}</td><td>${r.equipmentTitle}</td><td>${r.status}</td><td>${r.type}</td><td>${r.responsible ?? ""}</td><td>${r.jiraIssueKey ?? ""}</td></tr>`).join("")}</tbody></table></body></html>`;
-
-  return ok({ reportId: report.id.toString(), html });
+  return NextResponse.json({ reportId: report.id.toString(), html });
 }

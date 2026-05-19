@@ -1,4 +1,4 @@
-#!/bin/sh
+﻿#!/bin/sh
 # LDAP seed script - creates test users and groups for EMS
 
 LDAP_HOST="${LDAP_HOST:-ldap}"

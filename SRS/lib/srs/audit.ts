@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 
 export async function addAudit(actor: string, action: string, entity: string, entityId?: string, payload?: unknown) {
   await prisma.auditLog.create({
@@ -7,7 +7,7 @@ export async function addAudit(actor: string, action: string, entity: string, en
       action,
       entity,
       entityId,
-      payload: payload as any
+      payload: payload as object | undefined
     }
   });
 }

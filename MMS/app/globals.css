@@ -180,3 +180,12 @@
     white-space: pre;
   }
 }
+
+@layer components {
+  .card-grid { @apply grid gap-3 md:grid-cols-2 xl:grid-cols-4; }
+  .card { @apply rounded-lg border bg-card p-4; }
+  .metric-label { @apply text-xs text-muted-foreground; }
+  .metric-value { @apply mt-1 text-3xl font-bold tracking-tight; }
+  .title { @apply text-2xl font-bold tracking-tight text-foreground; }
+  .header { @apply mb-4; }
+}

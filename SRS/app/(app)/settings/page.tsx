@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ImportStatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/states/empty-state";
 
 type JiraSettingsPayload = {
   apiUrl: string;
@@ -186,132 +192,106 @@ export default function SettingsPage() {
   };
 
   return (
-    <>
-      <header className="header rounded-xl border bg-white p-4">
-        <h1 className="title">Настройки</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Подключение к Jira API, тест соединения и запуск импорта заявок.</p>
-      </header>
+    <div className="space-y-6">
+      <div>
+        <Breadcrumbs items={[{ label: "Настройки" }]} />
+        <h1 className="mt-4 text-3xl font-bold">Настройки</h1>
+        <p className="mt-1 text-muted-foreground">Подключение к Jira API, тест соединения и запуск импорта заявок.</p>
+      </div>
 
-      <section className="card mt-4 space-y-4">
-        <h2 className="text-sm font-semibold">Интеграция Jira</h2>
+      <Card className="p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Интеграция Jira</h2>
+            <p className="text-sm text-muted-foreground">Параметры подключения и автоимпорт.</p>
+          </div>
+        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">API URL</span>
-            <input
-              className="w-full rounded border px-3 py-2"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://your-domain.atlassian.net"
-              disabled={isLoading}
-            />
+            <Input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} placeholder="https://your-domain.atlassian.net" disabled={isLoading} />
           </label>
 
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">Username</span>
-            <input
-              className="w-full rounded border px-3 py-2"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="jira-user"
-              disabled={isLoading}
-            />
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="jira-user" disabled={isLoading} />
           </label>
 
           <label className="space-y-1 text-sm md:col-span-2">
             <span className="text-muted-foreground">Пароль</span>
-            <input
-              className="w-full rounded border px-3 py-2"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Пароль учетной записи Jira"
-              disabled={isLoading}
-              type="password"
-            />
+            <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Пароль учетной записи Jira" disabled={isLoading} type="password" />
           </label>
 
           <label className="space-y-1 text-sm md:col-span-2">
             <span className="text-muted-foreground">Filter IDs (через запятую)</span>
-            <input
-              className="w-full rounded border px-3 py-2"
-              value={filterIdsRaw}
-              onChange={(e) => setFilterIdsRaw(e.target.value)}
-              placeholder="12345, 34567"
-              disabled={isLoading}
-            />
+            <Input value={filterIdsRaw} onChange={(e) => setFilterIdsRaw(e.target.value)} placeholder="12345, 34567" disabled={isLoading} />
           </label>
         </div>
 
-        <div className="grid gap-3 rounded-lg border p-3 md:grid-cols-[auto,160px,1fr] md:items-center">
+        <div className="mt-4 grid gap-3 rounded-lg border p-3 md:grid-cols-[auto,160px,1fr] md:items-center">
           <label className="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" checked={autoImportEnabled} onChange={(e) => setAutoImportEnabled(e.target.checked)} />
             Автоимпорт
           </label>
           <label className="text-sm">
             <span className="mb-1 block text-muted-foreground">Интервал, мин</span>
-            <input
-              className="w-full rounded border px-3 py-2"
-              type="number"
-              min={5}
-              step={5}
-              value={period}
-              onChange={(e) => setPeriod(Number(e.target.value || 60))}
-              disabled={!autoImportEnabled}
-            />
+            <Input type="number" min={5} step={5} value={period} onChange={(e) => setPeriod(Number(e.target.value || 60))} disabled={!autoImportEnabled} />
           </label>
           <div className="text-xs text-muted-foreground">Для MVP автоимпорт сохраняется в настройках и может использоваться фоновым планировщиком.</div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <button className="rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-60" onClick={saveJira} disabled={isSaving || isLoading}>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={saveJira} disabled={isSaving || isLoading}>
             {isSaving ? "Сохранение..." : "Сохранить"}
-          </button>
-          <button className="rounded border px-3 py-2 disabled:opacity-60" onClick={testJira} disabled={isTesting || isLoading}>
+          </Button>
+          <Button variant="outline" onClick={testJira} disabled={isTesting || isLoading}>
             {isTesting ? "Проверка..." : "Проверить соединение"}
-          </button>
-          <button className="rounded border px-3 py-2 disabled:opacity-60" onClick={runJiraImport} disabled={isImporting || isLoading}>
+          </Button>
+          <Button variant="outline" onClick={runJiraImport} disabled={isImporting || isLoading}>
             {isImporting ? "Импорт..." : "Запустить импорт"}
-          </button>
+          </Button>
         </div>
 
-        {statusText ? <div className="rounded border bg-muted/50 px-3 py-2 text-sm">{statusText}</div> : null}
-      </section>
+        {statusText && <div className="mt-3 rounded border bg-muted/50 px-3 py-2 text-sm">{statusText}</div>}
+      </Card>
 
-      <section className="card mt-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">История импортов Jira</h2>
-          <button className="rounded border px-3 py-1.5 text-xs" onClick={loadRuns}>Обновить</button>
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">История импортов Jira</h2>
+          <Button variant="outline" size="sm" onClick={loadRuns}>Обновить</Button>
         </div>
-        <div className="overflow-x-auto rounded border">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="px-2 py-2 text-left">Старт</th>
-                <th className="px-2 py-2 text-left">Статус</th>
-                <th className="px-2 py-2 text-left">Загружено</th>
-                <th className="px-2 py-2 text-left">Инициатор</th>
-                <th className="px-2 py-2 text-left">Ошибка</th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((run) => (
-                <tr key={run.id} className="border-t">
-                  <td className="px-2 py-2 whitespace-nowrap">{new Date(run.startedAt).toLocaleString("ru-RU")}</td>
-                  <td className="px-2 py-2">{run.status}</td>
-                  <td className="px-2 py-2">{run.itemsLoaded} / {run.itemsTotal}</td>
-                  <td className="px-2 py-2">{run.initiatedBy || "-"}</td>
-                  <td className="px-2 py-2 text-rose-700">{run.errorText || "-"}</td>
-                </tr>
-              ))}
-              {runs.length === 0 ? (
-                <tr>
-                  <td className="px-2 py-4 text-center text-muted-foreground" colSpan={5}>История импортов пока пуста</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+        <div className="mt-3">
+          {runs.length === 0 ? (
+            <EmptyState text="История импортов пока пуста." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Старт</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Статус</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Загружено</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Инициатор</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Ошибка</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.map((run) => (
+                    <tr key={run.id} className="border-b">
+                      <td className="p-4 align-middle whitespace-nowrap">{new Date(run.startedAt).toLocaleString("ru-RU")}</td>
+                      <td className="p-4 align-middle"><ImportStatusBadge status={run.status} /></td>
+                      <td className="p-4 align-middle">{run.itemsLoaded} / {run.itemsTotal}</td>
+                      <td className="p-4 align-middle">{run.initiatedBy || "-"}</td>
+                      <td className="p-4 align-middle text-rose-700">{run.errorText || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </section>
-    </>
+      </Card>
+    </div>
   );
 }

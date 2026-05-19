@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
@@ -95,7 +95,7 @@ export default function WmsSettingsPage() {
   if (error || !form) return <ErrorState text={error || "Не удалось загрузить данные."} onRetry={() => void load()} />;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Настройки" }]} />
         <h1 className="mt-4 text-3xl font-bold">Настройки проекта</h1>

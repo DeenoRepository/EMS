@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -353,7 +353,7 @@ export default function ApprovalQueuePage() {
   const hasActiveFilters = useMemo(() => search || status !== "PENDING" || targetType !== "all", [search, status, targetType]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "Согласования" }]} />
         <h1 className="mt-4 text-3xl font-bold">Очередь согласований</h1>

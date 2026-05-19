@@ -35,7 +35,7 @@ export default function NewItemPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "WMS", href: "/wms" }, { label: "Номенклатура", href: "/wms/items" }, { label: "Новая позиция" }]} />
         <h1 className="mt-4 text-3xl font-bold">Новая позиция</h1>

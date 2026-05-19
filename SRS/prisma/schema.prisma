@@ -1,6 +1,5 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -8,9 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum RoleName {
+enum RoleKey {
   ADMIN
   EDITOR
+  APPROVER
   VIEWER
 }
 
@@ -31,7 +31,7 @@ enum HeatmapMode {
 }
 
 model Equipment {
-  id              BigInt   @id @default(autoincrement())
+  id              String   @id @default(cuid())
   uid             String   @unique
   title           String
   inventoryNumber String?  @map("inventory_number")
@@ -45,23 +45,23 @@ model Equipment {
 }
 
 model Issue {
-  id            BigInt   @id @default(autoincrement())
-  equipmentId   BigInt   @map("equipment_id")
-  equipment     Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  jiraIssueKey  String?  @map("jira_issue_key")
-  startAt       DateTime @map("start_at")
-  endAt         DateTime? @map("end_at")
-  type          String
-  status        String
-  responsible   String?
-  reporter      String?
-  description   String?
-  comments      String?
-  isInProgress  Boolean  @default(false) @map("is_in_progress")
-  source        String
-  sourceHash    String   @map("source_hash")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  id           String    @id @default(cuid())
+  equipmentId  String    @map("equipment_id")
+  equipment    Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  jiraIssueKey String?   @map("jira_issue_key")
+  startAt      DateTime  @map("start_at")
+  endAt        DateTime? @map("end_at")
+  type         String
+  status       String
+  responsible  String?
+  reporter     String?
+  description  String?
+  comments     String?
+  isInProgress Boolean  @default(false) @map("is_in_progress")
+  source       String
+  sourceHash   String    @map("source_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   @@unique([sourceHash])
   @@index([jiraIssueKey])
@@ -71,7 +71,7 @@ model Issue {
 }
 
 model ImportRun {
-  id          BigInt          @id @default(autoincrement())
+  id          String           @id @default(cuid())
   sourceType  ImportSourceType @map("source_type")
   status      ImportStatus
   startedAt   DateTime         @default(now()) @map("started_at")
@@ -100,7 +100,7 @@ model JiraSettings {
 }
 
 model HeatmapSettings {
-  id        BigInt      @id @default(autoincrement())
+  id        String      @id @default(cuid())
   mode      HeatmapMode
   minValue  Int         @default(0) @map("min_value")
   maxValue  Int         @default(10) @map("max_value")
@@ -112,7 +112,7 @@ model HeatmapSettings {
 }
 
 model ReportRun {
-  id         BigInt   @id @default(autoincrement())
+  id        String   @id @default(cuid())
   paramsJson Json     @map("params_json")
   filePath   String?  @map("file_path")
   url        String?
@@ -123,36 +123,37 @@ model ReportRun {
 }
 
 model User {
-  id           BigInt      @id @default(autoincrement())
-  login        String      @unique
-  passwordHash String      @map("password_hash")
-  displayName  String?     @map("display_name")
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  displayName  String?   @map("display_name")
   userRoles    UserRole[]
-  createdAt    DateTime    @default(now()) @map("created_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   @@map("users")
 }
 
 model Role {
-  id        Int        @id @default(autoincrement())
-  name      RoleName   @unique
+  id        String     @id @default(cuid())
+  key       RoleKey    @unique
+  name      String
   userRoles UserRole[]
 
   @@map("roles")
 }
 
 model UserRole {
-  userId BigInt @map("user_id")
-  roleId Int    @map("role_id")
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
   @@map("user_roles")
 }
 
 model AuditLog {
-  id        BigInt   @id @default(autoincrement())
+  id        String   @id @default(cuid())
   actor     String
   action    String
   entity    String

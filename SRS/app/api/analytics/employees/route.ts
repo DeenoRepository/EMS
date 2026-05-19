@@ -1,11 +1,8 @@
-export const dynamic = "force-dynamic";
-
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { getSession, hasRole } from "@/lib/server/session";
-import { buildIssueFilters } from "@/lib/server/filters";
-import { getFilteredMockIssues } from "@/lib/server/mock-jira";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
+import { requireAnyRole } from "@/lib/auth/rbac";
+import { buildIssueFilters } from "@/lib/srs/filters";
+import { getFilteredMockIssues } from "@/lib/srs/mock-jira";
 
 type Row = {
   id: string;
@@ -66,16 +63,15 @@ function aggregate(rows: Row[]) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
+  await requireAnyRole(["ADMIN", "EDITOR", "VIEWER"]);
 
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");
-  if (!from || !to) return fail("from and to are required");
+  if (!from || !to) return NextResponse.json({ error: "from and to are required" }, { status: 400 });
 
   const fromDate = new Date(from);
   const toDate = new Date(to);
-  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) return fail("invalid date range");
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) return NextResponse.json({ error: "invalid date range" }, { status: 400 });
   toDate.setHours(23, 59, 59, 999);
 
   const useMock = req.nextUrl.searchParams.get("mock") === "1" || process.env.USE_MOCK_DATA === "1";
@@ -168,7 +164,7 @@ export async function GET(req: NextRequest) {
       description: x.description,
     }));
 
-  return ok({
+  return NextResponse.json({
     summary: {
       ...summaryBase,
       totalEmployees: employees.length,
@@ -177,4 +173,3 @@ export async function GET(req: NextRequest) {
     events,
   });
 }
-

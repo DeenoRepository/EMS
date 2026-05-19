@@ -23,8 +23,7 @@ export function useCurrentUser() {
         const data = raw?.data ?? raw;
         const mapped: ClientUser = {
           id: data.id?.toString?.(),
-          login: data.login,
-          email: data.login,
+          email: data.email,
           displayName: data.displayName,
           roles: data.roles ?? []
         };

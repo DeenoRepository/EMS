@@ -1,14 +1,9 @@
-export const dynamic = 'force-dynamic';
-
-import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { fail, ok } from "@/lib/http";
-import { getSession, hasRole } from "@/lib/server/session";
-import { buildIssueFilters } from "@/lib/server/filters";
-import { getFilteredMockIssues } from "@/lib/server/mock-jira";
-
+﻿import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
+import { requireAnyRole } from "@/lib/auth/rbac";
+import { buildIssueFilters } from "@/lib/srs/filters";
+import { getFilteredMockIssues } from "@/lib/srs/mock-jira";
 const APP_TZ = process.env.APP_TIMEZONE || "Asia/Novosibirsk";
-
 function dateKeyInTz(date: Date) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TZ,
@@ -21,18 +16,15 @@ function dateKeyInTz(date: Date) {
   const day = parts.find((p) => p.type === "day")?.value ?? "01";
   return `${year}-${month}-${day}`;
 }
-
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
-
+  await requireAnyRole(["ADMIN", "EDITOR", "VIEWER"]);
   const date = req.nextUrl.searchParams.get("date");
-  if (!date) return fail("date is required");
+  if (!date) return NextResponse.json({ error: "date is required" }, { status: 400 });
   const useMock = req.nextUrl.searchParams.get("mock") === "1" || process.env.USE_MOCK_DATA === "1";
   if (useMock) {
     const items = await getFilteredMockIssues(req.nextUrl.searchParams);
     const result = items.filter((x) => dateKeyInTz(x.startAt) === date);
-    return ok(result.map((x: any) => ({
+    return NextResponse.json(result.map((x: any) => ({
       id: x.id,
       equipmentUid: x.equipmentUid,
       equipmentTitle: x.equipmentTitle,
@@ -48,13 +40,10 @@ export async function GET(req: NextRequest) {
       comments: x.comments
     })));
   }
-
   const where: any = { ...buildIssueFilters(req) };
-
   const items = await prisma.issue.findMany({ where, include: { equipment: true }, orderBy: { startAt: "asc" } });
   const dayItems = items.filter((x: any) => dateKeyInTz(x.startAt) === date);
-
-  return ok(dayItems.map((x: any) => ({
+  return NextResponse.json(dayItems.map((x: any) => ({
     id: x.id.toString(),
     equipmentUid: x.equipment.uid,
     equipmentTitle: x.equipment.title,

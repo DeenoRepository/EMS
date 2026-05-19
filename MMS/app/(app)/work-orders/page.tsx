@@ -147,7 +147,7 @@ export default function WorkOrdersPage() {
   const fmt = (value?: string | null) => (value ? new Date(value).toLocaleString("ru-RU") : "-");
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "Наряды ТОиР" }]} />
         <h1 className="mt-4 text-3xl font-bold">Work Orders и SLA</h1>

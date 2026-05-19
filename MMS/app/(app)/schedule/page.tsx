@@ -106,7 +106,7 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <Breadcrumbs items={[{ label: "Планирование" }]} />
         <h1 className="mt-4 text-3xl font-bold">План-график работ</h1>
