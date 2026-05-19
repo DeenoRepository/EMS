@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +35,7 @@ function monthKeyInTz(date: Date) {
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST", "VIEWER"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
 
   const mode = (req.nextUrl.searchParams.get("mode") ?? "FAILURES").toUpperCase();
   const period = (req.nextUrl.searchParams.get("period") ?? "day").toLowerCase();

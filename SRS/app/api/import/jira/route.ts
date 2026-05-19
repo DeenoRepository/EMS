@@ -1,4 +1,4 @@
-Ôªøexport const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -85,7 +85,7 @@ async function loadJiraIssues(apiUrl: string, username: string, password: string
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
 
   const runs = await prisma.importRun.findMany({
     where: { sourceType: "JIRA" },
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
 
   const settings = await prisma.jiraSettings.findUnique({ where: { id: 1 } });
   if (!settings) return fail("jira settings not configured", 400);
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
             reporter,
             description: String(fields.summary ?? ""),
             comments,
-            isInProgress: status.toLowerCase() === "in progress" || status.toLowerCase() === "–≤ –ø—Ä–æ—Ü–µ—Å—Å–µ",
+            isInProgress: status.toLowerCase() === "in progress" || status.toLowerCase() === "‚ ÔÓˆÂÒÒÂ",
             source: "JIRA",
             sourceHash,
           },

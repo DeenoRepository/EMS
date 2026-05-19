@@ -1,4 +1,4 @@
-п»їexport const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -7,11 +7,11 @@ import { getSession, hasRole } from "@/lib/server/session";
 import { parseXmlEvents } from "@/lib/server/xml-parser";
 import { issueSourceHash } from "@/lib/server/dedupe";
 
-const allowedStatuses = new Set(["resolved", "done", "closed", "in progress", "СЂРµС€РµРЅРѕ", "Р·Р°РєСЂС‹С‚Рѕ", "РІ РїСЂРѕС†РµСЃСЃРµ", "РІ СЂР°Р±РѕС‚Рµ"]);
+const allowedStatuses = new Set(["resolved", "done", "closed", "in progress", "решено", "закрыто", "в процессе", "в работе"]);
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
 
   const contentType = req.headers.get("content-type") ?? "";
   let xml = "";

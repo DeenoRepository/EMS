@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 
 export function hashPassword(password: string) {
   const salt = crypto.randomBytes(16).toString("base64url");

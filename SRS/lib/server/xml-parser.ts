@@ -1,4 +1,4 @@
-п»їimport { XMLParser } from "fast-xml-parser";
+import { XMLParser } from "fast-xml-parser";
 
 export type ParsedXmlEvent = {
   equipmentUid: string;
@@ -17,7 +17,7 @@ export type ParsedXmlEvent = {
   isInProgress: boolean;
 };
 
-const STATUS_IN_PROGRESS = ["in progress", "РІ СЂР°Р±РѕС‚Рµ", "РІ РїСЂРѕС†РµСЃСЃРµ"];
+const STATUS_IN_PROGRESS = ["in progress", "в работе", "в процессе"];
 
 function toArray<T>(value: T | T[] | undefined): T[] {
   if (!value) return [];

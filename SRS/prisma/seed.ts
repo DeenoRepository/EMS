@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const roleMap = new Map<string, number>();
-  for (const name of ["ADMIN", "ANALYST", "VIEWER"] as const) {
+  for (const name of ["ADMIN", "EDITOR", "VIEWER"] as const) {
     const role = await prisma.role.upsert({
       where: { name: name as any },
       update: {},

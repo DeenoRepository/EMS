@@ -7,7 +7,7 @@ import { getSession, hasRole } from "@/lib/server/session";
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST", "VIEWER"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
 
   const id = BigInt(params.id);
   const report = await prisma.reportRun.findUnique({ where: { id } });

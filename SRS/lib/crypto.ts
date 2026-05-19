@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 
 const ALGO = "aes-256-gcm";
 

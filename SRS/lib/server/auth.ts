@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 
 const SESSION_COOKIE = "dea_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 12;

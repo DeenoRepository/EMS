@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { APP_TOAST_EVENT, type NotifyPayload, type NotifyTone } from "@/lib/client/notify";

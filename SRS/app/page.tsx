@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getSessionCookieName, parseSessionToken } from "@/lib/server/auth";
 

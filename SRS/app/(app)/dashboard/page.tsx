@@ -1,4 +1,4 @@
-п»їexport const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -47,12 +47,12 @@ function hoursBetween(start: Date, end: Date | null) {
 }
 
 function statusTone(status: string) {
-  if (/cancel|canceled|cancelled|РѕС‚РјРµРЅ/i.test(status)) return "bg-slate-100 text-slate-700 border-slate-200";
-  if (/resolved|done|closed|СЂРµС€РµРЅ|Р·Р°РІРµСЂС€/i.test(status)) return "bg-emerald-100 text-emerald-700 border-emerald-200";
-  if (/РѕР¶РёРґР°РЅРёРµ РїРѕРґРґРµСЂР¶РєРё|waiting.*support|support/i.test(status)) return "bg-violet-100 text-violet-700 border-violet-200";
-  if (/РѕР¶РёРґР°РЅРёРµ|pending|queued/i.test(status)) return "bg-blue-100 text-blue-700 border-blue-200";
-  if (/progress|РІ СЂР°Р±РѕС‚Рµ|in progress/i.test(status)) return "bg-amber-100 text-amber-800 border-amber-200";
-  if (/blocked|Р±Р»РѕРє/i.test(status)) return "bg-rose-100 text-rose-700 border-rose-200";
+  if (/cancel|canceled|cancelled|отмен/i.test(status)) return "bg-slate-100 text-slate-700 border-slate-200";
+  if (/resolved|done|closed|решен|заверш/i.test(status)) return "bg-emerald-100 text-emerald-700 border-emerald-200";
+  if (/ожидание поддержки|waiting.*support|support/i.test(status)) return "bg-violet-100 text-violet-700 border-violet-200";
+  if (/ожидание|pending|queued/i.test(status)) return "bg-blue-100 text-blue-700 border-blue-200";
+  if (/progress|в работе|in progress/i.test(status)) return "bg-amber-100 text-amber-800 border-amber-200";
+  if (/blocked|блок/i.test(status)) return "bg-rose-100 text-rose-700 border-rose-200";
   return "bg-sky-100 text-sky-700 border-sky-200";
 }
 
@@ -84,8 +84,8 @@ function buildHalfYearWorkTypeMetrics(rows: DashboardRow[]): WorkTypeMetric[] {
   }
   return months.map((m) => {
     const monthRows = rows.filter((r) => r.startAt >= m.start && r.startAt <= m.end);
-    const repairs = monthRows.filter((r) => /СЂРµРјРѕРЅС‚|repair/i.test(r.type)).length;
-    const setups = monthRows.filter((r) => /РЅР°СЃС‚СЂРѕР№|setup|config/i.test(r.type)).length;
+    const repairs = monthRows.filter((r) => /ремонт|repair/i.test(r.type)).length;
+    const setups = monthRows.filter((r) => /настрой|setup|config/i.test(r.type)).length;
     return { label: m.label, repairs, setups };
   });
 }
@@ -189,8 +189,8 @@ function MultiLineChart({
   return (
     <div className="rounded border bg-gradient-to-b from-slate-50/70 to-white p-3">
       <div className="mb-2 flex items-center gap-4 text-xs text-slate-600">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" />Р РµРјРѕРЅС‚С‹</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-yellow-500" />РќР°СЃС‚СЂРѕР№РєРё</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" />Ремонты</span>
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-yellow-500" />Настройки</span>
       </div>
       <div className="h-48">
         <svg viewBox={`0 0 ${w} ${h}`} className="h-full w-full">
@@ -255,8 +255,8 @@ export default async function DashboardPage({
         type: x.type,
         startAt: x.startAt,
         endAt: x.endAt ?? null,
-        responsible: x.responsible ?? "РќРµ СѓРєР°Р·Р°РЅ",
-        subdivision: x.subdivision ?? "РќРµ СѓРєР°Р·Р°РЅР°",
+        responsible: x.responsible ?? "Не указан",
+        subdivision: x.subdivision ?? "Не указана",
         isInProgress: x.isInProgress,
       }));
     totalEquipment = new Set(items.map((x) => x.equipmentUid)).size;
@@ -279,8 +279,8 @@ export default async function DashboardPage({
       type: x.type,
       startAt: x.startAt,
       endAt: x.endAt ?? null,
-      responsible: x.responsible ?? "РќРµ СѓРєР°Р·Р°РЅ",
-      subdivision: x.equipment.subdivision ?? "РќРµ СѓРєР°Р·Р°РЅР°",
+      responsible: x.responsible ?? "Не указан",
+      subdivision: x.equipment.subdivision ?? "Не указана",
       isInProgress: x.isInProgress,
     }));
   }
@@ -306,10 +306,10 @@ export default async function DashboardPage({
 
   for (const row of filteredRows) {
     byEquipment.set(row.equipment, (byEquipment.get(row.equipment) ?? 0) + 1);
-    if (/СЂРµРјРѕРЅС‚|repair/i.test(row.type)) {
+    if (/ремонт|repair/i.test(row.type)) {
       byPeopleRepairs.set(row.responsible, (byPeopleRepairs.get(row.responsible) ?? 0) + 1);
     }
-    if (/РЅР°СЃС‚СЂРѕР№|setup|config/i.test(row.type)) {
+    if (/настрой|setup|config/i.test(row.type)) {
       byPeopleSetups.set(row.responsible, (byPeopleSetups.get(row.responsible) ?? 0) + 1);
     }
   }
@@ -329,13 +329,13 @@ export default async function DashboardPage({
         <div className="rounded-xl border bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="title">РџР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ</h1>
-              <p className="mt-1 text-sm text-muted-foreground">РљР»СЋС‡РµРІС‹Рµ РїРѕРєР°Р·Р°С‚РµР»Рё РѕС‚РєР°Р·РѕРІ РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ, SLA Рё MTTR РІ РµРґРёРЅРѕРј СЃСЂРµР·Рµ.</p>
+              <h1 className="title">Панель управления</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Ключевые показатели отказов оборудования, SLA и MTTR в едином срезе.</p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs">
               {[7, 14, 30, 90].map((days) => (
                 <Link key={days} href={`/dashboard?days=${days}`} className={`rounded-md border px-3 py-1.5 ${rangeDays === days ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted/50"}`}>
-                  {days} РґРЅ
+                  {days} дн
                 </Link>
               ))}
             </div>
@@ -344,10 +344,10 @@ export default async function DashboardPage({
       </header>
 
       <section className="card-grid mt-4">
-        <article className="card"><div className="metric-label">РЎРѕР±С‹С‚РёСЏ</div><div className="metric-value">{totalEvents}</div></article>
-        <article className="card"><div className="metric-label">Р’ СЂР°Р±РѕС‚Рµ</div><div className="metric-value">{inProgress}</div><div className="mt-1 text-xs text-muted-foreground">Р—Р°РєСЂС‹С‚Рѕ: {completed}</div></article>
-        <article className="card"><div className="metric-label">РЎСѓРјРјР°СЂРЅС‹Р№ РїСЂРѕСЃС‚РѕР№</div><div className="metric-value">{downtimeHours.toFixed(1)} С‡</div><div className="mt-1 text-xs text-muted-foreground">РЎСЂРµРґРЅРёР№ MTTR: {avgHours.toFixed(2)} С‡</div></article>
-        <article className="card"><div className="metric-label">РћС…РІР°С‚ РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ</div><div className="metric-value">{impactShare.toFixed(1)}%</div><div className="mt-1 text-xs text-muted-foreground">{impactedEquipment} РёР· {totalEquipment}</div></article>
+        <article className="card"><div className="metric-label">События</div><div className="metric-value">{totalEvents}</div></article>
+        <article className="card"><div className="metric-label">В работе</div><div className="metric-value">{inProgress}</div><div className="mt-1 text-xs text-muted-foreground">Закрыто: {completed}</div></article>
+        <article className="card"><div className="metric-label">Суммарный простой</div><div className="metric-value">{downtimeHours.toFixed(1)} ч</div><div className="mt-1 text-xs text-muted-foreground">Средний MTTR: {avgHours.toFixed(2)} ч</div></article>
+        <article className="card"><div className="metric-label">Охват оборудования</div><div className="metric-value">{impactShare.toFixed(1)}%</div><div className="mt-1 text-xs text-muted-foreground">{impactedEquipment} из {totalEquipment}</div></article>
       </section>
       
       <DashboardFilters
@@ -356,11 +356,11 @@ export default async function DashboardPage({
       />
 
       <section className="mt-4 grid gap-4 lg:grid-cols-4">
-        <article className="card"><h2 className="mb-3 text-sm font-semibold">РЎРѕР±С‹С‚РёСЏ</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.events)} strokeClass="stroke-blue-500" pointColor="#3b82f6" valueFormatter={(v) => `${Math.round(v)}`} legendLabel="РљРѕР»РёС‡РµСЃС‚РІРѕ СЃРѕР±С‹С‚РёР№" legendColorClass="bg-blue-500" /></article>
+        <article className="card"><h2 className="mb-3 text-sm font-semibold">События</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.events)} strokeClass="stroke-blue-500" pointColor="#3b82f6" valueFormatter={(v) => `${Math.round(v)}`} legendLabel="Количество событий" legendColorClass="bg-blue-500" /></article>
         <article className="card"><h2 className="mb-3 text-sm font-semibold">SLA</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.sla)} strokeClass="stroke-emerald-500" pointColor="#10b981" valueFormatter={(v) => `${Math.round(v)}%`} legendLabel="SLA, %" legendColorClass="bg-emerald-500" /></article>
-        <article className="card"><h2 className="mb-3 text-sm font-semibold">MTTR</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.mttr)} strokeClass="stroke-amber-500" pointColor="#f59e0b" valueFormatter={(v) => `${v.toFixed(1)}`} legendLabel="MTTR, С‡" legendColorClass="bg-amber-500" /></article>
+        <article className="card"><h2 className="mb-3 text-sm font-semibold">MTTR</h2><LineChart labels={labels6m} values={metrics6m.map((m) => m.mttr)} strokeClass="stroke-amber-500" pointColor="#f59e0b" valueFormatter={(v) => `${v.toFixed(1)}`} legendLabel="MTTR, ч" legendColorClass="bg-amber-500" /></article>
         <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">РўРёРїС‹ СЂР°Р±РѕС‚</h2>
+          <h2 className="mb-3 text-sm font-semibold">Типы работ</h2>
           <MultiLineChart
             labels={workType6m.map((x) => x.label)}
             seriesA={workType6m.map((x) => x.repairs)}
@@ -373,19 +373,19 @@ export default async function DashboardPage({
 
       <section className="mt-4 grid gap-4 xl:grid-cols-3">
         <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">РўРѕРї РёСЃРїРѕР»РЅРёС‚РµР»РµР№: СЂРµРјРѕРЅС‚С‹</h2>
+          <h2 className="mb-3 text-sm font-semibold">Топ исполнителей: ремонты</h2>
           <div className="space-y-2 text-xs">
             {topPeopleRepairs.map((row, idx) => <div key={`${row.name}-r`} className="flex items-center justify-between rounded border p-2"><span className="truncate pr-2">{idx + 1}. {row.name}</span><span className="font-semibold">{row.count}</span></div>)}
           </div>
         </article>
         <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">РўРѕРї РёСЃРїРѕР»РЅРёС‚РµР»РµР№: РЅР°СЃС‚СЂРѕР№РєРё</h2>
+          <h2 className="mb-3 text-sm font-semibold">Топ исполнителей: настройки</h2>
           <div className="space-y-2 text-xs">
             {topPeopleSetups.map((row, idx) => <div key={`${row.name}-s`} className="flex items-center justify-between rounded border p-2"><span className="truncate pr-2">{idx + 1}. {row.name}</span><span className="font-semibold">{row.count}</span></div>)}
           </div>
         </article>
         <article className="card">
-          <h2 className="mb-3 text-sm font-semibold">РўРѕРї РѕР±РѕСЂСѓРґРѕРІР°РЅРёСЏ</h2>
+          <h2 className="mb-3 text-sm font-semibold">Топ оборудования</h2>
           <div className="space-y-2 text-xs">
             {topEquipment.map((row, idx) => <div key={row.name} className="flex items-center justify-between rounded border p-2"><span className="truncate pr-2">{idx + 1}. {row.name}</span><span className="font-semibold">{row.count}</span></div>)}
           </div>
@@ -393,16 +393,16 @@ export default async function DashboardPage({
       </section>
 
       <section className="card mt-4">
-        <h2 className="mb-3 text-sm font-semibold">РџРѕСЃР»РµРґРЅРёРµ СЃРѕР±С‹С‚РёСЏ</h2>
+        <h2 className="mb-3 text-sm font-semibold">Последние события</h2>
         <div className="max-h-[360px] overflow-auto rounded border">
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-muted/40">
               <tr>
                 <th className="px-2 py-2 text-left font-semibold">Jira</th>
-                <th className="px-2 py-2 text-left font-semibold">РћР±РѕСЂСѓРґРѕРІР°РЅРёРµ</th>
-                <th className="px-2 py-2 text-left font-semibold">РўРёРї</th>
-                <th className="px-2 py-2 text-left font-semibold">РЎС‚Р°С‚СѓСЃ</th>
-                <th className="px-2 py-2 text-left font-semibold">РќР°С‡Р°Р»Рѕ</th>
+                <th className="px-2 py-2 text-left font-semibold">Оборудование</th>
+                <th className="px-2 py-2 text-left font-semibold">Тип</th>
+                <th className="px-2 py-2 text-left font-semibold">Статус</th>
+                <th className="px-2 py-2 text-left font-semibold">Начало</th>
               </tr>
             </thead>
             <tbody>

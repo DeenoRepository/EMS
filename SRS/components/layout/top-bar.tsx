@@ -1,4 +1,4 @@
-п»ї"use client";
+"use client";
 
 import { Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,13 @@ export function TopBar() {
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
       if (!res.ok) {
-        notifyError("РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РІРµСЂС€РёС‚СЊ СЃРµСЃСЃРёСЋ");
+        notifyError("Не удалось завершить сессию");
         return;
       }
-      notifySuccess("Р’С‹ РІС‹С€Р»Рё РёР· СЃРёСЃС‚РµРјС‹");
+      notifySuccess("Вы вышли из системы");
       window.setTimeout(() => window.location.reload(), 180);
     } catch {
-      notifyError("РћС€РёР±РєР° РІС‹С…РѕРґР° РёР· СЃРёСЃС‚РµРјС‹");
+      notifyError("Ошибка выхода из системы");
     }
   };
 
@@ -33,8 +33,7 @@ export function TopBar() {
       try {
         const res = await fetch("/api/approvals?page=1&pageSize=5&status=PENDING");
         if (!res.ok) return;
-        const raw = await res.json();
-        const data = raw?.data ?? raw;
+        const data = (await res.json()) as { items: Array<{ id: string; comments?: string | null }> };
         setPendingApprovals(data.items || []);
       } catch {
         setPendingApprovals([]);
@@ -74,23 +73,23 @@ export function TopBar() {
             {showNotifications ? (
               <div className="absolute right-0 top-11 z-50 w-80 rounded-md border border-border bg-card p-3 shadow-lg">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold">РЈРІРµРґРѕРјР»РµРЅРёСЏ</p>
+                  <p className="text-sm font-semibold">Уведомления</p>
                   <Badge className="border-0 bg-status-warning/20 text-status-warning">{pendingApprovals.length}</Badge>
                 </div>
                 {pendingApprovals.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">РќРѕРІС‹С… СѓРІРµРґРѕРјР»РµРЅРёР№ РЅРµС‚.</p>
+                  <p className="text-xs text-muted-foreground">Новых уведомлений нет.</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingApprovals.map((item) => (
                       <div key={item.id} className="rounded border border-border p-2">
                         <p className="font-mono text-xs text-primary">{item.id.slice(0, 8)}</p>
-                        <p className="text-xs text-muted-foreground">{item.comments || "РћР¶РёРґР°РµС‚ СЃРѕРіР»Р°СЃРѕРІР°РЅРёСЏ"}</p>
+                        <p className="text-xs text-muted-foreground">{item.comments || "Ожидает согласования"}</p>
                       </div>
                     ))}
                   </div>
                 )}
                 <Link href="/failures" className="mt-3 block text-xs text-primary hover:underline">
-                  РћС‚РєСЂС‹С‚СЊ РїСЂРѕСЃС‚РѕРё
+                  Открыть простои
                 </Link>
               </div>
             ) : null}
@@ -112,12 +111,12 @@ export function TopBar() {
             </Button>
             {showProfile ? (
               <div className="absolute right-0 top-11 z-50 w-80 rounded-md border border-border bg-card p-3 shadow-lg">
-                <p className="text-sm font-semibold">РџСЂРѕС„РёР»СЊ</p>
+                <p className="text-sm font-semibold">Профиль</p>
                 <p className="mt-1 text-xs text-muted-foreground">{user?.email}</p>
                 <div className="mt-3 space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => void logout()} title="Р’С‹С…РѕРґ РёР· СЃРёСЃС‚РµРјС‹">
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => void logout()} title="Выход из системы">
                     <LogOut className="h-4 w-4" />
-                    Р’С‹Р№С‚Рё
+                    Выйти
                   </Button>
                 </div>
               </div>
@@ -128,4 +127,3 @@ export function TopBar() {
     </header>
   );
 }
-

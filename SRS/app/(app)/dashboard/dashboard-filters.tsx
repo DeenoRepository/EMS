@@ -1,4 +1,4 @@
-п»ї"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -39,16 +39,16 @@ export function DashboardFilters(props: Props) {
   };
 
   return (
-    <section className="card mt-4 space-y-3" aria-label="Р¤РёР»СЊС‚СЂ РїР°РЅРµР»Рё СѓРїСЂР°РІР»РµРЅРёСЏ">
+    <section className="card mt-4 space-y-3" aria-label="Фильтр панели управления">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded border bg-muted/20 p-3">
         <div>
-          <div className="text-sm font-semibold">Р¤РёР»СЊС‚СЂ</div>
-          <div className="text-[11px] text-muted-foreground">РџР°СЂР°РјРµС‚СЂС‹ РїСЂРёРјРµРЅСЏСЋС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїСЂРё РёР·РјРµРЅРµРЅРёРё</div>
+          <div className="text-sm font-semibold">Фильтр</div>
+          <div className="text-[11px] text-muted-foreground">Параметры применяются автоматически при изменении</div>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="rounded-full border px-2 py-1">РђРєС‚РёРІРЅРѕ: {activeCount}</span>
+          <span className="rounded-full border px-2 py-1">Активно: {activeCount}</span>
           <button className="rounded border px-3 py-1.5 hover:bg-muted/50" onClick={() => setIsOpen((prev) => !prev)}>
-            {isOpen ? "РЎРІРµСЂРЅСѓС‚СЊ С„РёР»СЊС‚СЂ" : "Р Р°Р·РІРµСЂРЅСѓС‚СЊ С„РёР»СЊС‚СЂ"}
+            {isOpen ? "Свернуть фильтр" : "Развернуть фильтр"}
           </button>
         </div>
       </div>
@@ -57,15 +57,15 @@ export function DashboardFilters(props: Props) {
         <div className="rounded border p-3">
           <div className="grid gap-3 md:grid-cols-3">
             <label className="block text-xs md:col-span-2">
-              <span className="mb-1 block font-medium">Р“СЂСѓРїРїР° РѕР±СЃР»СѓР¶РёРІР°РЅРёСЏ</span>
+              <span className="mb-1 block font-medium">Группа обслуживания</span>
               <select className="w-full rounded border px-3 py-2" value={props.initialSubdivision} onChange={(e) => update("subdivision", e.target.value)}>
-                <option value="">Р’СЃРµ РіСЂСѓРїРїС‹</option>
+                <option value="">Все группы</option>
                 {props.subdivisions.map((x) => <option key={x} value={x}>{x}</option>)}
               </select>
             </label>
           </div>
           <div className="mt-3 flex items-center justify-end border-t pt-3">
-            <button className="rounded border px-4 py-2 text-sm" onClick={reset}>РЎР±СЂРѕСЃРёС‚СЊ С„РёР»СЊС‚СЂС‹</button>
+            <button className="rounded border px-4 py-2 text-sm" onClick={reset}>Сбросить фильтры</button>
           </div>
         </div>
       ) : null}

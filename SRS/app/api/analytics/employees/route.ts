@@ -67,7 +67,7 @@ function aggregate(rows: Row[]) {
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST", "VIEWER"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
 
   const from = req.nextUrl.searchParams.get("from");
   const to = req.nextUrl.searchParams.get("to");

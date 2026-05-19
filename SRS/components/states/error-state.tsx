@@ -1,11 +1,11 @@
-п»їimport { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export function ErrorState({
-  text = "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РґР°РЅРЅС‹Рµ",
-  title = "РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё",
+  text = "Не удалось загрузить данные",
+  title = "Ошибка загрузки",
   onRetry,
-  retryLabel = "РџРѕРІС‚РѕСЂРёС‚СЊ"
+  retryLabel = "Повторить"
 }: {
   text?: string;
   title?: string;

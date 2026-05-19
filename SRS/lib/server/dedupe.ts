@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 
 export function issueSourceHash(input: {
   jiraIssueKey?: string | null;

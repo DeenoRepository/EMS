@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 import { prisma } from "@/lib/prisma";
 import { fail, ok } from "@/lib/http";
@@ -15,7 +15,7 @@ const schema = z.object({
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST", "VIEWER"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
 
   const data = await prisma.heatmapSettings.findMany({ orderBy: { mode: "asc" } });
   return ok(data);
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return fail(parsed.error.message);

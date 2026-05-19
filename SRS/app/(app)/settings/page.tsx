@@ -1,4 +1,4 @@
-п»ї"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -69,7 +69,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings/jira", { cache: "no-store" });
       const data = await safeJson(res);
       if (!res.ok || data.ok === false) {
-        throw new Error(data.error || "РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё Jira");
+        throw new Error(data.error || "Не удалось загрузить настройки Jira");
       }
 
       if (data.data) {
@@ -80,7 +80,7 @@ export default function SettingsPage() {
         setPeriod(Number(data.data.autoImportPeriodMinutes || 60));
       }
     } catch (e) {
-      setStatusText(e instanceof Error ? e.message : "РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё РЅР°СЃС‚СЂРѕРµРє");
+      setStatusText(e instanceof Error ? e.message : "Ошибка загрузки настроек");
     } finally {
       setIsLoading(false);
     }
@@ -118,12 +118,12 @@ export default function SettingsPage() {
       }
       if (!res.ok || data.ok === false) {
         const fallback = raw ? `HTTP ${res.status}: ${raw.slice(0, 300)}` : `HTTP ${res.status}`;
-        throw new Error(data?.error || fallback || "РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ");
+        throw new Error(data?.error || fallback || "Ошибка сохранения");
       }
-      setStatusText("РќР°СЃС‚СЂРѕР№РєРё Jira СЃРѕС…СЂР°РЅРµРЅС‹");
+      setStatusText("Настройки Jira сохранены");
       await loadRuns();
     } catch (e) {
-      setStatusText(e instanceof Error ? e.message : "РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ");
+      setStatusText(e instanceof Error ? e.message : "Ошибка сохранения");
     } finally {
       setIsSaving(false);
     }
@@ -135,7 +135,7 @@ export default function SettingsPage() {
     try {
       const passwordToUse = password.trim();
       if (!passwordToUse) {
-        throw new Error("Р”Р»СЏ С‚РµСЃС‚Р° СЃРѕРµРґРёРЅРµРЅРёСЏ РІРІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ");
+        throw new Error("Для теста соединения введите пароль");
       }
 
       const res = await fetch("/api/settings/jira", {
@@ -151,11 +151,11 @@ export default function SettingsPage() {
 
       const data = await safeJson(res);
       if (!res.ok || data.ok === false) {
-        throw new Error(data.error || "РћС€РёР±РєР° С‚РµСЃС‚Р° СЃРѕРµРґРёРЅРµРЅРёСЏ");
+        throw new Error(data.error || "Ошибка теста соединения");
       }
-      setStatusText(`РЎРѕРµРґРёРЅРµРЅРёРµ СѓСЃРїРµС€РЅРѕ. РќР°Р№РґРµРЅРѕ Р·Р°РґР°С‡: ${data.data?.foundIssues ?? 0}`);
+      setStatusText(`Соединение успешно. Найдено задач: ${data.data?.foundIssues ?? 0}`);
     } catch (e) {
-      setStatusText(e instanceof Error ? e.message : "РћС€РёР±РєР° С‚РµСЃС‚Р° СЃРѕРµРґРёРЅРµРЅРёСЏ");
+      setStatusText(e instanceof Error ? e.message : "Ошибка теста соединения");
     } finally {
       setIsTesting(false);
     }
@@ -166,7 +166,7 @@ export default function SettingsPage() {
     setStatusText("");
     try {
       const passwordToUse = password.trim();
-      if (!passwordToUse) throw new Error("Р”Р»СЏ РёРјРїРѕСЂС‚Р° РІРІРµРґРёС‚Рµ РїР°СЂРѕР»СЊ");
+      if (!passwordToUse) throw new Error("Для импорта введите пароль");
       const res = await fetch("/api/import/jira", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,12 +174,12 @@ export default function SettingsPage() {
       });
       const data = await safeJson(res);
       if (!res.ok || data.ok === false) {
-        throw new Error(data.error || "РћС€РёР±РєР° РёРјРїРѕСЂС‚Р°");
+        throw new Error(data.error || "Ошибка импорта");
       }
-      setStatusText(`РРјРїРѕСЂС‚ Р·Р°РІРµСЂС€РµРЅ: Р·Р°РіСЂСѓР¶РµРЅРѕ ${data.data?.itemsLoaded ?? 0} РёР· ${data.data?.itemsTotal ?? 0}`);
+      setStatusText(`Импорт завершен: загружено ${data.data?.itemsLoaded ?? 0} из ${data.data?.itemsTotal ?? 0}`);
       await loadRuns();
     } catch (e) {
-      setStatusText(e instanceof Error ? e.message : "РћС€РёР±РєР° РёРјРїРѕСЂС‚Р°");
+      setStatusText(e instanceof Error ? e.message : "Ошибка импорта");
     } finally {
       setIsImporting(false);
     }
@@ -188,12 +188,12 @@ export default function SettingsPage() {
   return (
     <>
       <header className="header rounded-xl border bg-white p-4">
-        <h1 className="title">РќР°СЃС‚СЂРѕР№РєРё</h1>
-        <p className="mt-1 text-sm text-muted-foreground">РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє Jira API, С‚РµСЃС‚ СЃРѕРµРґРёРЅРµРЅРёСЏ Рё Р·Р°РїСѓСЃРє РёРјРїРѕСЂС‚Р° Р·Р°СЏРІРѕРє.</p>
+        <h1 className="title">Настройки</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Подключение к Jira API, тест соединения и запуск импорта заявок.</p>
       </header>
 
       <section className="card mt-4 space-y-4">
-        <h2 className="text-sm font-semibold">РРЅС‚РµРіСЂР°С†РёСЏ Jira</h2>
+        <h2 className="text-sm font-semibold">Интеграция Jira</h2>
 
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm">
@@ -219,19 +219,19 @@ export default function SettingsPage() {
           </label>
 
           <label className="space-y-1 text-sm md:col-span-2">
-            <span className="text-muted-foreground">РџР°СЂРѕР»СЊ</span>
+            <span className="text-muted-foreground">Пароль</span>
             <input
               className="w-full rounded border px-3 py-2"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="РџР°СЂРѕР»СЊ СѓС‡РµС‚РЅРѕР№ Р·Р°РїРёСЃРё Jira"
+              placeholder="Пароль учетной записи Jira"
               disabled={isLoading}
               type="password"
             />
           </label>
 
           <label className="space-y-1 text-sm md:col-span-2">
-            <span className="text-muted-foreground">Filter IDs (С‡РµСЂРµР· Р·Р°РїСЏС‚СѓСЋ)</span>
+            <span className="text-muted-foreground">Filter IDs (через запятую)</span>
             <input
               className="w-full rounded border px-3 py-2"
               value={filterIdsRaw}
@@ -245,10 +245,10 @@ export default function SettingsPage() {
         <div className="grid gap-3 rounded-lg border p-3 md:grid-cols-[auto,160px,1fr] md:items-center">
           <label className="inline-flex items-center gap-2 text-sm">
             <input type="checkbox" checked={autoImportEnabled} onChange={(e) => setAutoImportEnabled(e.target.checked)} />
-            РђРІС‚РѕРёРјРїРѕСЂС‚
+            Автоимпорт
           </label>
           <label className="text-sm">
-            <span className="mb-1 block text-muted-foreground">РРЅС‚РµСЂРІР°Р», РјРёРЅ</span>
+            <span className="mb-1 block text-muted-foreground">Интервал, мин</span>
             <input
               className="w-full rounded border px-3 py-2"
               type="number"
@@ -259,18 +259,18 @@ export default function SettingsPage() {
               disabled={!autoImportEnabled}
             />
           </label>
-          <div className="text-xs text-muted-foreground">Р”Р»СЏ MVP Р°РІС‚РѕРёРјРїРѕСЂС‚ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РІ РЅР°СЃС‚СЂРѕР№РєР°С… Рё РјРѕР¶РµС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊСЃСЏ С„РѕРЅРѕРІС‹Рј РїР»Р°РЅРёСЂРѕРІС‰РёРєРѕРј.</div>
+          <div className="text-xs text-muted-foreground">Для MVP автоимпорт сохраняется в настройках и может использоваться фоновым планировщиком.</div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button className="rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-60" onClick={saveJira} disabled={isSaving || isLoading}>
-            {isSaving ? "РЎРѕС…СЂР°РЅРµРЅРёРµ..." : "РЎРѕС…СЂР°РЅРёС‚СЊ"}
+            {isSaving ? "Сохранение..." : "Сохранить"}
           </button>
           <button className="rounded border px-3 py-2 disabled:opacity-60" onClick={testJira} disabled={isTesting || isLoading}>
-            {isTesting ? "РџСЂРѕРІРµСЂРєР°..." : "РџСЂРѕРІРµСЂРёС‚СЊ СЃРѕРµРґРёРЅРµРЅРёРµ"}
+            {isTesting ? "Проверка..." : "Проверить соединение"}
           </button>
           <button className="rounded border px-3 py-2 disabled:opacity-60" onClick={runJiraImport} disabled={isImporting || isLoading}>
-            {isImporting ? "РРјРїРѕСЂС‚..." : "Р—Р°РїСѓСЃС‚РёС‚СЊ РёРјРїРѕСЂС‚"}
+            {isImporting ? "Импорт..." : "Запустить импорт"}
           </button>
         </div>
 
@@ -279,18 +279,18 @@ export default function SettingsPage() {
 
       <section className="card mt-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">РСЃС‚РѕСЂРёСЏ РёРјРїРѕСЂС‚РѕРІ Jira</h2>
-          <button className="rounded border px-3 py-1.5 text-xs" onClick={loadRuns}>РћР±РЅРѕРІРёС‚СЊ</button>
+          <h2 className="text-sm font-semibold">История импортов Jira</h2>
+          <button className="rounded border px-3 py-1.5 text-xs" onClick={loadRuns}>Обновить</button>
         </div>
         <div className="overflow-x-auto rounded border">
           <table className="w-full text-xs">
             <thead className="bg-muted/40">
               <tr>
-                <th className="px-2 py-2 text-left">РЎС‚Р°СЂС‚</th>
-                <th className="px-2 py-2 text-left">РЎС‚Р°С‚СѓСЃ</th>
-                <th className="px-2 py-2 text-left">Р—Р°РіСЂСѓР¶РµРЅРѕ</th>
-                <th className="px-2 py-2 text-left">РРЅРёС†РёР°С‚РѕСЂ</th>
-                <th className="px-2 py-2 text-left">РћС€РёР±РєР°</th>
+                <th className="px-2 py-2 text-left">Старт</th>
+                <th className="px-2 py-2 text-left">Статус</th>
+                <th className="px-2 py-2 text-left">Загружено</th>
+                <th className="px-2 py-2 text-left">Инициатор</th>
+                <th className="px-2 py-2 text-left">Ошибка</th>
               </tr>
             </thead>
             <tbody>
@@ -305,7 +305,7 @@ export default function SettingsPage() {
               ))}
               {runs.length === 0 ? (
                 <tr>
-                  <td className="px-2 py-4 text-center text-muted-foreground" colSpan={5}>РСЃС‚РѕСЂРёСЏ РёРјРїРѕСЂС‚РѕРІ РїРѕРєР° РїСѓСЃС‚Р°</td>
+                  <td className="px-2 py-4 text-center text-muted-foreground" colSpan={5}>История импортов пока пуста</td>
                 </tr>
               ) : null}
             </tbody>

@@ -1,4 +1,4 @@
-п»ї"use client";
+"use client";
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -48,7 +48,7 @@ export function AppHotkeys() {
       }
       if (event.key === "?") {
         event.preventDefault();
-        notifyInfo("Р“РѕСЂСЏС‡РёРµ РєР»Р°РІРёС€Рё", "/: РїРѕРёСЃРє, N: РЅРѕРІР°СЏ Р·Р°РїРёСЃСЊ, Esc: Р·Р°РєСЂС‹С‚СЊ Р°РєС‚РёРІРЅРѕРµ РѕРєРЅРѕ");
+        notifyInfo("Горячие клавиши", "/: поиск, N: новая запись, Esc: закрыть активное окно");
       }
     };
 

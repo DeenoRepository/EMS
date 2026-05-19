@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export function ok(data: unknown) {
   return NextResponse.json({ ok: true, data });

@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -83,7 +83,7 @@ async function jiraPing(apiUrl: string, username: string, password: string, jql:
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession(req);
-    if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST"])) return fail("forbidden", 403);
+    if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
 
     const settings = await prisma.jiraSettings.findUnique({ where: { id: 1 } });
     if (!settings) return ok(null);
@@ -158,7 +158,7 @@ export async function PUT(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR"])) return fail("forbidden", 403);
 
   const parsed = testSchema.safeParse(await req.json());
   if (!parsed.success) return fail(parsed.error.message);

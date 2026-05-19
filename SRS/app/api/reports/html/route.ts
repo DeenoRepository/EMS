@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -18,7 +18,7 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
-  if (!session || !hasRole(session.roles, ["ADMIN", "ANALYST", "VIEWER"])) return fail("forbidden", 403);
+  if (!session || !hasRole(session.roles, ["ADMIN", "EDITOR", "VIEWER"])) return fail("forbidden", 403);
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return fail(parsed.error.message);
