@@ -1,0 +1,26 @@
+dn: ou=people,dc=enterprise,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=enterprise,dc=local
+objectClass: organizationalUnit
+ou: groups
+
+dn: uid=mms.admin,ou=people,dc=enterprise,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: top
+cn: MMS Admin
+sn: Admin
+uid: mms.admin
+uidNumber: 10000
+gidNumber: 10000
+homeDirectory: /home/mms.admin
+mail: admin@enterprise.local
+userPassword: Admin123!
+
+dn: cn=DEPS_Admins,ou=groups,dc=enterprise,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: DEPS_Admins
+member: uid=mms.admin,ou=people,dc=enterprise,dc=local

@@ -1,0 +1,165 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum ImportSourceType {
+  XML
+  JIRA
+}
+
+enum ImportStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum HeatmapMode {
+  FAILURES
+  DOWNTIME
+}
+
+model Equipment {
+  id              BigInt   @id @default(autoincrement())
+  uid             String   @unique
+  title           String
+  inventoryNumber String?  @map("inventory_number")
+  subdivision     String?
+  issues          Issue[]
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([title])
+  @@map("equipment")
+}
+
+model Issue {
+  id            BigInt   @id @default(autoincrement())
+  equipmentId   BigInt   @map("equipment_id")
+  equipment     Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  jiraIssueKey  String?  @map("jira_issue_key")
+  startAt       DateTime @map("start_at")
+  endAt         DateTime? @map("end_at")
+  type          String
+  status        String
+  responsible   String?
+  reporter      String?
+  description   String?
+  comments      String?
+  isInProgress  Boolean  @default(false) @map("is_in_progress")
+  source        String
+  sourceHash    String   @map("source_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([sourceHash])
+  @@index([jiraIssueKey])
+  @@index([startAt])
+  @@index([status])
+  @@map("issues")
+}
+
+model ImportRun {
+  id          BigInt          @id @default(autoincrement())
+  sourceType  ImportSourceType @map("source_type")
+  status      ImportStatus
+  startedAt   DateTime         @default(now()) @map("started_at")
+  finishedAt  DateTime?        @map("finished_at")
+  itemsTotal  Int              @default(0) @map("items_total")
+  itemsLoaded Int              @default(0) @map("items_loaded")
+  errorText   String?          @map("error_text")
+  initiatedBy String?          @map("initiated_by")
+
+  @@index([sourceType, startedAt])
+  @@map("imports")
+}
+
+model JiraSettings {
+  id                      Int      @id @default(1)
+  apiUrl                  String   @map("api_url")
+  username                String
+  tokenEncrypted          String   @map("token_encrypted")
+  jql                     String?
+  autoImportEnabled       Boolean  @default(false) @map("auto_import_enabled")
+  autoImportPeriodMinutes Int?     @map("auto_import_period_minutes")
+  filterIds               String[] @default([]) @map("filter_ids")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@map("jira_settings")
+}
+
+model HeatmapSettings {
+  id        BigInt      @id @default(autoincrement())
+  mode      HeatmapMode
+  minValue  Int         @default(0) @map("min_value")
+  maxValue  Int         @default(10) @map("max_value")
+  updatedBy String?     @map("updated_by")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@unique([mode])
+  @@map("heatmap_settings")
+}
+
+model ReportRun {
+  id         BigInt   @id @default(autoincrement())
+  paramsJson Json     @map("params_json")
+  filePath   String?  @map("file_path")
+  url        String?
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("report_runs")
+}
+
+model User {
+  id           BigInt      @id @default(autoincrement())
+  login        String      @unique
+  passwordHash String      @map("password_hash")
+  displayName  String?     @map("display_name")
+  userRoles    UserRole[]
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Role {
+  id        Int        @id @default(autoincrement())
+  name      RoleName   @unique
+  userRoles UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  userId BigInt @map("user_id")
+  roleId Int    @map("role_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  actor     String
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, createdAt])
+  @@map("audit_log")
+}

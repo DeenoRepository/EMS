@@ -1,0 +1,24 @@
+# Dependencies
+**/node_modules/
+
+# Next.js
+**/.next/
+
+# Env
+.env
+.env.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Data files
+**/data/
+
+# Prisma
+**/*.db

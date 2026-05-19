@@ -1,0 +1,18 @@
+﻿{
+  "name": "ems-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "up": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-up.ps1",
+    "up:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-up.ps1 -SkipInstall",
+    "down": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-down.ps1",
+    "clean": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-clean.ps1",
+    "preflight": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-preflight.ps1",
+    "health": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-health.ps1",
+    "backup": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-db-backup.ps1",
+    "restore:eps": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-db-restore.ps1 -Target eps",
+    "restore:mms": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-db-restore.ps1 -Target mms",
+    "restore:wms": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-db-restore.ps1 -Target wms",
+    "restore:srs": "powershell -ExecutionPolicy Bypass -File ./scripts/ems-db-restore.ps1 -Target srs"
+  }
+}

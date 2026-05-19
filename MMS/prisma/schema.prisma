@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleKey {
+  VIEWER
+  EDITOR
+  APPROVER
+  ADMIN
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  EXPORT
+  INTEGRATION
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  SEASONAL
+  CAPITAL
+  DIAGNOSTIC
+}
+
+enum PlanStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+  OVERDUE
+}
+
+enum WarehouseReservationStatus {
+  DRAFT
+  REQUESTED
+  RESERVED
+  ISSUED
+  CANCELED
+}
+
+enum FailureSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RcaStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum WorkOrderType {
+  PLANNED
+  CORRECTIVE
+  EMERGENCY
+}
+
+enum WorkOrderPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum WorkOrderStatus {
+  NEW
+  APPROVED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELED
+}
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  displayName String
+  adExternalId String?   @unique
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userRoles   UserRole[]
+  auditLogs   AuditLog[] @relation("AuditActor")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  key       RoleKey  @unique
+  name      String
+  createdAt DateTime @default(now())
+  userRoles UserRole[]
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model PprPlan {
+  id                String          @id @default(cuid())
+  equipmentId       String
+  equipmentCode     String?
+  equipmentName     String?
+  maintenanceType   MaintenanceType @default(PREVENTIVE)
+  intervalDays      Int
+  horizonMonths     Int
+  lastServiceDate   DateTime
+  nextServiceDate   DateTime
+  status            PlanStatus      @default(ACTIVE)
+  comments          String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  createdById       String?
+  updatedById       String?
+  tasks             PprTask[]
+
+  @@index([equipmentId])
+  @@index([nextServiceDate, status])
+  @@index([maintenanceType, status])
+}
+
+model PprTask {
+  id                    String                    @id @default(cuid())
+  planId                String?
+  equipmentId           String
+  scheduledDate         DateTime
+  maintenanceType       MaintenanceType
+  status                TaskStatus                @default(PLANNED)
+  performedAt           DateTime?
+  resultNotes           String?
+  laborHours            Decimal?                  @db.Decimal(10, 2)
+  totalCost             Decimal?                  @db.Decimal(12, 2)
+  spareParts            Json?
+  warehouseReservationId String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  createdById           String?
+  updatedById           String?
+  plan                  PprPlan?                  @relation(fields: [planId], references: [id], onDelete: SetNull)
+  reservation           WarehouseReservation?     @relation(fields: [warehouseReservationId], references: [id], onDelete: SetNull)
+
+  @@index([equipmentId, scheduledDate])
+  @@index([status, scheduledDate])
+  @@index([planId])
+}
+
+model WarehouseReservation {
+  id            String                     @id @default(cuid())
+  externalId    String?
+  equipmentId   String
+  status        WarehouseReservationStatus @default(DRAFT)
+  requiredItems Json?
+  response      Json?
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
+  tasks         PprTask[]
+
+  @@index([equipmentId, status])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorId     String?
+  actorEmail  String?
+  action      AuditAction
+  entityType  String
+  entityId    String
+  beforeState Json?
+  afterState  Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model SyncedEquipment {
+  id             String   @id
+  equipmentCode  String?
+  name           String
+  type           String?
+  category       String?
+  model          String?
+  serialNumber   String?
+  inventoryNumber String?
+  department     String?
+  location       String?
+  status         String?
+  lifecycleStage String?
+  sourceUpdatedAt DateTime?
+  payload        Json?
+  lastSyncedAt   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([equipmentCode])
+  @@index([name])
+  @@index([status, lifecycleStage])
+}
+
+model SyncState {
+  key           String   @id
+  status        String   @default("IDLE")
+  message       String?
+  lastStartedAt DateTime?
+  lastFinishedAt DateTime?
+  lastSuccessAt DateTime?
+  updatedAt     DateTime @updatedAt
+}
+
+model FailureEvent {
+  id                String          @id @default(cuid())
+  equipmentId       String
+  equipmentCode     String?
+  equipmentName     String?
+  occurredAt        DateTime
+  resolvedAt        DateTime?
+  downtimeMinutes   Int             @default(0)
+  failureNode       String?
+  symptom           String
+  rootCauseCategory String?
+  rootCauseDetail   String?
+  severity          FailureSeverity @default(MEDIUM)
+  rcaStatus         RcaStatus       @default(OPEN)
+  correctiveAction  String?
+  preventiveAction  String?
+  owner             String?
+  dueDate           DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  createdById       String?
+  updatedById       String?
+
+  @@index([equipmentId, occurredAt])
+  @@index([occurredAt])
+  @@index([rootCauseCategory])
+  @@index([rcaStatus, dueDate])
+  @@index([severity])
+}
+
+model WorkOrder {
+  id                  String            @id @default(cuid())
+  equipmentId         String
+  title               String
+  description         String?
+  type                WorkOrderType     @default(CORRECTIVE)
+  priority            WorkOrderPriority @default(MEDIUM)
+  status              WorkOrderStatus   @default(NEW)
+  sourceFailureId     String?
+  relatedTaskId       String?
+  assignedTo          String?
+  requestedBy         String?
+  plannedStartAt      DateTime?
+  plannedEndAt        DateTime?
+  actualStartAt       DateTime?
+  actualEndAt         DateTime?
+  slaResponseMinutes  Int?              @default(60)
+  slaResolveMinutes   Int?              @default(480)
+  estimatedLaborHours Decimal?          @db.Decimal(10, 2)
+  actualLaborHours    Decimal?          @db.Decimal(10, 2)
+  estimatedCost       Decimal?          @db.Decimal(12, 2)
+  actualCost          Decimal?          @db.Decimal(12, 2)
+  downtimeMinutes     Int?              @default(0)
+  externalEpsId       String?
+  externalWmsId       String?
+  metadata            Json?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  createdById         String?
+  updatedById         String?
+
+  @@index([equipmentId, status])
+  @@index([status, priority, plannedStartAt])
+  @@index([sourceFailureId])
+}

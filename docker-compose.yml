@@ -1,0 +1,300 @@
+﻿services:
+  eps-db:
+    image: postgres:16-alpine
+    container_name: ems-eps-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eps
+      POSTGRES_USER: eps
+      POSTGRES_PASSWORD: eps
+    volumes:
+      - ems_eps_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eps -d eps"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ems-ldap
+    restart: unless-stopped
+    environment:
+      LDAP_ORGANISATION: "EMS"
+      LDAP_DOMAIN: "ems.local"
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_LOG_LEVEL: "256"
+    ports:
+      - "3890:389"
+      - "6360:636"
+    volumes:
+      - ems_ldap_data:/var/lib/ldap
+      - ems_ldap_config:/etc/ldap/slapd.d
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost:389", "-b", "dc=ems,dc=local", "-D", "cn=admin,dc=ems,dc=local", "-w", "admin", "(objectClass=*)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ldap-seed:
+    image: osixia/openldap:1.5.0
+    container_name: ems-ldap-seed
+    depends_on:
+      ldap:
+        condition: service_healthy
+    environment:
+      LDAP_HOST: ldap
+      LDAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./scripts/ldap-seed.sh:/ldap-seed.sh
+    entrypoint: ["/bin/sh", "/ldap-seed.sh"]
+
+  eps-app:
+    build:
+      context: ./EPS
+      dockerfile: Dockerfile.dev
+    container_name: ems-eps-app
+    restart: unless-stopped
+    depends_on:
+      eps-db:
+        condition: service_healthy
+      ldap:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://eps:eps@eps-db:5432/eps?schema=public
+      AUTH_PROVIDER: ldap
+      NEXT_PUBLIC_AUTH_PROVIDER: ldap
+      ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_LDAP_DEBUG: "false"
+      LDAP_URL: ldap://ldap:389
+      LDAP_BIND_DN: cn=admin,dc=ems,dc=local
+      LDAP_BIND_PASSWORD: admin
+      LDAP_BASE_DN: dc=ems,dc=local
+      LDAP_USER_BASE_DN: ou=people,dc=ems,dc=local
+      LDAP_GROUP_BASE_DN: ou=groups,dc=ems,dc=local
+      LDAP_DIRECT_BIND: "false"
+      STORAGE_DRIVER: local
+      LOCAL_STORAGE_MODE: UPLOADS
+      WRITE_RATE_LIMIT: 120
+      WRITE_RATE_WINDOW_MS: 60000
+    ports:
+      - "3210:3000"
+    volumes:
+      - ./EPS:/app
+      - ems_eps_node_modules:/app/node_modules
+      - ems_eps_data:/app/data
+    command: sh -c "mkdir -p data/uploads && npx prisma generate && npx prisma db push && npm run dev -- --hostname 0.0.0.0 --port 3000"
+
+  mms-db:
+    image: postgres:16-alpine
+    container_name: ems-mms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mms
+      POSTGRES_USER: mms
+      POSTGRES_PASSWORD: mms
+    volumes:
+      - ems_mms_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mms -d mms"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mms-app:
+    build:
+      context: ./MMS
+      dockerfile: Dockerfile.dev
+    container_name: ems-mms-app
+    restart: unless-stopped
+    depends_on:
+      mms-db:
+        condition: service_healthy
+      ldap:
+        condition: service_healthy
+      eps-app:
+        condition: service_started
+    environment:
+      APP_NAME: MMS
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://mms:mms@mms-db:5432/mms?schema=public
+      AUTH_PROVIDER: ldap
+      NEXT_PUBLIC_AUTH_PROVIDER: ldap
+      ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_LDAP_DEBUG: "false"
+      LDAP_URL: ldap://ldap:389
+      LDAP_BIND_DN: cn=admin,dc=ems,dc=local
+      LDAP_BIND_PASSWORD: admin
+      LDAP_BASE_DN: dc=ems,dc=local
+      LDAP_USER_BASE_DN: ou=people,dc=ems,dc=local
+      LDAP_GROUP_BASE_DN: ou=groups,dc=ems,dc=local
+      LDAP_DIRECT_BIND: "false"
+      EPS_API_BASE_URL: http://eps-app:3000/api
+      EPS_API_TOKEN: ""
+      EPS_API_TIMEOUT_MS: 10000
+      AUTO_SYNC_EQUIPMENT: "true"
+      AUTO_SYNC_INTERVAL_MINUTES: 30
+      EPS_SYNC_PAGE_SIZE: 100
+      EPS_SYNC_MAX_PAGES: 200
+      DEFAULT_PPR_INTERVAL_DAYS: 90
+      DEFAULT_PPR_HORIZON_MONTHS: 12
+      DEFAULT_PPR_MAINTENANCE_TYPE: PREVENTIVE
+      WRITE_RATE_LIMIT: 90
+      WRITE_RATE_WINDOW_MS: 60000
+    ports:
+      - "3201:3000"
+    volumes:
+      - ./MMS:/app
+      - ems_mms_node_modules:/app/node_modules
+    command: sh -c "npx prisma generate && npx prisma db push && npm run dev -- --webpack --hostname 0.0.0.0 --port 3000"
+
+  wms-db:
+    image: postgres:16-alpine
+    container_name: ems-wms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wms
+      POSTGRES_USER: wms
+      POSTGRES_PASSWORD: wms
+    volumes:
+      - ems_wms_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms -d wms"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  wms-app:
+    build:
+      context: ./WMS
+      dockerfile: Dockerfile.dev
+    container_name: ems-wms-app
+    restart: unless-stopped
+    depends_on:
+      wms-db:
+        condition: service_healthy
+      ldap:
+        condition: service_healthy
+      eps-app:
+        condition: service_started
+      mms-app:
+        condition: service_started
+    environment:
+      APP_NAME: WMS
+      NEXT_PUBLIC_APP_NAME: WMS
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://wms:wms@wms-db:5432/wms?schema=public
+      AUTH_PROVIDER: ldap
+      NEXT_PUBLIC_AUTH_PROVIDER: ldap
+      ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_LDAP_DEBUG: "false"
+      LDAP_URL: ldap://ldap:389
+      LDAP_BIND_DN: cn=admin,dc=ems,dc=local
+      LDAP_BIND_PASSWORD: admin
+      LDAP_BASE_DN: dc=ems,dc=local
+      LDAP_USER_BASE_DN: ou=people,dc=ems,dc=local
+      LDAP_GROUP_BASE_DN: ou=groups,dc=ems,dc=local
+      LDAP_DIRECT_BIND: "false"
+      EPS_API_BASE_URL: http://eps-app:3000/api
+      EPS_API_TOKEN: ""
+      EPS_API_TIMEOUT_MS: 10000
+      MMS_API_BASE_URL: http://mms-app:3000/api
+      MMS_API_TIMEOUT_MS: 10000
+      WRITE_RATE_LIMIT: 90
+      WRITE_RATE_WINDOW_MS: 60000
+    ports:
+      - "3202:3000"
+    volumes:
+      - ./WMS:/app
+      - ems_wms_node_modules:/app/node_modules
+    command: sh -c "npx prisma generate && npx prisma db push && npm run dev -- --webpack --hostname 0.0.0.0 --port 3000"
+
+  srs-db:
+    image: postgres:16-alpine
+    container_name: ems-srs-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: srs
+      POSTGRES_USER: srs
+      POSTGRES_PASSWORD: srs
+    volumes:
+      - ems_srs_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U srs -d srs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  srs-app:
+    build:
+      context: ./SRS
+      dockerfile: Dockerfile.dev
+    container_name: ems-srs-app
+    restart: unless-stopped
+    depends_on:
+      srs-db:
+        condition: service_healthy
+      ldap:
+        condition: service_healthy
+    environment:
+      APP_NAME: SRS
+      NEXT_PUBLIC_APP_NAME: SRS
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://srs:srs@srs-db:5432/srs?schema=public
+      AUTH_PROVIDER: ldap
+      NEXT_PUBLIC_AUTH_PROVIDER: ldap
+      ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_DEBUG_AUTH_ROUTES: "false"
+      NEXT_PUBLIC_ENABLE_LDAP_DEBUG: "false"
+      LDAP_URL: ldap://ldap:389
+      LDAP_BIND_DN: cn=admin,dc=ems,dc=local
+      LDAP_BIND_PASSWORD: admin
+      LDAP_BASE_DN: dc=ems,dc=local
+      LDAP_USER_BASE_DN: ou=people,dc=ems,dc=local
+      LDAP_GROUP_BASE_DN: ou=groups,dc=ems,dc=local
+      LDAP_DIRECT_BIND: "false"
+      WRITE_RATE_LIMIT: 90
+      WRITE_RATE_WINDOW_MS: 60000
+    ports:
+      - "3203:3000"
+    volumes:
+      - ./SRS:/app
+      - ems_srs_node_modules:/app/node_modules
+    command: sh -c "npx prisma generate && npx prisma db push && npm run dev -- --hostname 0.0.0.0 --port 3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ems-gateway
+    restart: unless-stopped
+    depends_on:
+      - eps-app
+      - mms-app
+      - wms-app
+      - srs-app
+    ports:
+      - "8090:80"
+    volumes:
+      - ./nginx/ems.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  ems_eps_db_data:
+  ems_eps_node_modules:
+  ems_eps_data:
+  ems_mms_db_data:
+  ems_mms_node_modules:
+  ems_wms_db_data:
+  ems_wms_node_modules:
+  ems_srs_db_data:
+  ems_srs_node_modules:
+  ems_ldap_data:
+  ems_ldap_config:
+
+

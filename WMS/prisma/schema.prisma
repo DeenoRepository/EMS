@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleKey {
+  VIEWER
+  EDITOR
+  APPROVER
+  ADMIN
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  EXPORT
+  INTEGRATION
+}
+
+enum WarehouseStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WarehouseType {
+  PRIMARY
+  AUXILIARY
+}
+
+enum StockItemStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SupplyPolicy {
+  CENTRAL_ISSUE
+  DISTRIBUTED_CONSUMABLE
+}
+
+enum StockMovementType {
+  RECEIPT
+  ISSUE
+  TRANSFER
+  ADJUSTMENT
+  RESERVATION
+  RESERVATION_CANCEL
+}
+
+enum StockReservationStatus {
+  ACTIVE
+  ISSUED
+  CANCELLED
+}
+
+enum InternalRequestStatus {
+  NEW
+  RESERVED
+  PARTIAL
+  FULFILLED
+  TO_PROCUREMENT
+  REJECTED
+}
+
+enum InternalRequestLineStatus {
+  NEW
+  RESERVED
+  ISSUED
+  TO_PROCUREMENT
+  ANALOG_SUGGESTED
+  REJECTED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  displayName  String
+  adExternalId String?    @unique
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  userRoles    UserRole[]
+  auditLogs    AuditLog[] @relation("AuditActor")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  key       RoleKey  @unique
+  name      String
+  createdAt DateTime @default(now())
+  userRoles UserRole[]
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Warehouse {
+  id          String          @id @default(cuid())
+  name        String
+  code        String          @unique
+  description String?
+  responsibleEmail String?
+  status      WarehouseStatus @default(ACTIVE)
+  type        WarehouseType   @default(AUXILIARY)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  balances     StockBalance[]
+  movements    StockMovement[] @relation("MovementWarehouse")
+  toMovements  StockMovement[] @relation("MovementToWarehouse")
+  reservations StockReservation[]
+  outgoingRequests InternalRequest[] @relation("RequestFromWarehouse")
+  incomingRequests InternalRequest[] @relation("RequestToWarehouse")
+
+  @@index([status])
+  @@index([type])
+  @@index([responsibleEmail])
+  @@index([createdAt])
+}
+
+model StockItem {
+  id           String          @id @default(cuid())
+  sku          String          @unique
+  name         String
+  description  String?
+  category     String?
+  unit         String
+  minQuantity  Decimal?        @db.Decimal(14, 3)
+  status       StockItemStatus @default(ACTIVE)
+  supplyPolicy SupplyPolicy    @default(DISTRIBUTED_CONSUMABLE)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  balances     StockBalance[]
+  movements    StockMovement[]
+  reservations StockReservation[]
+  requestLines InternalRequestLine[]
+
+  @@index([status])
+  @@index([supplyPolicy])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model StockBalance {
+  id               String    @id @default(cuid())
+  itemId           String
+  warehouseId      String
+  quantity         Decimal   @default(0) @db.Decimal(14, 3)
+  reservedQuantity Decimal   @default(0) @db.Decimal(14, 3)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  item      StockItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, warehouseId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([createdAt])
+}
+
+model StockReservation {
+  id                String                 @id @default(cuid())
+  itemId            String
+  warehouseId       String
+  mmsWorkOrderId    String
+  mmsRequiredPartId String
+  quantity          Decimal                @db.Decimal(14, 3)
+  status            StockReservationStatus @default(ACTIVE)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  item      StockItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  movements StockMovement[]
+  requestLines InternalRequestLine[]
+
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([mmsWorkOrderId])
+  @@index([mmsWorkOrderId, status])
+  @@index([mmsRequiredPartId])
+  @@index([createdAt])
+  @@index([status, updatedAt])
+}
+
+model InternalRequest {
+  id               String                @id @default(cuid())
+  requestNumber    String                @unique
+  fromWarehouseId  String
+  toWarehouseId    String
+  status           InternalRequestStatus @default(NEW)
+  comment          String?
+  createdBy        String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  fromWarehouse Warehouse @relation("RequestFromWarehouse", fields: [fromWarehouseId], references: [id], onDelete: Restrict)
+  toWarehouse   Warehouse @relation("RequestToWarehouse", fields: [toWarehouseId], references: [id], onDelete: Restrict)
+  lines         InternalRequestLine[]
+
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model InternalRequestLine {
+  id             String                    @id @default(cuid())
+  requestId      String
+  itemId         String
+  requestedQty   Decimal                   @db.Decimal(14, 3)
+  reservedQty    Decimal                   @default(0) @db.Decimal(14, 3)
+  issuedQty      Decimal                   @default(0) @db.Decimal(14, 3)
+  status         InternalRequestLineStatus @default(NEW)
+  resolutionNote String?
+  reservationId  String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  request     InternalRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item        StockItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  reservation StockReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([itemId])
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([reservationId])
+}
+
+model StockMovement {
+  id                     String            @id @default(cuid())
+  itemId                 String
+  warehouseId            String
+  toWarehouseId          String?
+  movementType           StockMovementType
+  quantity               Decimal           @db.Decimal(14, 3)
+  relatedMmsWorkOrderId  String?
+  relatedMmsRequiredPartId String?
+  reservationId          String?
+  comment                String?
+  createdBy              String?
+  createdAt              DateTime          @default(now())
+
+  item        StockItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  warehouse   Warehouse         @relation("MovementWarehouse", fields: [warehouseId], references: [id], onDelete: Restrict)
+  toWarehouse Warehouse?        @relation("MovementToWarehouse", fields: [toWarehouseId], references: [id], onDelete: SetNull)
+  reservation StockReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([itemId])
+  @@index([itemId, createdAt])
+  @@index([warehouseId])
+  @@index([warehouseId, createdAt])
+  @@index([toWarehouseId])
+  @@index([movementType])
+  @@index([relatedMmsWorkOrderId])
+  @@index([relatedMmsRequiredPartId])
+  @@index([reservationId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorId     String?
+  actorEmail  String?
+  action      AuditAction
+  entityType  String
+  entityId    String
+  beforeState Json?
+  afterState  Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model WmsProjectSettings {
+  id        String   @id
+  payload   Json
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+}

@@ -1,0 +1,38 @@
+﻿services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      USE_MOCK_DATA: "0"
+    depends_on:
+      - db
+    ports:
+      - "3010:3000"
+    expose:
+      - "3000"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dea
+      POSTGRES_USER: dea
+      POSTGRES_PASSWORD: dea
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  pgdata:

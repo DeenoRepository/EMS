@@ -1,0 +1,76 @@
+services:
+  eps-db:
+    image: postgres:16-alpine
+    container_name: ems-eps-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: eps
+      POSTGRES_USER: eps
+      POSTGRES_PASSWORD: eps
+    ports:
+      - "5437:5432"
+    volumes:
+      - ems_eps_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eps -d eps"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  mms-db:
+    image: postgres:16-alpine
+    container_name: ems-mms-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mms
+      POSTGRES_USER: mms
+      POSTGRES_PASSWORD: mms
+    ports:
+      - "5438:5432"
+    volumes:
+      - ems_mms_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mms -d mms"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  wms-db:
+    image: postgres:16-alpine
+    container_name: ems-wms-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wms
+      POSTGRES_USER: wms
+      POSTGRES_PASSWORD: wms
+    ports:
+      - "5436:5432"
+    volumes:
+      - ems_wms_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms -d wms"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ems-ldap-local
+    restart: unless-stopped
+    environment:
+      LDAP_ORGANISATION: "EMS"
+      LDAP_DOMAIN: "ems.local"
+      LDAP_ADMIN_PASSWORD: "admin"
+    ports:
+      - "3890:389"
+      - "6360:636"
+    volumes:
+      - ems_ldap_data:/var/lib/ldap
+      - ems_ldap_config:/etc/ldap/slapd.d
+
+volumes:
+  ems_eps_db_data:
+  ems_mms_db_data:
+  ems_wms_db_data:
+  ems_ldap_data:
+  ems_ldap_config:
