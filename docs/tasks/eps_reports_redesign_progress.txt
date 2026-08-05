@@ -1,0 +1,10 @@
+# Progress - Redesign EPS Reports Page
+
+- [x] Task 1: Create task progress tracker file
+- [x] Task 2: Refactor EPS Reports Page (`src/app/modules/eps/reports/page.tsx`) with full UI/UX parity
+- [x] Task 3: Verify build & TypeScript compilation (`npx tsc --noEmit`)
+- [x] Task 4: Git commit updated code
+- [x] Task 5: Upgrade Equipment Export API (`/api/modules/eps/equipment/export`) to include ALL equipment fields and specs
+- [x] Task 6: Implement Flexible Report Builder modal & component with live preview in EPS Reports page
+- [x] Task 7: Verify build & TypeScript compilation (`npx tsc --noEmit`)
+- [x] Task 8: Git commit Report Builder implementation

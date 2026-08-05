@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleKey {
+  VIEWER
+  EDITOR
+  APPROVER
+  ADMIN
+}
+
+enum EquipmentStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  DECOMMISSIONED
+}
+
+enum LifecycleStage {
+  PLANNED
+  COMMISSIONED
+  IN_OPERATION
+  MAINTENANCE
+  RETIRED
+}
+
+enum DocumentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum DocumentType {
+  PASSPORT
+  OPERATION_MANUAL
+  CERTIFICATE
+  ACT
+  DRAWING
+  OTHER
+}
+
+enum ApprovalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
+enum ApprovalTargetType {
+  EQUIPMENT_VERSION
+  DOCUMENT_VERSION
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  LOGIN
+  EXPORT
+}
+
+enum EventType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  DOCUMENT_ATTACHED
+  APPROVAL_SUBMITTED
+  APPROVAL_RESOLVED
+}
+
+enum ReferenceEntityType {
+  EQUIPMENT
+}
+
+model User {
+  id            String            @id @default(cuid())
+  email         String            @unique
+  displayName   String
+  adExternalId  String?           @unique
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  userRoles     UserRole[]
+  auditLogs     AuditLog[]        @relation("AuditActor")
+  submittedReqs ApprovalRequest[] @relation("SubmittedBy")
+  assignedReqs  ApprovalRequest[] @relation("AssignedApprover")
+  decidedReqs   ApprovalRequest[] @relation("DecidedBy")
+  equipmentEvents EquipmentEvent[] @relation("EventActor")
+  equipmentVersions EquipmentVersion[] @relation("VersionAuthor")
+  documentVersions DocumentVersion[] @relation("DocVersionAuthor")
+  responsibleEquipment Equipment[] @relation("ResponsibleEquipment")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  key       RoleKey  @unique
+  name      String
+  createdAt DateTime @default(now())
+  userRoles UserRole[]
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model Equipment {
+  id             String            @id @default(cuid())
+  equipmentCode  String            @unique
+  name           String
+  type           String?
+  category       String?
+  model          String
+  serialNumber   String?
+  inventoryNumber String?          @unique
+  department     String?
+  location       String?
+  responsibleUserId String?
+  manufacturer   String?
+  supplier       String?
+  productionDate DateTime?
+  deliveryDate   DateTime?
+  commissioningDate DateTime?
+  warrantyExpiration DateTime?
+  serviceDueDate DateTime?
+  notes          String?
+  customAttributes Json?
+  status         EquipmentStatus   @default(DRAFT)
+  lifecycleStage LifecycleStage    @default(COMMISSIONED)
+  currentVersion Int               @default(1)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  versions       EquipmentVersion[]
+  documents      Document[]
+  events         EquipmentEvent[]
+  responsibleUser User?            @relation("ResponsibleEquipment", fields: [responsibleUserId], references: [id])
+
+  @@index([name])
+  @@index([status])
+  @@index([type, category])
+  @@index([department, location])
+  @@index([serviceDueDate, warrantyExpiration])
+}
+
+model EquipmentTypeAttribute {
+  id          String   @id @default(cuid())
+  typeValue   String
+  key         String
+  label       String
+  dataType    String   @default("TEXT")
+  required    Boolean  @default(false)
+  options     Json?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([typeValue, key])
+  @@index([typeValue, isActive, sortOrder])
+}
+
+model EquipmentVersion {
+  id            String   @id @default(cuid())
+  equipmentId   String
+  versionNumber Int
+  changeSummary String?
+  snapshot      Json
+  createdAt     DateTime @default(now())
+  createdById   String
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("VersionAuthor", fields: [createdById], references: [id])
+
+  @@unique([equipmentId, versionNumber])
+  @@index([createdAt])
+}
+
+model Document {
+  id          String          @id @default(cuid())
+  equipmentId String
+  title       String
+  docType     DocumentType
+  status      DocumentStatus  @default(DRAFT)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  versions    DocumentVersion[]
+  equipment   Equipment       @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@index([status])
+}
+
+model DocumentVersion {
+  id            String   @id @default(cuid())
+  documentId    String
+  versionNumber Int
+  fileName      String
+  storagePath   String
+  checksum      String
+  notes         String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  createdById   String
+
+  document  Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("DocVersionAuthor", fields: [createdById], references: [id])
+
+  @@unique([documentId, versionNumber])
+  @@index([createdAt])
+}
+
+model ApprovalRequest {
+  id                String             @id @default(cuid())
+  targetType        ApprovalTargetType
+  targetId          String
+  status            ApprovalStatus     @default(PENDING)
+  requestedById     String
+  assignedApproverId String?
+  decidedById       String?
+  submittedAt       DateTime           @default(now())
+  decidedAt         DateTime?
+  comments          String?
+
+  requestedBy User  @relation("SubmittedBy", fields: [requestedById], references: [id])
+  assignedApprover User? @relation("AssignedApprover", fields: [assignedApproverId], references: [id])
+  decidedBy   User? @relation("DecidedBy", fields: [decidedById], references: [id])
+
+  @@index([status, submittedAt])
+  @@index([targetType, targetId])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorId     String?
+  actorEmail  String?
+  action      AuditAction
+  entityType  String
+  entityId    String
+  beforeState Json?
+  afterState  Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model EquipmentEvent {
+  id          String    @id @default(cuid())
+  equipmentId String
+  eventType   EventType
+  title       String
+  description String?
+  payload     Json?
+  createdAt   DateTime  @default(now())
+  actorId     String?
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("EventActor", fields: [actorId], references: [id])
+
+  @@index([equipmentId, createdAt])
+}
+
+model ReferenceField {
+  id          String              @id @default(cuid())
+  entityType  ReferenceEntityType @default(EQUIPMENT)
+  key         String
+  label       String
+  description String?
+  isActive    Boolean             @default(true)
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  values      ReferenceValue[]
+
+  @@unique([entityType, key])
+  @@index([entityType, isActive, sortOrder])
+}
+
+model ReferenceValue {
+  id         String         @id @default(cuid())
+  fieldId    String
+  value      String
+  label      String
+  isActive   Boolean        @default(true)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  field      ReferenceField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldId, value])
+  @@index([fieldId, isActive, sortOrder])
+}

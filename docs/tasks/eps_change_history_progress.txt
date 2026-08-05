@@ -1,0 +1,6 @@
+# Progress - Refactor EPS Change History Page
+
+- [x] Task 1: Add mock events data to `eps-advanced-store.ts`
+- [x] Task 2: Refactor EPS Change History Page (`src/app/modules/eps/change-history/page.tsx`) to application design system
+- [x] Task 3: Verify build & TypeScript compilation (`npx tsc --noEmit`)
+- [x] Task 4: Git commit refactored page

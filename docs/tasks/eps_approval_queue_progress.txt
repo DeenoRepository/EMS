@@ -1,0 +1,5 @@
+# Progress - Refactor EPS Approval Queue Page
+
+- [x] Task 1: Refactor EPS Approval Queue Page (`src/app/modules/eps/approval-queue/page.tsx`) to application design system
+- [x] Task 2: Verify build & TypeScript compilation (`npx tsc --noEmit`)
+- [x] Task 3: Git commit refactored page

@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for EMS Shell & Modules
+  postgres:
+    image: postgres:16-alpine
+    container_name: ems-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ems_db
+      POSTGRES_USER: ems_user
+      POSTGRES_PASSWORD: ems_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ems_user -d ems_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Mock LDAP Server for Local Authentication Testing
+  ldap-mock:
+    image: rroemhild/test-openldap:latest
+    container_name: ems-ldap-mock
+    restart: always
+    ports:
+      - "10389:389"
+      - "10636:636"
+    environment:
+      SLAPD_DOMAIN: ems.local
+      SLAPD_PASSWORD: adminpassword
+
+volumes:
+  postgres_data:

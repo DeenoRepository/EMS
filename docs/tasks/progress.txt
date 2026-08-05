@@ -1,0 +1,10 @@
+# Progress Tracking - EPS Documents Page Redesign
+
+- [x] Redesign `/modules/eps/documents/page.tsx`
+  - [x] Add Stats Widgets (Total, Passports, Drawings, Acts)
+  - [x] Add Search & Type Filters
+  - [x] Upgrade Table/List View with Icons & Badges
+  - [x] Enhance Upload Modal UI
+  - [x] Enhance Preview Modal UI
+- [x] Build & Type Check Verification
+

@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+/.pnpm-store/
+
+# Next.js & Build outputs
+.next/
+out/
+build/
+dist/
+
+# Archives, bundles, and large deployables
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.iso
+ems-platform-deployable.tar.gz
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development.local
+.env.test.local
+
+# Logs and Debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing & Coverage
+coverage/
+
+# Database & SQLite files
+prisma/*.db
+prisma/*.db-journal
+
+# TypeScript cache
+tsconfig.tsbuildinfo
+
+# IDE & OS System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Temporary scratch & Gemini IDE brain files
+.gemini/
+
+# External parent/cache folders
+/Cache/
+/DAS/
+/moodle-ai-assistant-1/
+
