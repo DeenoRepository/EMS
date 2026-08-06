@@ -81,7 +81,7 @@ export default function WmsMovementsPage() {
               <ChevronRight size={12} />
               <Link href="/modules/wms" className="hover:text-slate-600">WMS Склад</Link>
               <ChevronRight size={12} />
-              <span className="text-purple-600">Журнал движения ТМЦ</span>
+              <span className="text-[#3473d4]">Журнал движения ТМЦ</span>
             </div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
               Журнал складских операций и движений ЗИП
@@ -94,7 +94,7 @@ export default function WmsMovementsPage() {
           <div className="flex gap-2">
             <Link
               href="/modules/wms"
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
             >
               Вернуться в Реестр
             </Link>
@@ -102,15 +102,15 @@ export default function WmsMovementsPage() {
         </div>
 
         {/* Filter Bar */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
-          <div className="relative flex-1 w-full">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)] flex flex-col md:flex-row gap-3 items-center justify-between">
+          <div className="relative flex-1 w-full max-w-md">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
             <input
               type="text"
               placeholder="Поиск по ТМЦ, артикулу, сотруднику, причине..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 pl-9 pr-4 py-1.5 text-xs text-slate-700 focus:border-purple-500 focus:outline-none"
+              className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
@@ -118,7 +118,11 @@ export default function WmsMovementsPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 focus:border-purple-500 focus:outline-none"
+              className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
+                typeFilter !== "ALL"
+                  ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
+                  : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
+              }`}
             >
               <option value="ALL">Все типы операций</option>
               <option value="INCOMING">Приход / Поступление</option>
@@ -130,48 +134,48 @@ export default function WmsMovementsPage() {
         </div>
 
         {/* Movements Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,.025)]">
           <table className="w-full text-left text-xs text-slate-600">
-            <thead className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            <thead className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">
               <tr>
-                <th className="px-4 py-3">Дата & Время</th>
-                <th className="px-4 py-3">Тип операции</th>
-                <th className="px-4 py-3">Артикул / Наименование ТМЦ</th>
-                <th className="px-4 py-3 text-right">Кол-во</th>
-                <th className="px-4 py-3">Откуда → Куда</th>
-                <th className="px-4 py-3">Ответственный</th>
-                <th className="px-4 py-3">Основание / Объект</th>
+                <th className="px-5 py-3">Дата & Время</th>
+                <th className="px-5 py-3">Тип операции</th>
+                <th className="px-5 py-3">Артикул / Наименование ТМЦ</th>
+                <th className="px-5 py-3 text-right">Кол-во</th>
+                <th className="px-5 py-3">Откуда → Куда</th>
+                <th className="px-5 py-3">Ответственный</th>
+                <th className="px-5 py-3">Основание / Объект</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredMovements.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
                     Операций движения за выбранный период не найдено.
                   </td>
                 </tr>
               ) : (
                 filteredMovements.map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                  <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-3.5 font-mono text-[11px] text-slate-500 whitespace-nowrap">
                       {new Date(m.timestamp).toLocaleString("ru-RU")}
                     </td>
-                    <td className="px-4 py-3">{getTypeBadge(m.type)}</td>
-                    <td className="px-4 py-3 font-medium text-[#17243a]">
-                      <div className="font-mono text-[11px] font-bold text-purple-700">{m.itemSku}</div>
-                      <div>{m.itemName}</div>
+                    <td className="px-5 py-3.5">{getTypeBadge(m.type)}</td>
+                    <td className="px-5 py-3.5 font-medium text-[#17243a]">
+                      <div className="font-mono text-[11px] font-bold text-[#3473d4]">{m.itemSku}</div>
+                      <div className="text-[11px] text-[#17243a] font-semibold">{m.itemName}</div>
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-right font-bold text-[#17243a] whitespace-nowrap">
                       {m.type === "OUTGOING" ? "-" : "+"}{m.quantity} ед.
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-[11px]">
+                    <td className="px-5 py-3.5 text-slate-500 text-[11px]">
                       {m.fromLocation || "—"} → <span className="font-semibold text-slate-700">{m.toLocation || "—"}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">{m.performedBy}</td>
-                    <td className="px-4 py-3 text-slate-500 text-[11px]">
+                    <td className="px-5 py-3.5 text-slate-700 font-medium">{m.performedBy}</td>
+                    <td className="px-5 py-3.5 text-slate-500 text-[11px]">
                       {m.reason}
                       {m.relatedOrderOrEq && (
-                        <span className="block font-mono text-purple-600 font-semibold">{m.relatedOrderOrEq}</span>
+                        <span className="block font-mono text-[#3473d4] font-semibold">{m.relatedOrderOrEq}</span>
                       )}
                     </td>
                   </tr>

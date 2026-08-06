@@ -118,7 +118,7 @@ export default function WmsReportsPage() {
               <ChevronRight size={12} />
               <Link href="/modules/wms" className="hover:text-slate-600">WMS Склад</Link>
               <ChevronRight size={12} />
-              <span className="text-purple-600">Складские Отчёты</span>
+              <span className="text-[#3473d4]">Складские Отчёты</span>
             </div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
               Отчётность и Конструктор WMS
@@ -131,7 +131,7 @@ export default function WmsReportsPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setShowBuilder(!showBuilder)}
-              className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-purple-700"
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
             >
               <Sparkles size={14} /> Конструктор выгрузки WMS
             </button>
@@ -140,10 +140,10 @@ export default function WmsReportsPage() {
 
         {/* Flexible Report Builder Modal / Collapsible Section */}
         {showBuilder && (
-          <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-6 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between border-b border-purple-100 pb-3">
-              <div className="flex items-center gap-2 text-purple-900 font-bold text-sm">
-                <Sparkles size={16} className="text-purple-600" />
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-6 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-blue-100 pb-3">
+              <div className="flex items-center gap-2 text-[#17243a] font-bold text-sm">
+                <Sparkles size={16} className="text-[#3473d4]" />
                 Гибкий конструктор экспорта складских запасов WMS
               </div>
               <button onClick={() => setShowBuilder(false)} className="text-slate-400 hover:text-slate-600">
@@ -151,7 +151,7 @@ export default function WmsReportsPage() {
               </button>
             </div>
 
-            <p className="text-xs text-purple-800">
+            <p className="text-xs text-slate-600">
               Выберите поля ТМЦ, которые необходимо включить в персональный отчёт для выгрузки в CSV/Excel:
             </p>
 
@@ -177,25 +177,25 @@ export default function WmsReportsPage() {
                   onClick={() => toggleField(f.key)}
                   className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
                     selectedFields.includes(f.key)
-                      ? "bg-white border-purple-300 text-purple-900 font-semibold shadow-2xs"
-                      : "bg-purple-100/40 border-transparent text-purple-700 hover:bg-white"
+                      ? "bg-white border-blue-300 text-[#17243a] font-semibold shadow-2xs"
+                      : "bg-blue-100/30 border-transparent text-slate-700 hover:bg-white"
                   }`}
                 >
                   {selectedFields.includes(f.key) ? (
-                    <CheckSquare size={14} className="text-purple-600 shrink-0" />
+                    <CheckSquare size={14} className="text-[#3473d4] shrink-0" />
                   ) : (
-                    <Square size={14} className="text-purple-300 shrink-0" />
+                    <Square size={14} className="text-blue-300 shrink-0" />
                   )}
                   <span className="truncate">{f.label}</span>
                 </label>
               ))}
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-purple-100 pt-3">
+            <div className="flex justify-end gap-3 border-t border-blue-100 pt-3">
               <a
                 href="/api/modules/wms/items/export"
                 download
-                className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-700 shadow-xs"
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] shadow-sm shadow-blue-200"
               >
                 <Download size={14} /> Скачать сформированный отчёт ({selectedFields.length} полей)
               </a>
@@ -204,14 +204,14 @@ export default function WmsReportsPage() {
         )}
 
         {/* Existing Pre-packaged Reports List */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_2px_8px_rgba(15,23,42,.025)] space-y-4">
           <h2 className="text-sm font-bold text-[#17243a]">Готовые типовые отчёты WMS</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {filteredReports.map((rep) => (
-              <div key={rep.id} className="rounded-xl border border-slate-200 p-4 space-y-3 hover:border-purple-200 transition-colors">
+              <div key={rep.id} className="rounded-xl border border-slate-200 p-4 space-y-3 hover:border-blue-200 transition-colors">
                 <div className="flex items-start justify-between">
-                  <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                  <span className="font-mono text-[10px] font-bold text-[#3473d4] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                     {rep.format}
                   </span>
                   <span className="text-[10px] font-mono text-slate-400">{rep.generatedAt}</span>
@@ -227,7 +227,7 @@ export default function WmsReportsPage() {
                   <a
                     href="/api/modules/wms/items/export"
                     download
-                    className="flex items-center gap-1 font-semibold text-purple-600 hover:text-purple-700"
+                    className="flex items-center gap-1 font-semibold text-[#3473d4] hover:text-blue-700"
                   >
                     Скачать <Download size={12} />
                   </a>

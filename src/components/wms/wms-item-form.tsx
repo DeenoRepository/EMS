@@ -121,7 +121,7 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#3473d4]">
               <Box size={20} />
             </div>
             <div>
@@ -146,7 +146,7 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
 
           {/* Section 1: Main details */}
           <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50/70 px-3 py-1.5 rounded-md inline-block">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
               1. Идентификация и классификация ТМЦ
             </h3>
 
@@ -233,7 +233,7 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
 
           {/* Section 2: Storage & Quantity */}
           <div className="space-y-4 border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50/70 px-3 py-1.5 rounded-md inline-block">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
               2. Складское размещение и Нормативы остатков
             </h3>
 
@@ -407,13 +407,13 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
           {/* Section 4: Specifications */}
           <div className="space-y-4 border-t border-slate-100 pt-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50/70 px-3 py-1.5 rounded-md inline-block">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
                 4. Технические характеристики
               </h3>
               <button
                 type="button"
                 onClick={handleAddSpec}
-                className="flex items-center gap-1 text-[11px] font-semibold text-purple-600 hover:text-purple-700"
+                className="flex items-center gap-1 text-[11px] font-semibold text-[#3473d4] hover:text-blue-700"
               >
                 <Plus size={13} /> Добавить параметр
               </button>
@@ -427,14 +427,14 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                     placeholder="Название (напр. Внутренний диаметр)"
                     value={s.key}
                     onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-purple-500 focus:outline-none"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#3c82ed] focus:outline-none"
                   />
                   <input
                     type="text"
                     placeholder="Значение (напр. 20 мм)"
                     value={s.value}
                     onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-purple-500 focus:outline-none"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#3c82ed] focus:outline-none"
                   />
                   <button
                     type="button"
@@ -460,7 +460,7 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2 text-xs font-semibold text-white shadow-sm shadow-purple-200 hover:bg-purple-700 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-5 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] disabled:opacity-50"
             >
               <Save size={14} />
               {loading ? "Сохранение..." : "Сохранить карточку ТМЦ"}
