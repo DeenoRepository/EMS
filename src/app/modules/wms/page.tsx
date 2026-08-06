@@ -23,9 +23,9 @@ import {
   PackageCheck,
   QrCode,
   DollarSign,
-  ArrowUpDown,
   History,
   PieChart,
+  Tag,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
@@ -119,6 +119,10 @@ export default function WmsRegistryPage() {
     return Array.from(new Set(items.map((i) => i.warehouse))).filter(Boolean);
   }, [items]);
 
+  const types = useMemo(() => {
+    return Array.from(new Set(items.map((i) => i.type))).filter(Boolean);
+  }, [items]);
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
@@ -160,26 +164,26 @@ export default function WmsRegistryPage() {
     switch (status) {
       case "IN_STOCK":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
-            <CheckCircle2 size={10} /> В наличии
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> В наличии
           </span>
         );
       case "LOW_STOCK":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-100">
-            <AlertTriangle size={10} /> Дефицит / Мало
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Дефицит / Мало
           </span>
         );
       case "OUT_OF_STOCK":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 border border-red-100">
-            <X size={10} /> Отсутствует
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-semibold text-rose-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Отсутствует
           </span>
         );
       case "OVERSTOCKED":
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-100">
-            <Layers size={10} /> Избыток
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-[#3473d4]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#3473d4]" /> Избыток
           </span>
         );
       default:
@@ -196,13 +200,13 @@ export default function WmsRegistryPage() {
             <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
               <Link href="/" className="hover:text-slate-600">Главная</Link>
               <ChevronRight size={12} />
-              <span className="text-purple-600">WMS Склад</span>
+              <span className="text-[#3473d4]">WMS Склад</span>
             </div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
               Реестр ТМЦ, ЗИП и Складских запасов
             </h1>
             <p className="mt-1 text-[12px] text-slate-500">
-              Централизованный складской учёт расходных материалов, запасных частей и инструмента (найдено {filteredItems.length} из {items.length} номенклатур).
+              Централизованный корпоративный учет расходных материалов, запасных частей и инструмента (найдено {filteredItems.length} из {items.length} номенклатур).
             </p>
           </div>
           <div className="flex gap-2">
@@ -218,7 +222,7 @@ export default function WmsRegistryPage() {
             <button onClick={fetchItems} disabled={loading} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
             </button>
-            <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 rounded-lg bg-purple-600 px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs shadow-purple-200 hover:bg-purple-700">
+            <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs shadow-blue-200 hover:bg-[#2565c8]">
               <Plus size={14} /> Создать карточку ТМЦ
             </button>
           </div>
@@ -227,92 +231,118 @@ export default function WmsRegistryPage() {
         {/* Quick KPI Summary Cards */}
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-5">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500">Всего наименований</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
-                <Box size={14} />
+            <div className="flex items-start justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                Всего позиций
+              </span>
+              <div className="rounded-md bg-blue-50 p-1.5 text-[#3473d4]">
+                <Layers size={14} />
               </div>
             </div>
-            <div className="mt-2 text-xl font-bold tracking-tight text-[#17243a]">
-              {kpiStats.totalPos} <span className="text-xs font-normal text-slate-400">позиций</span>
+            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
+              {kpiStats.totalPos}
             </div>
+            <div className="mt-1 text-[10px] text-slate-400">Номенклатур в картотеке</div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500">Общий физ. остаток</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+            <div className="flex items-start justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                Физ. остаток
+              </span>
+              <div className="rounded-md bg-emerald-50 p-1.5 text-emerald-600">
                 <PackageCheck size={14} />
               </div>
             </div>
-            <div className="mt-2 text-xl font-bold tracking-tight text-emerald-600">
+            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
               {kpiStats.totalQty} <span className="text-xs font-normal text-slate-400">ед.</span>
             </div>
+            <div className="mt-1 text-[10px] text-emerald-600 font-semibold">На складах предприятия</div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500">Критический остаток</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+            <div className="flex items-start justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                Дефицит / Мало
+              </span>
+              <div className="rounded-md bg-amber-50 p-1.5 text-amber-600">
                 <AlertTriangle size={14} />
               </div>
             </div>
-            <div className="mt-2 text-xl font-bold tracking-tight text-amber-600">
-              {kpiStats.lowStock} <span className="text-xs font-normal text-slate-400">позиций</span>
+            <div className="mt-2 text-[22px] font-bold tracking-tight text-amber-600">
+              {kpiStats.lowStock}
             </div>
+            <div className="mt-1 text-[10px] text-slate-400">Ниже минимального порога</div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500">Зарезервировано</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <div className="flex items-start justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                Зарезервировано
+              </span>
+              <div className="rounded-md bg-blue-50 p-1.5 text-[#3473d4]">
                 <Archive size={14} />
               </div>
             </div>
-            <div className="mt-2 text-xl font-bold tracking-tight text-blue-600">
+            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
               {kpiStats.reserved} <span className="text-xs font-normal text-slate-400">ед.</span>
             </div>
+            <div className="mt-1 text-[10px] text-slate-400">Под плановые ремонты</div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)] col-span-2 sm:col-span-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-500">Оценка запасов</span>
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <div className="flex items-start justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                Оценка остатков
+              </span>
+              <div className="rounded-md bg-indigo-50 p-1.5 text-indigo-600">
                 <DollarSign size={14} />
               </div>
             </div>
-            <div className="mt-2 text-lg font-bold tracking-tight text-[#17243a]">
-              {(kpiStats.totalValue / 1000).toFixed(1)}k <span className="text-xs font-normal text-slate-400">руб.</span>
+            <div className="mt-2 text-[20px] font-bold tracking-tight text-[#17243a]">
+              {(kpiStats.totalValue / 1000).toFixed(1)}k ₽
             </div>
+            <div className="mt-1 text-[10px] text-slate-400">Балансовая стоимость</div>
           </div>
         </div>
 
-        {/* Filter Controls Bar */}
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)] space-y-3">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Enhanced Filter Toolbar & Column Selector */}
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
             {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
-              <input
-                type="text"
-                placeholder="Поиск по артикулу (SKU), наименованию ТМЦ, ячейке хранения..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 pl-9 pr-8 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:border-purple-500 focus:outline-none"
-              />
-              {query && (
-                <button onClick={() => setQuery("")} className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
-                  <X size={13} />
-                </button>
-              )}
+            <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
+              <div className="relative w-full">
+                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Поиск по артикулу (SKU), наименованию ТМЦ, ячейке хранения..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
+                />
+                {query && (
+                  <button onClick={() => setQuery("")} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Filter Controls */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <div className="flex items-center gap-1 text-[#3473d4]">
+                <SlidersHorizontal size={13} />
+                <span className="font-semibold text-[11px]">Фильтры:</span>
+              </div>
+
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 focus:border-purple-500 focus:outline-none"
+                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
+                  statusFilter !== "ALL"
+                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
+                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
+                }`}
               >
                 <option value="ALL">Все статусы остатков</option>
                 <option value="IN_STOCK">В наличии</option>
@@ -324,7 +354,11 @@ export default function WmsRegistryPage() {
               <select
                 value={warehouseFilter}
                 onChange={(e) => setWarehouseFilter(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 focus:border-purple-500 focus:outline-none"
+                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
+                  warehouseFilter !== "ALL"
+                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
+                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
+                }`}
               >
                 <option value="ALL">Все склады</option>
                 {warehouses.map((w) => (
@@ -335,7 +369,11 @@ export default function WmsRegistryPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 focus:border-purple-500 focus:outline-none"
+                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
+                  categoryFilter !== "ALL"
+                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
+                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
+                }`}
               >
                 <option value="ALL">Все категории</option>
                 {categories.map((c) => (
@@ -343,164 +381,189 @@ export default function WmsRegistryPage() {
                 ))}
               </select>
 
-              {/* Column toggle popup toggle */}
+              {/* Column Selector Toggle */}
               <div className="relative">
                 <button
                   onClick={() => setShowColumnMenu(!showColumnMenu)}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
+                  title="Настройка видимости колонок"
                 >
-                  <Columns3 size={13} /> Колонки
+                  <Columns3 size={13} className="text-[#3473d4]" />
+                  <span>Колонки</span>
                 </button>
 
                 {showColumnMenu && (
-                  <div className="absolute right-0 z-20 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Видимость колонок
+                  <div className="absolute right-0 top-10 z-30 w-52 rounded-xl border border-slate-200 bg-white p-3 shadow-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="font-bold text-[#17243a] text-[11px]">Отображение колонок</span>
+                      <button onClick={() => setShowColumnMenu(false)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100">
+                        <X size={13} />
+                      </button>
                     </div>
-                    <div className="space-y-1.5 text-xs">
+                    <div className="space-y-1.5 pt-1 text-[11px]">
                       {Object.keys(DEFAULT_WMS_COLUMNS).map((key) => (
-                        <label key={key} className="flex items-center gap-2 font-medium text-slate-600 cursor-pointer">
+                        <label key={key} className="flex items-center gap-2 cursor-pointer text-slate-700 hover:bg-slate-50 p-1 rounded">
                           <input
                             type="checkbox"
                             checked={columns[key as keyof WmsColumnVisibility]}
                             onChange={() => toggleColumn(key as keyof WmsColumnVisibility)}
-                            className="rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                            className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200"
                           />
-                          {key === "sku" && "Артикул / SKU"}
-                          {key === "name" && "Наименование"}
-                          {key === "category" && "Категория"}
-                          {key === "warehouse" && "Склад"}
-                          {key === "cell" && "Ячейка"}
-                          {key === "quantity" && "Остаток"}
-                          {key === "unitPrice" && "Цена за ед."}
-                          {key === "status" && "Статус"}
-                          {key === "actions" && "Действия"}
+                          <span>
+                            {key === "sku" && "Артикул / SKU"}
+                            {key === "name" && "Наименование"}
+                            {key === "category" && "Категория"}
+                            {key === "warehouse" && "Склад"}
+                            {key === "cell" && "Ячейка"}
+                            {key === "quantity" && "Остаток"}
+                            {key === "unitPrice" && "Цена ед."}
+                            {key === "status" && "Статус"}
+                            {key === "actions" && "Действие"}
+                          </span>
                         </label>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
 
+          {/* Active Filter Chips */}
+          {activeFiltersCount > 0 && (
+            <div className="flex items-center gap-2 flex-wrap text-xs px-1">
+              <span className="text-[10px] font-semibold text-slate-400">Активные фильтры:</span>
+
+              {query && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
+                  Поиск: "{query}"
+                  <button onClick={() => setQuery("")} className="hover:text-blue-800">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+
+              {statusFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
+                  Статус: {statusFilter}
+                  <button onClick={() => setStatusFilter("ALL")} className="hover:text-blue-800">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+
+              {warehouseFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
+                  Склад: {warehouseFilter}
+                  <button onClick={() => setWarehouseFilter("ALL")} className="hover:text-blue-800">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+
+              {categoryFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
+                  Категория: {categoryFilter}
+                  <button onClick={() => setCategoryFilter("ALL")} className="hover:text-blue-800">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+
+              <button onClick={resetAllFilters} className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-slate-700 ml-1">
+                <RotateCcw size={10} /> Сбросить все
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* WMS Data Table styled 1-in-1 with EPS Equipment Table */}
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,.025)]">
+          <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-6 gap-4">
+            <span>Артикул / SKU</span>
+            <span>Наименование ТМЦ</span>
+            <span>Категория & Тип</span>
+            <span>Склад / Ячейка</span>
+            <span>Остаток & Статус</span>
+            <span className="text-right">Действие</span>
+          </div>
+
+          {loading ? (
+            <div className="px-5 py-12 text-center text-xs text-slate-400">
+              <RefreshCw className="mx-auto mb-2 animate-spin text-[#3473d4]" size={20} />
+              Загрузка реестра складских запасов...
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="px-5 py-12 text-center text-xs text-slate-400 space-y-2">
+              <p>Позиции ТМЦ по заданным критериям фильтрации не найдены.</p>
               {activeFiltersCount > 0 && (
-                <button
-                  onClick={resetAllFilters}
-                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100"
-                >
-                  <RotateCcw size={12} /> Сброс ({activeFiltersCount})
+                <button onClick={resetAllFilters} className="text-[11px] font-semibold text-[#3473d4] hover:underline">
+                  Сбросить все фильтры
                 </button>
               )}
             </div>
-          </div>
-        </div>
+          ) : (
+            filteredItems.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-1 md:grid-cols-6 gap-2 border-b border-slate-100 px-5 py-3.5 last:border-0 hover:bg-slate-50/50 md:items-center md:gap-4 transition text-xs"
+              >
+                <div className="font-mono">
+                  <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline">
+                    {item.sku}
+                  </Link>
+                  {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5">ШК: {item.barcode}</span>}
+                </div>
 
-        {/* WMS Data Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <tr>
-                  {columns.sku && <th className="px-4 py-3">Артикул / SKU</th>}
-                  {columns.name && <th className="px-4 py-3">Наименование ТМЦ / ЗИП</th>}
-                  {columns.category && <th className="px-4 py-3">Категория</th>}
-                  {columns.warehouse && <th className="px-4 py-3">Склад хранения</th>}
-                  {columns.cell && <th className="px-4 py-3">Ячейка</th>}
-                  {columns.quantity && <th className="px-4 py-3 text-right">Остаток / Мин</th>}
-                  {columns.unitPrice && <th className="px-4 py-3 text-right">Цена ед.</th>}
-                  {columns.status && <th className="px-4 py-3">Статус</th>}
-                  {columns.actions && <th className="px-4 py-3 text-right">Действия</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-slate-400">
-                      <RefreshCw className="mx-auto mb-2 animate-spin text-purple-500" size={20} />
-                      Загрузка реестра складских запасов...
-                    </td>
-                  </tr>
-                ) : filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-slate-400">
-                      Позиции ТМЦ по заданным фильтрам не найдены.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      {columns.sku && (
-                        <td className="px-4 py-3 font-mono text-[11px] font-bold text-purple-700">
-                          <Link href={`/modules/wms/${item.id}`} className="hover:underline">
-                            {item.sku}
-                          </Link>
-                        </td>
-                      )}
-                      {columns.name && (
-                        <td className="px-4 py-3 font-medium text-[#17243a]">
-                          <Link href={`/modules/wms/${item.id}`} className="hover:text-purple-600">
-                            {item.name}
-                          </Link>
-                          {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
-                            <div className="mt-0.5 text-[10px] text-slate-400">
-                              Совместимо с: {item.compatibleEquipment.join(", ")}
-                            </div>
-                          )}
-                        </td>
-                      )}
-                      {columns.category && (
-                        <td className="px-4 py-3 text-slate-500">
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                            {item.category}
-                          </span>
-                        </td>
-                      )}
-                      {columns.warehouse && (
-                        <td className="px-4 py-3 text-slate-600 font-medium">
-                          {item.warehouse}
-                        </td>
-                      )}
-                      {columns.cell && (
-                        <td className="px-4 py-3 font-mono text-[11px] text-slate-500">
-                          {item.cell}
-                        </td>
-                      )}
-                      {columns.quantity && (
-                        <td className="px-4 py-3 text-right">
-                          <span className={`font-bold ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-slate-800"}`}>
-                            {item.quantity} {item.unit}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block">
-                            мин: {item.minQuantity} | рез: {item.reservedQuantity}
-                          </span>
-                        </td>
-                      )}
-                      {columns.unitPrice && (
-                        <td className="px-4 py-3 text-right font-medium text-slate-700">
-                          {item.unitPrice.toLocaleString("ru-RU")} ₽
-                        </td>
-                      )}
-                      {columns.status && (
-                        <td className="px-4 py-3">
-                          {getStatusBadge(item.status)}
-                        </td>
-                      )}
-                      {columns.actions && (
-                        <td className="px-4 py-3 text-right">
-                          <Link
-                            href={`/modules/wms/${item.id}`}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-purple-600 hover:bg-purple-50 hover:border-purple-200"
-                          >
-                            Карточка <ChevronRight size={12} />
-                          </Link>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                <div>
+                  <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4]">
+                    {item.name}
+                  </Link>
+                  {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
+                    <span className="block text-[10px] text-slate-400">Совместимо: {item.compatibleEquipment.join(", ")}</span>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                    <Tag size={12} className="text-slate-400" />
+                    <span>{item.category}</span>
+                  </div>
+                  <span className="block text-[10px] text-slate-400">{item.type}</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                    <Building2 size={12} className="text-slate-400" />
+                    <span>{item.warehouse}</span>
+                  </div>
+                  <span className="block text-[10px] font-mono text-slate-400">{item.cell}</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold text-[12px] ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-[#17243a]"}`}>
+                      {item.quantity} {item.unit}
+                    </span>
+                    {getStatusBadge(item.status)}
+                  </div>
+                  <span className="block text-[10px] text-slate-400">
+                    мин: {item.minQuantity} | рез: {item.reservedQuantity} | {item.unitPrice.toLocaleString("ru-RU")} ₽/ед.
+                  </span>
+                </div>
+
+                <div className="text-right">
+                  <Link
+                    href={`/modules/wms/${item.id}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition"
+                  >
+                    Паспорт <ChevronRight size={12} />
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
 
         {/* WMS Item Creation Modal */}
         <WmsItemForm
@@ -514,3 +577,4 @@ export default function WmsRegistryPage() {
     </ShellLayout>
   );
 }
+

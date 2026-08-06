@@ -47,7 +47,7 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
             <ChevronRight size={12} />
             <Link href="/modules/wms" className="hover:text-slate-600">WMS Склад</Link>
             <ChevronRight size={12} />
-            <span className="text-purple-600">{item.sku}</span>
+            <span className="text-[#3473d4]">{item.sku}</span>
           </div>
 
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -60,7 +60,7 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
               </Link>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                  <span className="font-mono text-xs font-bold text-[#3473d4] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                     {item.sku}
                   </span>
                   <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600">
@@ -80,7 +80,7 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
               </button>
               <button
                 onClick={() => setShowEditModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-purple-700"
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#2565c8]"
               >
                 Редактировать карточку
               </button>
