@@ -1,11 +1,27 @@
-# Progress Tracking - WMS Module De-cluttering & Contextual Sub-sectioning
+# WMS Module Design Standardization Checklist
 
-- [x] 1. Create top sub-navigation component `src/components/wms/wms-sub-nav.tsx`
-- [x] 2. Update navigation config `src/lib/config/nav.ts` to include Warehouses route
-- [x] 3. Refactor main inventory registry page `src/app/modules/wms/page.tsx` (add sub-nav, status filter tabs, collapsible KPI summary)
-- [x] 4. Integrate sub-nav into movements page `src/app/modules/wms/movements/page.tsx`
-- [x] 5. Create dedicated Warehouses & Storage Bins sub-section page `src/app/modules/wms/warehouses/page.tsx`
-- [x] 6. Integrate sub-nav into reports page `src/app/modules/wms/reports/page.tsx`
-- [x] 7. Update SemVer in `src/lib/version.ts` to 2.4.0
-- [x] 8. Add expandable sub-sections to WMS menu in sidebar `src/components/layout/app-sidebar.tsx`
-- [x] 9. Verify type-safety & run build test
+- [x] 1. Главная страница WMS (Реестр ТМЦ и ЗИП - `/modules/wms`)
+  - [x] Выравнивание заголовка, хлебных крошек и кнопок действий
+  - [x] Унификация KPI-карточек по размеру, шрифтам и иконкам EPS
+  - [x] Настройка интерактивных селекторов фильтров и чипсов сброса
+  - [x] Проверка таблицы, выравнивания текста и выпадающего меню колонок
+
+- [x] 2. Страница движений WMS (`/modules/wms/movements`)
+  - [x] Приведение заголовков и хлебных крошек к EPS-стандарту
+  - [x] Добавление управления колонками таблицы (`Columns3`) с `localStorage`
+  - [x] Чипсы активных фильтров и кнопка сброса
+  - [x] Дизайн таблицы операций и бейджей видов движений
+
+- [x] 3. Страница складов и ячеек WMS (`/modules/wms/warehouses`)
+  - [x] Единый блок заголовка и хлебных крошек
+  - [x] Единые KPI карточки емкости складов и ячеек
+  - [x] Таблицы складов и ячеек по стандартам EPS
+
+- [x] 4. Страница отчетов WMS (`/modules/wms/reports`)
+  - [x] Приведение к стандарту EPS Reports
+  - [x] Конструктор отчетов и селекторы полей
+  - [x] Форматирование бейджей XLSX/PDF/CSV и списка отчетов
+
+- [x] 5. Детальная карточка ТМЦ (`/modules/wms/[id]`)
+  - [x] Приведение структуры страницы, заголовочного блока и кнопок к EPS
+  - [x] Оформление вкладок, технических характеристик, QR/Barcode карточки и истории

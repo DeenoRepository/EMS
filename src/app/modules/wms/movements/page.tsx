@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { MOCK_WMS_MOVEMENTS, MOCK_WMS_ITEMS, WmsMovement, WmsItem } from "@/lib/modules/wms-store";
 import {
@@ -15,7 +15,10 @@ import {
   Archive,
   Download,
   Calendar,
-  UserCheck
+  UserCheck,
+  X,
+  SlidersHorizontal,
+  RotateCcw
 } from "lucide-react";
 import Link from "next/link";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
@@ -27,6 +30,33 @@ export default function WmsMovementsPage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [showOpModal, setShowOpModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const fetchItemsAndMovements = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [resItems, resMovements] = await Promise.all([
+        fetch("/api/modules/wms/items"),
+        fetch(`/api/modules/wms/movements?query=${encodeURIComponent(query)}&type=${typeFilter}`)
+      ]);
+      if (resItems.ok) {
+        const dataItems = await resItems.json();
+        if (dataItems.items) setItems(dataItems.items);
+      }
+      if (resMovements.ok) {
+        const dataMov = await resMovements.json();
+        if (dataMov.movements) setMovements(dataMov.movements);
+      }
+    } catch {
+      // Fallback to mock
+    } finally {
+      setLoading(false);
+    }
+  }, [query, typeFilter]);
+
+  useEffect(() => {
+    fetchItemsAndMovements();
+  }, [fetchItemsAndMovements]);
 
   const filteredMovements = useMemo(() => {
     return movements.filter((m) => {
@@ -77,59 +107,115 @@ export default function WmsMovementsPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-5">
-        {/* Contextual Sub-Nav Bar */}
-        <WmsSubNav />
-
-        {/* Header Action Toolbar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+        {/* Breadcrumbs & Title Block aligned with EPS Standard */}
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Журнал складских операций и движений ТМЦ</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Полный хронологический аудит приходов, списаний на ремонты и внутренних перемещений ({filteredMovements.length} записей)
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
+              <Link href="/" className="hover:text-slate-600">Главная</Link>
+              <ChevronRight size={12} />
+              <Link href="/modules/wms" className="hover:text-slate-600">WMS Складской учёт</Link>
+              <ChevronRight size={12} />
+              <span className="text-[#3473d4] font-semibold">Движения ТМЦ</span>
+            </div>
+            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
+              Журнал складских операций и движений ТМЦ
+            </h1>
+            <p className="mt-1 text-[12px] text-slate-500">
+              Полный хронологический аудит приходов, списаний на ремонты и внутренних перемещений ({filteredMovements.length} записей).
             </p>
           </div>
-
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowOpModal(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#2565c8] transition cursor-pointer"
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition cursor-pointer"
             >
               <Plus size={14} /> Оформить операцию WMS
             </button>
           </div>
         </div>
 
-        {/* Filter Bar */}
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)] flex flex-col md:flex-row gap-3 items-center justify-between">
-          <div className="relative flex-1 w-full max-w-md">
-            <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
-            <input
-              type="text"
-              placeholder="Поиск по ТМЦ, артикулу, сотруднику, причине..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
-            />
+        {/* Filter Toolbar aligned with EPS Standard */}
+        <div className="space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
+            {/* Search Input */}
+            <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
+              <div className="relative w-full">
+                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Поиск по ТМЦ, артикулу, сотруднику, причине..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
+                />
+                {query && (
+                  <button onClick={() => setQuery("")} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Filter Controls */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <div className="flex items-center gap-1 text-[#3473d4]">
+                <SlidersHorizontal size={13} />
+                <span className="font-semibold text-[11px]">Фильтры:</span>
+              </div>
+
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
+                  typeFilter !== "ALL"
+                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
+                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
+                }`}
+              >
+                <option value="ALL">Все типы операций</option>
+                <option value="INCOMING">Приход / Поступление</option>
+                <option value="OUTGOING">Расход / Списание</option>
+                <option value="TRANSFER">Перемещение</option>
+                <option value="PERSONAL_CARD">Выдача на личную карточку</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
-                typeFilter !== "ALL"
-                  ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
-                  : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
-              }`}
-            >
-              <option value="ALL">Все типы операций</option>
-              <option value="INCOMING">Приход / Поступление</option>
-              <option value="OUTGOING">Расход / Списание</option>
-              <option value="TRANSFER">Перемещение</option>
-              <option value="PERSONAL_CARD">Выдача на личную карточку</option>
-            </select>
-          </div>
+          {/* Active Filter Chips */}
+          {(query || typeFilter !== "ALL") && (
+            <div className="flex items-center gap-2 flex-wrap text-xs px-1">
+              <span className="text-[10px] font-semibold text-slate-400">Активные фильтры:</span>
+
+              {query && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
+                  Поиск: "{query}"
+                  <button onClick={() => setQuery("")} className="hover:text-blue-800">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+
+              {typeFilter !== "ALL" && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
+                  Операция: {typeFilter}
+                  <button onClick={() => setTypeFilter("ALL")} className="hover:text-blue-800">
+                    <X size={11} />
+                  </button>
+                </span>
+              )}
+
+              <button
+                onClick={() => {
+                  setQuery("");
+                  setTypeFilter("ALL");
+                }}
+                className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-slate-700 ml-1"
+              >
+                <RotateCcw size={10} /> Сбросить все
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Movements Table */}
@@ -189,11 +275,14 @@ export default function WmsMovementsPage() {
           isOpen={showOpModal}
           onClose={() => setShowOpModal(false)}
           items={items}
-          onSubmitSuccess={(newMov, updatedItem) => {
+          onSubmitSuccess={(newMov, updatedItems) => {
             setMovements((prev) => [newMov, ...prev]);
-            if (updatedItem) {
+            if (updatedItems && updatedItems.length > 0) {
               setItems((prev) =>
-                prev.map((i) => (i.id === updatedItem.id ? { ...i, ...updatedItem } : i))
+                prev.map((i) => {
+                  const match = updatedItems.find((u) => u.id === i.id);
+                  return match ? { ...i, ...match } : i;
+                })
               );
             }
           }}

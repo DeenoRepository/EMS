@@ -116,43 +116,52 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-slate-100 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col my-auto"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#3473d4]">
-              <Box size={20} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-[#3473d4]">
+              <Box size={18} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-[#17243a]">
+              <h3 className="text-sm font-bold text-[#17243a]">
                 {initialData?.id ? "Редактирование карточки ТМЦ / ЗИП" : "Создание новой карточки ТМЦ / ЗИП"}
-              </h2>
-              <p className="text-xs text-slate-500">Заполните складские реквизиты, нормативы и технические характеристики</p>
+              </h3>
+              <p className="text-[10px] text-slate-400">Заполните складские реквизиты, нормативы и технические характеристики</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
-            <X size={18} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          >
+            <X size={16} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Form Body (Scrollable) */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 min-h-0 space-y-4 text-xs pr-1">
           {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-600">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-[11px] font-medium text-red-600">
               {error}
             </div>
           )}
 
           {/* Section 1: Main details */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
+          <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-[#3473d4] border-b border-slate-200/60 pb-2">
+              <Box size={14} />
               1. Идентификация и классификация ТМЦ
-            </h3>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">
                   Артикул / SKU <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -160,12 +169,12 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
                   placeholder="SKU-BRG-6204-RS"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-mono font-bold text-[#3473d4] focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">
                   Наименование ТМЦ / ЗИП <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -174,18 +183,18 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Подшипник шариковый радиальный 6204-2RS SKF"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-semibold text-[#17243a] focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Категория запасов</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Категория запасов</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                 >
                   <option value="Подшипники">Подшипники</option>
                   <option value="Смазочные материалы">Смазочные материалы</option>
@@ -199,11 +208,11 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Тип ТМЦ</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Тип ТМЦ</label>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as any)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                 >
                   <option value="ZIP">ЗИП (Запасные части)</option>
                   <option value="CONSUMABLE">Расходные материалы</option>
@@ -214,11 +223,11 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Единица измерения</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Единица измерения</label>
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value as any)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                 >
                   <option value="pcs">Штуки (шт)</option>
                   <option value="kg">Килограммы (кг)</option>
@@ -232,21 +241,22 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
           </div>
 
           {/* Section 2: Storage & Quantity */}
-          <div className="space-y-4 border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
+          <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-[#3473d4] border-b border-slate-200/60 pb-2">
+              <Box size={14} />
               2. Складское размещение и Нормативы остатков
-            </h3>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">
                   Склад хранения (выберите или укажите новый)
                 </label>
                 <div className="space-y-1.5">
                   <select
                     value={warehouse}
                     onChange={(e) => setWarehouse(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none bg-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                   >
                     <option value="Основной склад ЗИП">Основной склад ЗИП</option>
                     <option value="Склад ГСМ №2">Склад ГСМ №2</option>
@@ -263,14 +273,14 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                       required
                       placeholder="Введите название нового склада..."
                       onChange={(e) => setWarehouse(e.target.value)}
-                      className="w-full rounded-lg border border-[#3c82ed] bg-blue-50/50 px-3 py-2 text-xs focus:outline-none"
+                      className="w-full rounded-lg border border-[#3c82ed] bg-blue-50/50 px-3 py-2 text-[11px] outline-none font-medium"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">
                   Точная ячейка / Место хранения
                 </label>
                 <input
@@ -278,85 +288,86 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                   value={cell}
                   onChange={(e) => setCell(e.target.value)}
                   placeholder="Стеллаж A-04 / Ячейка 12"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Факт. остаток</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Факт. остаток</label>
                 <input
                   type="number"
                   min="0"
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-bold text-[#17243a] focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Мин. остаток</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Мин. остаток</label>
                 <input
                   type="number"
                   min="0"
                   value={minQuantity}
                   onChange={(e) => setMinQuantity(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-medium focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Макс. норма</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Макс. норма</label>
                 <input
                   type="number"
                   min="0"
                   value={maxQuantity}
                   onChange={(e) => setMaxQuantity(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-medium focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Резерв</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Резерв</label>
                 <input
                   type="number"
                   min="0"
                   value={reservedQuantity}
                   onChange={(e) => setReservedQuantity(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-medium focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Цена ед. (руб)</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Цена ед. (руб)</label>
                 <input
                   type="number"
                   min="0"
                   value={unitPrice}
                   onChange={(e) => setUnitPrice(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none font-medium focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 3: Integration, Responsible Person & Supplier */}
-          <div className="space-y-4 border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
+          <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-[#3473d4] border-b border-slate-200/60 pb-2">
+              <Box size={14} />
               3. Ответственность, Совместимость EPS и Поставщики
-            </h3>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                  Ответственное лица (МОЛ / Заведующий)
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">
+                  Ответственное лицо (МОЛ / Заведующий)
                 </label>
                 <div className="space-y-1.5">
                   <select
                     value={responsibleUser}
                     onChange={(e) => setResponsibleUser(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none bg-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                   >
                     <option value="Смирнов А.В. (Старший кладовщик)">Смирнов А.В. (Старший кладовщик)</option>
                     <option value="Ковалев Д.М. (Кладовщик ГСМ)">Ковалев Д.М. (Кладовщик ГСМ)</option>
@@ -372,14 +383,14 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                       required
                       placeholder="ФИО и должность ответственного..."
                       onChange={(e) => setResponsibleUser(e.target.value)}
-                      className="w-full rounded-lg border border-[#3c82ed] bg-blue-50/50 px-3 py-2 text-xs focus:outline-none"
+                      className="w-full rounded-lg border border-[#3c82ed] bg-blue-50/50 px-3 py-2 text-[11px] outline-none font-medium"
                     />
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">
                   Совместимое оборудование EPS (через запятую)
                 </label>
                 <input
@@ -387,29 +398,30 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                   value={compatibleEq}
                   onChange={(e) => setCompatibleEq(e.target.value)}
                   placeholder="EQ-CNC-2026-01, EQ-PRESS-2026-04"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Поставщик / Изготовитель</label>
+                <label className="block font-semibold text-slate-600 text-[11px] mb-1">Поставщик / Изготовитель</label>
                 <input
                   type="text"
                   value={supplier}
                   onChange={(e) => setSupplier(e.target.value)}
                   placeholder="ООО СпецПодшипник Торг"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                 />
               </div>
             </div>
           </div>
 
           {/* Section 4: Specifications */}
-          <div className="space-y-4 border-t border-slate-100 pt-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
+          <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+              <div className="flex items-center gap-1.5 font-bold text-[11px] uppercase tracking-wider text-[#3473d4]">
+                <Box size={14} />
                 4. Технические характеристики
-              </h3>
+              </div>
               <button
                 type="button"
                 onClick={handleAddSpec}
@@ -421,25 +433,25 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
 
             <div className="space-y-2">
               {specs.map((s, idx) => (
-                <div key={idx} className="flex items-center gap-3">
+                <div key={idx} className="flex items-center gap-2">
                   <input
                     type="text"
                     placeholder="Название (напр. Внутренний диаметр)"
                     value={s.key}
                     onChange={(e) => handleSpecChange(idx, "key", e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#3c82ed] focus:outline-none"
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                   />
                   <input
                     type="text"
                     placeholder="Значение (напр. 20 мм)"
                     value={s.value}
                     onChange={(e) => handleSpecChange(idx, "value", e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-[#3c82ed] focus:outline-none"
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => handleRemoveSpec(idx)}
-                    className="p-1 text-slate-400 hover:text-red-500"
+                    className="p-1 text-slate-400 hover:text-red-500 transition"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -449,20 +461,20 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 transition"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-5 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              <Save size={14} />
+              <Save size={13} />
               {loading ? "Сохранение..." : "Сохранить карточку ТМЦ"}
             </button>
           </div>

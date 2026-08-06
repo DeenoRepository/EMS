@@ -89,11 +89,39 @@ export const INITIAL_WAREHOUSES: WarehouseSettingItem[] = [
   }
 ];
 
+export interface StorageCellSettingItem {
+  id: string;
+  warehouseId: string;
+  warehouseName: string;
+  rack: string;
+  shelf: string;
+  cellCode: string;
+  barcode: string;
+  maxWeightKg: number;
+  status: "FREE" | "OCCUPIED" | "RESERVED";
+}
+
+export const INITIAL_STORAGE_CELLS: StorageCellSettingItem[] = [
+  { id: "cell-01", warehouseId: "wh-001", warehouseName: "Основной склад ЗИП", rack: "A-04", shelf: "3", cellCode: "A-04-3-12", barcode: "4607012948128", maxWeightKg: 500, status: "OCCUPIED" },
+  { id: "cell-02", warehouseId: "wh-001", warehouseName: "Основной склад ЗИП", rack: "H-02", shelf: "1", cellCode: "H-02-1-05", barcode: "4607012948773", maxWeightKg: 800, status: "OCCUPIED" },
+  { id: "cell-03", warehouseId: "wh-002", warehouseName: "Склад ГСМ №2", rack: "G-01", shelf: "Бочка", cellCode: "G-01-B03", barcode: "4607012948991", maxWeightKg: 1000, status: "OCCUPIED" },
+  { id: "cell-04", warehouseId: "wh-003", warehouseName: "Цеховая кладовая №3", rack: "R-03", shelf: "2", cellCode: "R-03-2-C", barcode: "4607012948332", maxWeightKg: 250, status: "FREE" },
+  { id: "cell-05", warehouseId: "wh-001", warehouseName: "Основной склад ЗИП", rack: "E-01", shelf: "Блок 14", cellCode: "E-01-14", barcode: "4607012948554", maxWeightKg: 300, status: "OCCUPIED" },
+];
+
 export default function WmsSettingsPage() {
+  const [activeTab, setActiveTab] = useState<"WAREHOUSES" | "CELLS">("WAREHOUSES");
   const [warehouses, setWarehouses] = useState<WarehouseSettingItem[]>(INITIAL_WAREHOUSES);
+  const [cells, setCells] = useState<StorageCellSettingItem[]>(INITIAL_STORAGE_CELLS);
   const [query, setQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingWh, setEditingWh] = useState<WarehouseSettingItem | null>(null);
+
+  // Cell Creation State
+  const [cellRack, setCellRack] = useState("");
+  const [cellShelf, setCellShelf] = useState("");
+  const [cellCodeVal, setCellCodeVal] = useState("");
+  const [cellWhId, setCellWhId] = useState("wh-001");
 
   // Form State
   const [code, setCode] = useState("");
@@ -111,6 +139,34 @@ export default function WmsSettingsPage() {
       w.code.toLowerCase().includes(query.toLowerCase()) ||
       w.responsibleUser.toLowerCase().includes(query.toLowerCase())
   );
+
+  const filteredCells = cells.filter(
+    (c) =>
+      c.cellCode.toLowerCase().includes(query.toLowerCase()) ||
+      c.rack.toLowerCase().includes(query.toLowerCase()) ||
+      c.warehouseName.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const handleAddCell = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cellCodeVal.trim()) return;
+    const wh = warehouses.find((w) => w.id === cellWhId);
+    const newCell: StorageCellSettingItem = {
+      id: `cell-${Date.now()}`,
+      warehouseId: cellWhId,
+      warehouseName: wh ? wh.name : "Основной склад ЗИП",
+      rack: cellRack || "A-01",
+      shelf: cellShelf || "1",
+      cellCode: cellCodeVal.trim(),
+      barcode: `4607${Date.now().toString().slice(-9)}`,
+      maxWeightKg: 400,
+      status: "FREE",
+    };
+    setCells((prev) => [newCell, ...prev]);
+    setCellCodeVal("");
+    setCellRack("");
+    setCellShelf("");
+  };
 
   const openCreateModal = () => {
     setEditingWh(null);
@@ -194,155 +250,274 @@ export default function WmsSettingsPage() {
           <ChevronRight size={12} />
           <Link href="/admin/settings" className="hover:text-slate-600">Настройки</Link>
           <ChevronRight size={12} />
-          <span className="text-[#3473d4]">Управление Складами & МОЛ WMS</span>
+          <span className="text-[#3473d4]">Настройки Складов, Ячеек & МОЛ WMS</span>
         </div>
 
         {/* Page Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between border-b border-slate-200 pb-4">
           <div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
-              Склады, Кладовые и Назначение МОЛ (WMS)
+              Склады, Стеллажи, Адресные Ячейки & Назначение МОЛ
             </h1>
             <p className="mt-1 text-[12px] text-slate-500">
-              Администрирование физических и цеховых мест хранения, привязка материально ответственных лиц (МОЛ).
+              Администрирование физических мест хранения, топологии стеллажных ячеек и привязка материально ответственных лиц (МОЛ).
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#2565c8] transition"
+            >
+              <Plus size={14} /> Добавить склад
+            </button>
+          </div>
+        </div>
+
+        {/* Settings Sub-Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-200 text-xs font-semibold">
           <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#2565c8] transition"
+            onClick={() => setActiveTab("WAREHOUSES")}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 transition ${
+              activeTab === "WAREHOUSES"
+                ? "border-[#3473d4] text-[#3473d4]"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
           >
-            <Plus size={14} /> Добавить склад
+            <Building2 size={14} /> Склады и МОЛ ({warehouses.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("CELLS")}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 transition ${
+              activeTab === "CELLS"
+                ? "border-[#3473d4] text-[#3473d4]"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Box size={14} /> Конфигурация Стеллажей и Ячеек ({cells.length})
           </button>
         </div>
 
-        {/* Top Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Всего складов
-              </span>
-              <div className="rounded-md bg-blue-50 p-1.5 text-[#3473d4]">
-                <Building2 size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
-              {warehouses.length}
-            </div>
-            <div className="mt-1 text-[10px] text-slate-400">Активно в конфигурации</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Закрепленных МОЛ
-              </span>
-              <div className="rounded-md bg-emerald-50 p-1.5 text-emerald-600">
-                <UserCheck size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
-              {new Set(warehouses.map((w) => w.responsibleUser)).size}
-            </div>
-            <div className="mt-1 text-[10px] text-emerald-600 font-semibold">Ответственных сотрудников</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Локации и Пролеты
-              </span>
-              <div className="rounded-md bg-indigo-50 p-1.5 text-indigo-600">
-                <MapPin size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
-              {warehouses.length} зонирований
-            </div>
-            <div className="mt-1 text-[10px] text-slate-400">Указаны точные адреса</div>
-          </div>
-        </div>
-
-        {/* Filter Toolbar */}
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
-          <div className="relative max-w-md">
-            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Поиск по названию склада, коду или ответственному МОЛ..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed]"
-            />
-            {query && (
-              <button onClick={() => setQuery("")} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
-                <X size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Warehouses Table Grid */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
-          <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-5 gap-4">
-            <span>Код & Название Склада</span>
-            <span>Тип & Назначение</span>
-            <span>Локация / Корпус</span>
-            <span>Ответственный (МОЛ)</span>
-            <span className="text-right">Действия</span>
-          </div>
-
-          <div className="divide-y divide-slate-100 text-xs">
-            {filteredWarehouses.map((wh) => (
-              <div key={wh.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 px-5 py-3.5 hover:bg-slate-50/50 md:items-center transition">
-                <div>
-                  <span className="font-mono text-[11px] font-bold text-[#3473d4] block">{wh.code}</span>
-                  <span className="font-semibold text-[#17243a] text-[12px]">{wh.name}</span>
-                </div>
-
-                <div>
-                  <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
-                    {wh.type === "MAIN" ? "Центральный ЗИП" : wh.type === "GSM" ? "Склад ГСМ" : wh.type === "SHOP" ? "Цеховая кладовая" : "Инструментальный"}
+        {activeTab === "WAREHOUSES" ? (
+          <>
+            {/* Top Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
+                <div className="flex items-start justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                    Всего складов
                   </span>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1 text-slate-700 font-medium">
-                    <MapPin size={12} className="text-slate-400" />
-                    <span>{wh.location}</span>
+                  <div className="rounded-md bg-blue-50 p-1.5 text-[#3473d4]">
+                    <Building2 size={14} />
                   </div>
                 </div>
+                <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
+                  {warehouses.length}
+                </div>
+                <div className="mt-1 text-[10px] text-slate-400">Активно в конфигурации</div>
+              </div>
 
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-6 w-6 rounded-full bg-blue-50 text-[#3473d4] flex items-center justify-center font-bold text-[10px]">
-                      {wh.responsibleUser.slice(0, 2)}
-                    </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
+                <div className="flex items-start justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                    Закрепленных МОЛ
+                  </span>
+                  <div className="rounded-md bg-emerald-50 p-1.5 text-emerald-600">
+                    <UserCheck size={14} />
+                  </div>
+                </div>
+                <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
+                  {new Set(warehouses.map((w) => w.responsibleUser)).size}
+                </div>
+                <div className="mt-1 text-[10px] text-emerald-600 font-semibold">Ответственных сотрудников</div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
+                <div className="flex items-start justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
+                    Локации и Пролеты
+                  </span>
+                  <div className="rounded-md bg-indigo-50 p-1.5 text-indigo-600">
+                    <MapPin size={14} />
+                  </div>
+                </div>
+                <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
+                  {warehouses.length} зонирований
+                </div>
+                <div className="mt-1 text-[10px] text-slate-400">Указаны точные адреса</div>
+              </div>
+            </div>
+
+            {/* Filter Toolbar */}
+            <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+              <div className="relative max-w-md">
+                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Поиск по названию склада, коду или ответственному МОЛ..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed]"
+                />
+                {query && (
+                  <button onClick={() => setQuery("")} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Warehouses Table Grid */}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+              <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-5 gap-4">
+                <span>Код & Название Склада</span>
+                <span>Тип & Назначение</span>
+                <span>Локация / Корпус</span>
+                <span>Ответственный (МОЛ)</span>
+                <span className="text-right">Действия</span>
+              </div>
+
+              <div className="divide-y divide-slate-100 text-xs">
+                {filteredWarehouses.map((wh) => (
+                  <div key={wh.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 px-5 py-3.5 hover:bg-slate-50/50 md:items-center transition">
                     <div>
-                      <span className="font-bold text-[#17243a] block">{wh.responsibleUser}</span>
-                      <span className="text-[10px] text-slate-400 block">{wh.responsibleUserPhone}</span>
+                      <span className="font-mono text-[11px] font-bold text-[#3473d4] block">{wh.code}</span>
+                      <span className="font-semibold text-[#17243a] text-[12px]">{wh.name}</span>
+                    </div>
+
+                    <div>
+                      <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                        {wh.type === "MAIN" ? "Центральный ЗИП" : wh.type === "GSM" ? "Склад ГСМ" : wh.type === "SHOP" ? "Цеховая кладовая" : "Инструментальный"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1 text-slate-700 font-medium">
+                        <MapPin size={12} className="text-slate-400" />
+                        <span>{wh.location}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-6 w-6 rounded-full bg-blue-50 text-[#3473d4] flex items-center justify-center font-bold text-[10px]">
+                          {wh.responsibleUser.slice(0, 2)}
+                        </div>
+                        <div>
+                          <span className="font-bold text-[#17243a] block">{wh.responsibleUser}</span>
+                          <span className="text-[10px] text-slate-400 block">{wh.responsibleUserPhone}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditModal(wh)}
+                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#3473d4] hover:bg-blue-50"
+                      >
+                        Редактировать
+                      </button>
+                      <button
+                        onClick={() => handleDelete(wh.id)}
+                        className="p-1 text-slate-400 hover:text-red-600"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Cells & Topology Configurator Tab */
+          <div className="space-y-6">
+            <form onSubmit={handleAddCell} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              <h3 className="text-xs font-bold text-[#17243a]">Быстрое добавление адресной ячейки хранения</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Склад</label>
+                  <select
+                    value={cellWhId}
+                    onChange={(e) => setCellWhId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-[#3c82ed] bg-white text-xs"
+                  >
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
                 </div>
-
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => openEditModal(wh)}
-                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#3473d4] hover:bg-blue-50"
-                  >
-                    Редактировать
-                  </button>
-                  <button
-                    onClick={() => handleDelete(wh.id)}
-                    className="p-1 text-slate-400 hover:text-red-600"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Стеллаж / Ряд</label>
+                  <input
+                    type="text"
+                    placeholder="A-04"
+                    value={cellRack}
+                    onChange={(e) => setCellRack(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-[#3c82ed] text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Полка / Секция</label>
+                  <input
+                    type="text"
+                    placeholder="Полка 3"
+                    value={cellShelf}
+                    onChange={(e) => setCellShelf(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-[#3c82ed] text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1">Код Ячейки <span className="text-red-500">*</span></label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="A-04-3-12"
+                      value={cellCodeVal}
+                      onChange={(e) => setCellCodeVal(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 outline-none focus:border-[#3c82ed] text-xs font-mono font-bold"
+                    />
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white hover:bg-[#2565c8] shrink-0"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            ))}
+            </form>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+              <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-5 gap-4">
+                <span>Код Ячейки</span>
+                <span>Склад</span>
+                <span>Стеллаж / Полка</span>
+                <span>Штрихкод ячейки</span>
+                <span className="text-right">Статус</span>
+              </div>
+
+              <div className="divide-y divide-slate-100 text-xs">
+                {filteredCells.map((c) => (
+                  <div key={c.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 px-5 py-3 md:items-center">
+                    <span className="font-mono text-[11px] font-bold text-[#3473d4]">{c.cellCode}</span>
+                    <span className="font-semibold text-slate-700">{c.warehouseName}</span>
+                    <span className="text-slate-600 font-mono">Стеллаж {c.rack} / Полка {c.shelf}</span>
+                    <span className="text-slate-400 font-mono text-[10px]">ШК: {c.barcode}</span>
+                    <div className="text-right">
+                      <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                        c.status === "FREE" ? "bg-emerald-50 text-emerald-700" : "bg-blue-50 text-[#3473d4]"
+                      }`}>
+                        {c.status === "FREE" ? "Свободна" : "Занята ТМЦ"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Modal Create/Edit Warehouse */}
         {showAddModal && (

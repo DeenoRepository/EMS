@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { WmsItem } from "@/lib/modules/wms-store";
+import { WmsItem, WmsMovement } from "@/lib/modules/wms-store";
 import {
   Database,
   Search,
@@ -27,6 +27,9 @@ import {
   PieChart,
   Tag,
   ArrowDownLeft,
+  ArrowUpRight,
+  RefreshCcw,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
@@ -65,8 +68,15 @@ export default function WmsRegistryPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
+
+  // Selection & Bulk Operations State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showOpModal, setShowOpModal] = useState(false);
+  const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
+  const [opModalSelectedItems, setOpModalSelectedItems] = useState<WmsItem[]>([]);
 
   // Column visibility state with localStorage persistence
   const [columns, setColumns] = useState<WmsColumnVisibility>(DEFAULT_WMS_COLUMNS);
@@ -137,6 +147,27 @@ export default function WmsRegistryPage() {
     });
   }, [items, statusFilter, warehouseFilter, categoryFilter, typeFilter]);
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredItems.length && filteredItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredItems.map((i) => i.id));
+    }
+  };
+
+  const toggleSelectItem = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((iId) => iId !== id) : [...prev, id]
+    );
+  };
+
+  const openBulkOperation = (type: WmsMovement["type"]) => {
+    const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
+    setOpModalDefaultType(type);
+    setOpModalSelectedItems(selectedItemsList.length > 0 ? selectedItemsList : (items[0] ? [items[0]] : []));
+    setShowOpModal(true);
+  };
+
   const kpiStats = useMemo(() => {
     const totalPos = items.length;
     const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
@@ -197,45 +228,43 @@ export default function WmsRegistryPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-5">
-        {/* Contextual Sub-Nav Bar */}
-        <WmsSubNav totalItemsCount={items.length} lowStockCount={kpiStats.lowStock} />
-
-        {/* Page Action Toolbar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+        {/* Breadcrumbs & Title Block aligned with EPS Standard */}
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Реестр ТМЦ, ЗИП и Складских запасов</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Показывается {filteredItems.length} из {items.length} номенклатурных позиций
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
+              <Link href="/" className="hover:text-slate-600">Главная</Link>
+              <ChevronRight size={12} />
+              <span className="text-[#3473d4] font-semibold">WMS Складской учёт</span>
+            </div>
+            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
+              Реестр ТМЦ, ЗИП и Складских запасов
+            </h1>
+            <p className="mt-1 text-[12px] text-slate-500">
+              Централизованный учёт номенклатуры, деталей и материалов (найдено {filteredItems.length} из {items.length} ед.).
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setShowOpModal(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#2565c8] cursor-pointer transition-colors"
-            >
-              <ArrowDownLeft size={14} /> Оформить операцию WMS
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 cursor-pointer"
-            >
-              <Plus size={14} /> Создать ТМЦ
-            </button>
             <a
               href="/api/modules/wms/items/export"
               download
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
             >
-              <Download size={13} /> CSV
+              <Download size={13} /> Экспорт CSV
             </a>
             <button
               onClick={fetchItems}
               disabled={loading}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
               title="Обновить данные"
             >
-              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
+            >
+              <Plus size={14} /> Создать ТМЦ
             </button>
           </div>
         </div>
@@ -441,37 +470,6 @@ export default function WmsRegistryPage() {
             </div>
           </div>
 
-          {/* Quick Preset Status Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-            {[
-              { id: "ALL", label: "Все позиции", count: items.length },
-              { id: "IN_STOCK", label: "В наличии", count: items.filter(i => i.status === "IN_STOCK").length },
-              { id: "LOW_STOCK", label: "Дефицит / Мало", count: items.filter(i => i.status === "LOW_STOCK" || i.status === "OUT_OF_STOCK").length },
-              { id: "OVERSTOCKED", label: "Избыток", count: items.filter(i => i.status === "OVERSTOCKED").length },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                  statusFilter === tab.id
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    statusFilter === tab.id
-                      ? "bg-white/20 text-white"
-                      : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
           {/* Active Filter Chips */}
           {activeFiltersCount > 0 && (
             <div className="flex items-center gap-2 flex-wrap text-xs px-1">
@@ -520,15 +518,68 @@ export default function WmsRegistryPage() {
           )}
         </div>
 
+        {/* Bulk Action Toolbar when items are selected */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2f74df] text-[11px] font-bold text-white">
+                {selectedIds.length}
+              </span>
+              <span className="font-bold text-[#17243a]">Выбрано позиций ТМЦ</span>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="text-[11px] font-medium text-slate-500 hover:text-slate-700 underline ml-2"
+              >
+                Снять выделение
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => openBulkOperation("INCOMING")}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 shadow-xs transition"
+              >
+                <ArrowDownLeft size={13} /> Массовый приход
+              </button>
+              <button
+                onClick={() => openBulkOperation("TRANSFER")}
+                className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2565c8] shadow-xs transition"
+              >
+                <RefreshCcw size={13} /> Массовое перемещение
+              </button>
+              <button
+                onClick={() => openBulkOperation("OUTGOING")}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 shadow-xs transition"
+              >
+                <ArrowUpRight size={13} /> Массовое списание
+              </button>
+              <button
+                onClick={() => openBulkOperation("PERSONAL_CARD")}
+                className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-purple-700 shadow-xs transition"
+              >
+                <UserCheck size={13} /> Массовая выдача
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* WMS Data Table styled 1-in-1 with EPS Equipment Table */}
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-          <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-6 gap-4">
-            <span>Артикул / SKU</span>
-            <span>Наименование ТМЦ</span>
-            <span>Категория & Тип</span>
-            <span>Склад / Ячейка</span>
-            <span>Остаток & Статус</span>
-            <span className="text-right">Действие</span>
+          <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-12 gap-3 items-center">
+            <div className="col-span-1 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === filteredItems.length && filteredItems.length > 0}
+                onChange={toggleSelectAll}
+                className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
+              />
+            </div>
+            {columns.sku && <span className="col-span-2">Артикул / SKU</span>}
+            {columns.name && <span className="col-span-3">Наименование ТМЦ</span>}
+            {columns.category && <span className="col-span-2">Категория & Тип</span>}
+            {columns.warehouse && <span className="col-span-2">Склад / Ячейка</span>}
+            {columns.quantity && <span className="col-span-1">Остаток & Статус</span>}
+            {columns.actions && <span className="col-span-1 text-right">Действия</span>}
           </div>
 
           {loading ? (
@@ -546,65 +597,88 @@ export default function WmsRegistryPage() {
               )}
             </div>
           ) : (
-            filteredItems.map((item) => (
-              <div
-                key={item.id}
-                className="grid grid-cols-1 md:grid-cols-6 gap-2 border-b border-slate-100 px-5 py-3.5 last:border-0 hover:bg-slate-50/50 md:items-center md:gap-4 transition text-xs"
-              >
-                <div className="font-mono">
-                  <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline">
-                    {item.sku}
-                  </Link>
-                  {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5">ШК: {item.barcode}</span>}
-                </div>
+            filteredItems.map((item) => {
+              const isSelected = selectedIds.includes(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`grid grid-cols-1 md:grid-cols-12 gap-2 border-b border-slate-100 px-5 py-3.5 last:border-0 md:items-center md:gap-3 transition text-xs ${
+                    isSelected ? "bg-blue-50/40" : "hover:bg-slate-50/50"
+                  }`}
+                >
+                  <div className="col-span-1 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectItem(item.id)}
+                      className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
+                    />
+                  </div>
 
-                <div>
-                  <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4]">
-                    {item.name}
-                  </Link>
-                  {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
-                    <span className="block text-[10px] text-slate-400">Совместимо: {item.compatibleEquipment.join(", ")}</span>
+                  {columns.sku && (
+                    <div className="col-span-2 font-mono">
+                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline">
+                        {item.sku}
+                      </Link>
+                      {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5">ШК: {item.barcode}</span>}
+                    </div>
+                  )}
+
+                  {columns.name && (
+                    <div className="col-span-3">
+                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4]">
+                        {item.name}
+                      </Link>
+                      {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
+                        <span className="block text-[10px] text-slate-400">Совместимо: {item.compatibleEquipment.join(", ")}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {columns.category && (
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                        <Tag size={12} className="text-slate-400" />
+                        <span>{item.category}</span>
+                      </div>
+                      <span className="block text-[10px] text-slate-400">{item.type}</span>
+                    </div>
+                  )}
+
+                  {columns.warehouse && (
+                    <div className="col-span-2">
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                        <Building2 size={12} className="text-slate-400" />
+                        <span>{item.warehouse}</span>
+                      </div>
+                      <span className="block text-[10px] font-mono text-slate-400">{item.cell}</span>
+                    </div>
+                  )}
+
+                  {columns.quantity && (
+                    <div className="col-span-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-bold text-[11px] ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-[#17243a]"}`}>
+                          {item.quantity} {item.unit}
+                        </span>
+                      </div>
+                      <div className="mt-0.5">{getStatusBadge(item.status)}</div>
+                    </div>
+                  )}
+
+                  {columns.actions && (
+                    <div className="col-span-1 text-right">
+                      <Link
+                        href={`/modules/wms/${item.id}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition shadow-xs"
+                      >
+                        Открыть <ChevronRight size={11} />
+                      </Link>
+                    </div>
                   )}
                 </div>
-
-                <div>
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
-                    <Tag size={12} className="text-slate-400" />
-                    <span>{item.category}</span>
-                  </div>
-                  <span className="block text-[10px] text-slate-400">{item.type}</span>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
-                    <Building2 size={12} className="text-slate-400" />
-                    <span>{item.warehouse}</span>
-                  </div>
-                  <span className="block text-[10px] font-mono text-slate-400">{item.cell}</span>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-bold text-[12px] ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-[#17243a]"}`}>
-                      {item.quantity} {item.unit}
-                    </span>
-                    {getStatusBadge(item.status)}
-                  </div>
-                  <span className="block text-[10px] text-slate-400">
-                    мин: {item.minQuantity} | рез: {item.reservedQuantity} | {item.unitPrice.toLocaleString("ru-RU")} ₽/ед.
-                  </span>
-                </div>
-
-                <div className="text-right">
-                  <Link
-                    href={`/modules/wms/${item.id}`}
-                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition"
-                  >
-                    Открыть <ChevronRight size={11} />
-                  </Link>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </section>
 
@@ -617,16 +691,25 @@ export default function WmsRegistryPage() {
           }}
         />
 
-        {/* WMS Operation Modal */}
+        {/* WMS Operation Modal with Bulk Support */}
         <WmsOperationModal
           isOpen={showOpModal}
-          onClose={() => setShowOpModal(false)}
+          onClose={() => {
+            setShowOpModal(false);
+            setOpModalSelectedItems([]);
+          }}
           items={items}
-          onSubmitSuccess={(_, updatedItem) => {
-            if (updatedItem) {
+          selectedItems={opModalSelectedItems}
+          defaultType={opModalDefaultType}
+          onSubmitSuccess={(_, updatedItems) => {
+            if (updatedItems && updatedItems.length > 0) {
               setItems((prev) =>
-                prev.map((i) => (i.id === updatedItem.id ? { ...i, ...updatedItem } : i))
+                prev.map((i) => {
+                  const match = updatedItems.find((u) => u.id === i.id);
+                  return match ? { ...i, ...match } : i;
+                })
               );
+              setSelectedIds([]);
             }
           }}
         />
