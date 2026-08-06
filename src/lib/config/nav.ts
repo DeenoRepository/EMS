@@ -2,7 +2,7 @@ export interface NavItem {
   id: string;
   title: string;
   href: string;
-  category: "Главная" | "Бизнес-модули" | "EPS" | "Администрирование" | "Настройки EPS" | "Действие";
+  category: "Главная" | "Бизнес-модули" | "EPS" | "Администрирование" | "Настройки EPS" | "Настройки WMS" | "Действие";
   keywords: string[];
   iconName?: string;
   badge?: string;
@@ -157,6 +157,14 @@ export const NAV_ITEMS: NavItem[] = [
         category: "Настройки EPS",
         keywords: ["нси", "справочники", "атрибуты", "типы", "references", "attributes"],
         iconName: "Database"
+      },
+      {
+        id: "nav-admin-wms-warehouses",
+        title: "Склады & МОЛ WMS",
+        href: "/admin/settings/wms",
+        category: "Настройки WMS",
+        keywords: ["wms", "склады", "мол", "заведующий", "ответственный", "настройки склада"],
+        iconName: "Building2"
       },
       {
         id: "nav-admin-audit",

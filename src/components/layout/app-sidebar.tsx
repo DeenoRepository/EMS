@@ -23,6 +23,7 @@ import {
   Wrench,
   X,
   PackageCheck,
+  Building2,
 } from "lucide-react";
 import { useShell } from "./shell-context";
 import { MODULES_CONFIG } from "@/lib/config/modules";
@@ -463,6 +464,7 @@ function SidebarContent() {
                       {sub.id === "nav-admin-settings" && <SlidersHorizontal size={12} />}
                       {sub.id === "nav-admin-rbac" && <ShieldCheck size={12} />}
                       {sub.id === "nav-admin-eps-nsi" && <Database size={12} />}
+                      {sub.id === "nav-admin-wms-warehouses" && <Building2 size={12} />}
                       {sub.id === "nav-admin-audit" && <Gauge size={12} />}
                       <span>{sub.title}</span>
                     </Link>
