@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { MOCK_WMS_MOVEMENTS, WmsMovement } from "@/lib/modules/wms-store";
+import { MOCK_WMS_MOVEMENTS, MOCK_WMS_ITEMS, WmsMovement, WmsItem } from "@/lib/modules/wms-store";
 import {
   History,
   Search,
@@ -14,14 +14,18 @@ import {
   RefreshCcw,
   Archive,
   Download,
-  Calendar
+  Calendar,
+  UserCheck
 } from "lucide-react";
 import Link from "next/link";
+import WmsOperationModal from "@/components/wms/wms-operation-modal";
 
 export default function WmsMovementsPage() {
   const [movements, setMovements] = useState<WmsMovement[]>(MOCK_WMS_MOVEMENTS);
+  const [items, setItems] = useState<WmsItem[]>(MOCK_WMS_ITEMS);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [showOpModal, setShowOpModal] = useState(false);
 
   const filteredMovements = useMemo(() => {
     return movements.filter((m) => {
@@ -59,10 +63,10 @@ export default function WmsMovementsPage() {
             <RefreshCcw size={10} /> Перемещение
           </span>
         );
-      case "RESERVE":
+      case "PERSONAL_CARD":
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 border border-purple-100">
-            <Archive size={10} /> Резервирование
+            <UserCheck size={10} /> Личная карточка
           </span>
         );
       default:
@@ -92,6 +96,12 @@ export default function WmsMovementsPage() {
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={() => setShowOpModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition cursor-pointer"
+            >
+              <Plus size={14} /> Оформить складскую операцию
+            </button>
             <Link
               href="/modules/wms"
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
@@ -128,7 +138,7 @@ export default function WmsMovementsPage() {
               <option value="INCOMING">Приход / Поступление</option>
               <option value="OUTGOING">Расход / Списание</option>
               <option value="TRANSFER">Перемещение</option>
-              <option value="RESERVE">Резервирование</option>
+              <option value="PERSONAL_CARD">Выдача на личную карточку</option>
             </select>
           </div>
         </div>
@@ -184,6 +194,21 @@ export default function WmsMovementsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Modal Operation WMS */}
+        <WmsOperationModal
+          isOpen={showOpModal}
+          onClose={() => setShowOpModal(false)}
+          items={items}
+          onSubmitSuccess={(newMov, updatedItem) => {
+            setMovements((prev) => [newMov, ...prev]);
+            if (updatedItem) {
+              setItems((prev) =>
+                prev.map((i) => (i.id === updatedItem.id ? { ...i, ...updatedItem } : i))
+              );
+            }
+          }}
+        />
       </main>
     </ShellLayout>
   );

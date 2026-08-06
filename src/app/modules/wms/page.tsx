@@ -26,9 +26,11 @@ import {
   History,
   PieChart,
   Tag,
+  ArrowDownLeft,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
+import WmsOperationModal from "@/components/wms/wms-operation-modal";
 
 export interface WmsColumnVisibility {
   sku: boolean;
@@ -63,6 +65,7 @@ export default function WmsRegistryPage() {
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showOpModal, setShowOpModal] = useState(false);
 
   // Column visibility state with localStorage persistence
   const [columns, setColumns] = useState<WmsColumnVisibility>(DEFAULT_WMS_COLUMNS);
@@ -209,7 +212,10 @@ export default function WmsRegistryPage() {
               Централизованный корпоративный учет расходных материалов, запасных частей и инструмента (найдено {filteredItems.length} из {items.length} номенклатур).
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setShowOpModal(true)} className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs shadow-blue-200 hover:bg-[#2565c8] cursor-pointer">
+              <ArrowDownLeft size={14} /> Операция WMS
+            </button>
             <Link href="/modules/wms/movements" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
               <History size={13} /> Движение ТМЦ
             </Link>
@@ -222,8 +228,8 @@ export default function WmsRegistryPage() {
             <button onClick={fetchItems} disabled={loading} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
             </button>
-            <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs shadow-blue-200 hover:bg-[#2565c8]">
-              <Plus size={14} /> Создать карточку ТМЦ
+            <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-700 shadow-xs hover:bg-slate-50">
+              <Plus size={14} /> Создать карточку
             </button>
           </div>
         </div>
@@ -571,6 +577,20 @@ export default function WmsRegistryPage() {
           onClose={() => setShowCreateModal(false)}
           onSubmitSuccess={(newItem) => {
             setItems((prev) => [newItem, ...prev]);
+          }}
+        />
+
+        {/* WMS Operation Modal */}
+        <WmsOperationModal
+          isOpen={showOpModal}
+          onClose={() => setShowOpModal(false)}
+          items={items}
+          onSubmitSuccess={(_, updatedItem) => {
+            if (updatedItem) {
+              setItems((prev) =>
+                prev.map((i) => (i.id === updatedItem.id ? { ...i, ...updatedItem } : i))
+              );
+            }
           }}
         />
       </main>

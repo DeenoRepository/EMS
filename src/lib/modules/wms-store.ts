@@ -30,11 +30,12 @@ export interface WmsMovement {
   itemId: string;
   itemSku: string;
   itemName: string;
-  type: "INCOMING" | "OUTGOING" | "TRANSFER" | "RESERVE" | "ADJUSTMENT";
+  type: "INCOMING" | "OUTGOING" | "TRANSFER" | "RESERVE" | "ADJUSTMENT" | "PERSONAL_CARD";
   quantity: number;
   fromLocation?: string;
   toLocation?: string;
   performedBy: string;
+  recipientUser?: string; // Сотрудник (для выдачи на личную карточку / СИЗ / инструмент)
   reason?: string;
   relatedOrderOrEq?: string; // Напр. Ремонт EQ-CNC-2026-01 или Заказ-наряд #49102
   timestamp: string;
