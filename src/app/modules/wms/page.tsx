@@ -555,9 +555,9 @@ export default function WmsRegistryPage() {
                 <div className="text-right">
                   <Link
                     href={`/modules/wms/${item.id}`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition"
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition"
                   >
-                    Паспорт <ChevronRight size={12} />
+                    Открыть <ChevronRight size={11} />
                   </Link>
                 </div>
               </div>
