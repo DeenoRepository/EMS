@@ -16,7 +16,7 @@ export async function GET() {
 
     const options: Record<string, Array<{ id: string; value: string; label: string }>> = {};
     for (const field of fields) {
-      options[field.key] = field.values.map((v) => ({ id: v.id, value: v.value, label: v.label }));
+      options[field.key] = field.values.map((v: any) => ({ id: v.id, value: v.value, label: v.label }));
     }
 
     return NextResponse.json({ options, fields });

@@ -1,0 +1,242 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import ShellLayout from "@/components/layout/shell-layout";
+import { MOCK_WMS_ITEMS, WmsItem } from "@/lib/modules/wms-store";
+import {
+  PieChart,
+  Download,
+  ChevronRight,
+  SlidersHorizontal,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+  Plus,
+  RefreshCw,
+  X,
+  Columns3,
+  Eye,
+  FileText,
+  Clock,
+  Archive,
+  Layers,
+  Wrench,
+  CheckSquare,
+  Square,
+  Sparkles,
+  Save,
+  Table,
+  Box
+} from "lucide-react";
+import Link from "next/link";
+
+export interface WmsReportItem {
+  id: string;
+  name: string;
+  category: string;
+  format: "XLSX" | "PDF" | "CSV";
+  generatedAt: string;
+  status: "READY" | "GENERATING" | "ARCHIVED";
+  size: string;
+  description?: string;
+  recordsCount?: number;
+}
+
+const MOCK_WMS_REPORTS: WmsReportItem[] = [
+  {
+    id: "rep-wms-001",
+    name: "Оборотная ведомость ТМЦ и ЗИП (Август 2026)",
+    category: "Складские остатки",
+    format: "XLSX",
+    generatedAt: "2026-08-05 16:30",
+    status: "READY",
+    size: "2.4 MB",
+    description: "Полная ведомость начальных и конечных остатков, прихода и списания за текущий месяц.",
+    recordsCount: 1420
+  },
+  {
+    id: "rep-wms-002",
+    name: "Отчет по дефицитным позициям и неснижаемому остатку",
+    category: "Анализ дефицита",
+    format: "PDF",
+    generatedAt: "2026-08-06 09:15",
+    status: "READY",
+    size: "1.1 MB",
+    description: "Перечень номенклатур ЗИП, требующих срочной закупки SRM.",
+    recordsCount: 18
+  },
+  {
+    id: "rep-wms-003",
+    name: "ABC-анализ складских запасов по стоимости",
+    category: "Аналитика стоимости",
+    format: "CSV",
+    generatedAt: "2026-08-04 11:00",
+    status: "READY",
+    size: "450 KB",
+    description: "Группировка запасов по категориям A (80% стоимости), B (15%) и C (5%).",
+    recordsCount: 890
+  }
+];
+
+export default function WmsReportsPage() {
+  const [reports, setReports] = useState<WmsReportItem[]>(MOCK_WMS_REPORTS);
+  const [query, setQuery] = useState("");
+  const [formatFilter, setFormatFilter] = useState<string>("ALL");
+  const [showBuilder, setShowBuilder] = useState(false);
+
+  // Flexible Builder State
+  const [selectedFields, setSelectedFields] = useState<string[]>([
+    "sku", "name", "category", "warehouse", "cell", "quantity", "unitPrice", "status"
+  ]);
+
+  const toggleField = (key: string) => {
+    setSelectedFields((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const filteredReports = useMemo(() => {
+    return reports.filter((rep) => {
+      if (formatFilter !== "ALL" && rep.format !== formatFilter) return false;
+      if (query.trim()) {
+        const q = query.toLowerCase();
+        return rep.name.toLowerCase().includes(q) || rep.category.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [reports, query, formatFilter]);
+
+  return (
+    <ShellLayout>
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+        {/* Navigation & Header */}
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
+              <Link href="/" className="hover:text-slate-600">Главная</Link>
+              <ChevronRight size={12} />
+              <Link href="/modules/wms" className="hover:text-slate-600">WMS Склад</Link>
+              <ChevronRight size={12} />
+              <span className="text-purple-600">Складские Отчёты</span>
+            </div>
+            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
+              Отчётность и Конструктор WMS
+            </h1>
+            <p className="mt-1 text-[12px] text-slate-500">
+              Генерация оборотных ведомостей, анализа дефицита ЗИП и гибкая выгрузка данных.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowBuilder(!showBuilder)}
+              className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-purple-700"
+            >
+              <Sparkles size={14} /> Конструктор выгрузки WMS
+            </button>
+          </div>
+        </div>
+
+        {/* Flexible Report Builder Modal / Collapsible Section */}
+        {showBuilder && (
+          <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-6 space-y-4 shadow-xs">
+            <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+              <div className="flex items-center gap-2 text-purple-900 font-bold text-sm">
+                <Sparkles size={16} className="text-purple-600" />
+                Гибкий конструктор экспорта складских запасов WMS
+              </div>
+              <button onClick={() => setShowBuilder(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-purple-800">
+              Выберите поля ТМЦ, которые необходимо включить в персональный отчёт для выгрузки в CSV/Excel:
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              {[
+                { key: "sku", label: "Артикул / SKU" },
+                { key: "name", label: "Наименование ТМЦ" },
+                { key: "category", label: "Категория запасов" },
+                { key: "type", label: "Тип номенклатуры" },
+                { key: "warehouse", label: "Склад хранения" },
+                { key: "cell", label: "Ячейка хранения" },
+                { key: "quantity", label: "Текущий остаток" },
+                { key: "minQuantity", label: "Мин. неснижаемый остаток" },
+                { key: "reservedQuantity", label: "Зарезервировано" },
+                { key: "unitPrice", label: "Цена за единицу" },
+                { key: "status", label: "Статус остатка" },
+                { key: "compatibleEquipment", label: "Совместимость с EPS" },
+                { key: "barcode", label: "Штрихкод / QR" },
+                { key: "supplier", label: "Поставщик" }
+              ].map((f) => (
+                <label
+                  key={f.key}
+                  onClick={() => toggleField(f.key)}
+                  className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    selectedFields.includes(f.key)
+                      ? "bg-white border-purple-300 text-purple-900 font-semibold shadow-2xs"
+                      : "bg-purple-100/40 border-transparent text-purple-700 hover:bg-white"
+                  }`}
+                >
+                  {selectedFields.includes(f.key) ? (
+                    <CheckSquare size={14} className="text-purple-600 shrink-0" />
+                  ) : (
+                    <Square size={14} className="text-purple-300 shrink-0" />
+                  )}
+                  <span className="truncate">{f.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-purple-100 pt-3">
+              <a
+                href="/api/modules/wms/items/export"
+                download
+                className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-xs font-semibold text-white hover:bg-purple-700 shadow-xs"
+              >
+                <Download size={14} /> Скачать сформированный отчёт ({selectedFields.length} полей)
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Existing Pre-packaged Reports List */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+          <h2 className="text-sm font-bold text-[#17243a]">Готовые типовые отчёты WMS</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {filteredReports.map((rep) => (
+              <div key={rep.id} className="rounded-xl border border-slate-200 p-4 space-y-3 hover:border-purple-200 transition-colors">
+                <div className="flex items-start justify-between">
+                  <span className="font-mono text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                    {rep.format}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">{rep.generatedAt}</span>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-xs text-[#17243a]">{rep.name}</h3>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">{rep.description}</p>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[11px]">
+                  <span className="text-slate-400">{rep.recordsCount} записей | {rep.size}</span>
+                  <a
+                    href="/api/modules/wms/items/export"
+                    download
+                    className="flex items-center gap-1 font-semibold text-purple-600 hover:text-purple-700"
+                  >
+                    Скачать <Download size={12} />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </ShellLayout>
+  );
+}

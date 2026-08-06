@@ -39,7 +39,7 @@ export const MODULES_CONFIG: Record<string, ModuleConfig> = {
     name: "WMS Склад",
     href: "/modules/wms",
     version: `v${APP_VERSION}`,
-    status: "dev",
+    status: "online",
     description: "Управление складскими запасами и ЗИП",
   },
 };

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     });
 
     if (dbEvents.length > 0) {
-      const items: TimelineEvent[] = dbEvents.map((evt) => ({
+      const items: TimelineEvent[] = dbEvents.map((evt: any) => ({
         id: evt.id,
         equipmentId: evt.equipmentId,
         eventType: evt.eventType as TimelineEvent["eventType"],

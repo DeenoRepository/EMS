@@ -98,7 +98,33 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/modules/wms",
     category: "Бизнес-модули",
     keywords: ["wms", "склад", "зип", "остатки", "хранение", "warehouse", "inventory"],
-    iconName: "Database"
+    iconName: "Database",
+    children: [
+      {
+        id: "nav-wms-registry",
+        title: "Реестр ТМЦ и ЗИП",
+        href: "/modules/wms",
+        category: "Бизнес-модули",
+        keywords: ["реестр", "тмц", "зип", "склад", "остатки"],
+        iconName: "Box"
+      },
+      {
+        id: "nav-wms-movements",
+        title: "Движение ТМЦ",
+        href: "/modules/wms/movements",
+        category: "Бизнес-модули",
+        keywords: ["движение", "приход", "расход", "перемещение", "аудит"],
+        iconName: "History"
+      },
+      {
+        id: "nav-wms-reports",
+        title: "Складские отчёты",
+        href: "/modules/wms/reports",
+        category: "Бизнес-модули",
+        keywords: ["отчёты", "ведомость", "дефицит", "abc-анализ"],
+        iconName: "PieChart"
+      }
+    ]
   },
   {
     id: "nav-settings-root",

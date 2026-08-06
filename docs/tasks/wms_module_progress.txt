@@ -1,0 +1,13 @@
+# Progress - WMS Module Implementation
+
+- [x] Task 1: Create task progress tracker file
+- [ ] Task 2: Create WMS data store and TypeScript interfaces (`src/lib/modules/wms-store.ts`)
+- [ ] Task 3: Create API endpoints (`/api/modules/wms/items` & `/api/modules/wms/items/export`)
+- [ ] Task 4: Build WMS Item Form modal component (`src/components/wms/wms-item-form.tsx`)
+- [ ] Task 5: Build WMS Main Registry Page (`src/app/modules/wms/page.tsx`) with EPS visual parity
+- [ ] Task 6: Build WMS Item Detail Page (`src/app/modules/wms/[id]/page.tsx`)
+- [ ] Task 7: Build WMS Movements Page (`src/app/modules/wms/movements/page.tsx`)
+- [ ] Task 8: Build WMS Reports Page (`src/app/modules/wms/reports/page.tsx`) with Flexible Report Builder
+- [ ] Task 9: Update Navigation & Sidebar (`app-sidebar.tsx`, `nav.ts`, `modules.ts`)
+- [ ] Task 10: Verify build & TypeScript compilation (`npx tsc --noEmit`)
+- [ ] Task 11: Git commit completed WMS module
