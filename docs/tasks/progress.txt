@@ -7,4 +7,5 @@
 - [x] 5. Create dedicated Warehouses & Storage Bins sub-section page `src/app/modules/wms/warehouses/page.tsx`
 - [x] 6. Integrate sub-nav into reports page `src/app/modules/wms/reports/page.tsx`
 - [x] 7. Update SemVer in `src/lib/version.ts` to 2.4.0
-- [x] 8. Verify type-safety & run build test
+- [x] 8. Add expandable sub-sections to WMS menu in sidebar `src/components/layout/app-sidebar.tsx`
+- [x] 9. Verify type-safety & run build test

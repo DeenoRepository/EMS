@@ -24,6 +24,9 @@ import {
   X,
   PackageCheck,
   Building2,
+  History,
+  Warehouse,
+  PieChart,
 } from "lucide-react";
 import { useShell } from "./shell-context";
 import { MODULES_CONFIG } from "@/lib/config/modules";
@@ -42,9 +45,11 @@ function SidebarContent() {
   const pathname = usePathname();
 
   const isEpsActive = pathname.startsWith("/modules/eps");
+  const isWmsActive = pathname.startsWith("/modules/wms");
   const isSettingsActive = pathname.startsWith("/admin");
 
   const [epsOpen, setEpsOpen] = useState<boolean>(isEpsActive);
+  const [wmsOpen, setWmsOpen] = useState<boolean>(isWmsActive);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(isSettingsActive);
 
   const [moduleHealth, setModuleHealth] = useState<Record<string, "online" | "dev" | "offline">>({
@@ -59,6 +64,11 @@ function SidebarContent() {
     const savedEps = localStorage.getItem("ems_shell_sidebar_eps_open");
     if (savedEps !== null) {
       setEpsOpen(savedEps === "true");
+    }
+
+    const savedWms = localStorage.getItem("ems_shell_sidebar_wms_open");
+    if (savedWms !== null) {
+      setWmsOpen(savedWms === "true");
     }
 
     const savedSettings = localStorage.getItem("ems_shell_sidebar_settings_open");
@@ -113,6 +123,14 @@ function SidebarContent() {
     });
   };
 
+  const toggleWms = () => {
+    setWmsOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem("ems_shell_sidebar_wms_open", String(next));
+      return next;
+    });
+  };
+
   const toggleSettings = () => {
     setSettingsOpen((prev) => {
       const next = !prev;
@@ -128,6 +146,16 @@ function SidebarContent() {
       localStorage.setItem("ems_shell_sidebar_eps_open", "true");
     } else {
       toggleEps();
+    }
+  };
+
+  const handleWmsClick = () => {
+    if (collapsed) {
+      setSidebarCollapsed(false);
+      setWmsOpen(true);
+      localStorage.setItem("ems_shell_sidebar_wms_open", "true");
+    } else {
+      toggleWms();
     }
   };
 
@@ -160,6 +188,7 @@ function SidebarContent() {
   const settingsNav = NAV_ITEMS.find((i) => i.id === "nav-settings-root");
 
   const epsSubItems = epsNav?.children ?? [];
+  const wmsSubItems = wmsNav?.children ?? [];
   const settingsSubItems = settingsNav?.children ?? [];
 
   const showDashboard = navDashboard ? itemMatchesQuery(navDashboard) : false;
@@ -396,22 +425,58 @@ function SidebarContent() {
               </Link>
             )}
 
+            {/* WMS Module Expandable */}
             {showWms && (
-              <Link
-                href={MODULES_CONFIG.wms.href}
-                title={MODULES_CONFIG.wms.name}
-                className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] text-slate-300 transition hover:bg-white/5 ${
-                  collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
-                } ${pathname.startsWith(MODULES_CONFIG.wms.href) ? "bg-[#1b2945] text-[#55a5ff]" : ""}`}
-              >
-                <Database size={14} className="text-slate-400" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1">{MODULES_CONFIG.wms.name}</span>
-                    {renderModuleBadge("wms")}
-                  </>
+              <>
+                <button
+                  title={MODULES_CONFIG.wms.name}
+                  onClick={handleWmsClick}
+                  aria-expanded={wmsOpen}
+                  aria-label={`${MODULES_CONFIG.wms.name} подменю`}
+                  className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] font-medium transition ${
+                    collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
+                  } ${
+                    isWmsActive ? "bg-[#1b2945] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
+                  }`}
+                >
+                  <Database size={14} className={isWmsActive ? "text-[#55a5ff]" : "text-slate-400"} />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 truncate">{MODULES_CONFIG.wms.name}</span>
+                      {renderModuleBadge("wms")}
+                      {wmsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    </>
+                  )}
+                </button>
+
+                {/* WMS Submenu */}
+                {!collapsed && (wmsOpen || query.length > 0) && (
+                  <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5">
+                    {wmsSubItems.map((sub) => {
+                      if (!itemMatchesQuery(sub)) return null;
+                      const isSubActive = sub.href === "/modules/wms"
+                        ? pathname === "/modules/wms"
+                        : pathname.startsWith(sub.href);
+
+                      return (
+                        <Link
+                          key={sub.id}
+                          href={sub.href}
+                          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
+                            isSubActive ? "bg-white/10 text-white font-semibold" : "hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {sub.id === "nav-wms-registry" && <Box size={12} />}
+                          {sub.id === "nav-wms-movements" && <History size={12} />}
+                          {sub.id === "nav-wms-warehouses" && <Building2 size={12} />}
+                          {sub.id === "nav-wms-reports" && <PieChart size={12} />}
+                          <span className="flex-1">{sub.title}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 )}
-              </Link>
+              </>
             )}
           </>
         )}
