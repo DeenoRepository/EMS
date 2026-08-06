@@ -31,6 +31,7 @@ import {
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
+import WmsSubNav from "@/components/wms/wms-sub-nav";
 
 export interface WmsColumnVisibility {
   sku: boolean;
@@ -196,40 +197,45 @@ export default function WmsRegistryPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
-        {/* Breadcrumbs & Title */}
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <main className="w-full px-5 py-6 md:px-8 space-y-5">
+        {/* Contextual Sub-Nav Bar */}
+        <WmsSubNav totalItemsCount={items.length} lowStockCount={kpiStats.lowStock} />
+
+        {/* Page Action Toolbar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
-              <Link href="/" className="hover:text-slate-600">Главная</Link>
-              <ChevronRight size={12} />
-              <span className="text-[#3473d4]">WMS Склад</span>
-            </div>
-            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
-              Реестр ТМЦ, ЗИП и Складских запасов
-            </h1>
-            <p className="mt-1 text-[12px] text-slate-500">
-              Централизованный корпоративный учет расходных материалов, запасных частей и инструмента (найдено {filteredItems.length} из {items.length} номенклатур).
+            <h2 className="text-base font-bold text-slate-900">Реестр ТМЦ, ЗИП и Складских запасов</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Показывается {filteredItems.length} из {items.length} номенклатурных позиций
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setShowOpModal(true)} className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-xs shadow-blue-200 hover:bg-[#2565c8] cursor-pointer">
-              <ArrowDownLeft size={14} /> Операция WMS
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowOpModal(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#2565c8] cursor-pointer transition-colors"
+            >
+              <ArrowDownLeft size={14} /> Оформить операцию WMS
             </button>
-            <Link href="/modules/wms/movements" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
-              <History size={13} /> Движение ТМЦ
-            </Link>
-            <Link href="/modules/wms/reports" className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
-              <PieChart size={13} /> Отчёты
-            </Link>
-            <a href="/api/modules/wms/items/export" download className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
-              <Download size={13} /> Экспорт CSV
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 cursor-pointer"
+            >
+              <Plus size={14} /> Создать ТМЦ
+            </button>
+            <a
+              href="/api/modules/wms/items/export"
+              download
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
+            >
+              <Download size={13} /> CSV
             </a>
-            <button onClick={fetchItems} disabled={loading} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50">
-              <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
-            </button>
-            <button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-700 shadow-xs hover:bg-slate-50">
-              <Plus size={14} /> Создать карточку
+            <button
+              onClick={fetchItems}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
+              title="Обновить данные"
+            >
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
         </div>
@@ -433,6 +439,37 @@ export default function WmsRegistryPage() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Quick Preset Status Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+            {[
+              { id: "ALL", label: "Все позиции", count: items.length },
+              { id: "IN_STOCK", label: "В наличии", count: items.filter(i => i.status === "IN_STOCK").length },
+              { id: "LOW_STOCK", label: "Дефицит / Мало", count: items.filter(i => i.status === "LOW_STOCK" || i.status === "OUT_OF_STOCK").length },
+              { id: "OVERSTOCKED", label: "Избыток", count: items.filter(i => i.status === "OVERSTOCKED").length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  statusFilter === tab.id
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    statusFilter === tab.id
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
 
           {/* Active Filter Chips */}

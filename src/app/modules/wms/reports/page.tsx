@@ -30,6 +30,7 @@ import {
   Box
 } from "lucide-react";
 import Link from "next/link";
+import WmsSubNav from "@/components/wms/wms-sub-nav";
 
 export interface WmsReportItem {
   id: string;
@@ -109,29 +110,23 @@ export default function WmsReportsPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
-        {/* Navigation & Header */}
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <main className="w-full px-5 py-6 md:px-8 space-y-5">
+        {/* Contextual Sub-Nav Bar */}
+        <WmsSubNav />
+
+        {/* Action Header Bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
-              <Link href="/" className="hover:text-slate-600">Главная</Link>
-              <ChevronRight size={12} />
-              <Link href="/modules/wms" className="hover:text-slate-600">WMS Склад</Link>
-              <ChevronRight size={12} />
-              <span className="text-[#3473d4]">Складские Отчёты</span>
-            </div>
-            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
-              Отчётность и Конструктор WMS
-            </h1>
-            <p className="mt-1 text-[12px] text-slate-500">
-              Генерация оборотных ведомостей, анализа дефицита ЗИП и гибкая выгрузка данных.
+            <h2 className="text-base font-bold text-slate-900">Отчётность и Конструктор WMS</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Генерация оборотных ведомостей, анализа дефицита ЗИП и гибкая выгрузка данных
             </p>
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={() => setShowBuilder(!showBuilder)}
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
+              className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#2565c8] transition cursor-pointer"
             >
               <Sparkles size={14} /> Конструктор выгрузки WMS
             </button>

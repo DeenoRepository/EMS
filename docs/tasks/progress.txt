@@ -1,10 +1,10 @@
-# Progress Tracking - EPS Documents Page Redesign
+# Progress Tracking - WMS Module De-cluttering & Contextual Sub-sectioning
 
-- [x] Redesign `/modules/eps/documents/page.tsx`
-  - [x] Add Stats Widgets (Total, Passports, Drawings, Acts)
-  - [x] Add Search & Type Filters
-  - [x] Upgrade Table/List View with Icons & Badges
-  - [x] Enhance Upload Modal UI
-  - [x] Enhance Preview Modal UI
-- [x] Build & Type Check Verification
-
+- [x] 1. Create top sub-navigation component `src/components/wms/wms-sub-nav.tsx`
+- [x] 2. Update navigation config `src/lib/config/nav.ts` to include Warehouses route
+- [x] 3. Refactor main inventory registry page `src/app/modules/wms/page.tsx` (add sub-nav, status filter tabs, collapsible KPI summary)
+- [x] 4. Integrate sub-nav into movements page `src/app/modules/wms/movements/page.tsx`
+- [x] 5. Create dedicated Warehouses & Storage Bins sub-section page `src/app/modules/wms/warehouses/page.tsx`
+- [x] 6. Integrate sub-nav into reports page `src/app/modules/wms/reports/page.tsx`
+- [x] 7. Update SemVer in `src/lib/version.ts` to 2.4.0
+- [x] 8. Verify type-safety & run build test
