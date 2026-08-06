@@ -239,27 +239,46 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Склад хранения</label>
-                <select
-                  value={warehouse}
-                  onChange={(e) => setWarehouse(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
-                >
-                  <option value="Основной склад ЗИП">Основной склад ЗИП</option>
-                  <option value="Склад ГСМ №2">Склад ГСМ №2</option>
-                  <option value="Цеховая кладовая №3">Цеховая кладовая №3</option>
-                  <option value="Склад Инструмента">Склад Инструмента</option>
-                </select>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Склад хранения (выберите или укажите новый)
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    value={warehouse}
+                    onChange={(e) => setWarehouse(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none bg-white"
+                  >
+                    <option value="Основной склад ЗИП">Основной склад ЗИП</option>
+                    <option value="Склад ГСМ №2">Склад ГСМ №2</option>
+                    <option value="Цеховая кладовая №3">Цеховая кладовая №3</option>
+                    <option value="Склад Инструмента">Склад Инструмента</option>
+                    <option value="Центральный материальный склад">Центральный материальный склад</option>
+                    <option value="Склад СИЗ и Спецодежды">Склад СИЗ и Спецодежды</option>
+                    <option value="CUSTOM">+ Указать новый склад...</option>
+                  </select>
+
+                  {warehouse === "CUSTOM" && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Введите название нового склада..."
+                      onChange={(e) => setWarehouse(e.target.value)}
+                      className="w-full rounded-lg border border-[#3c82ed] bg-blue-50/50 px-3 py-2 text-xs focus:outline-none"
+                    />
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Точная ячейка / Место хранения</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Точная ячейка / Место хранения
+                </label>
                 <input
                   type="text"
                   value={cell}
                   onChange={(e) => setCell(e.target.value)}
                   placeholder="Стеллаж A-04 / Ячейка 12"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none"
                 />
               </div>
             </div>
@@ -322,21 +341,53 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
             </div>
           </div>
 
-          {/* Section 3: Integration & Supplier */}
+          {/* Section 3: Integration, Responsible Person & Supplier */}
           <div className="space-y-4 border-t border-slate-100 pt-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50/70 px-3 py-1.5 rounded-md inline-block">
-              3. Совместимость EPS и Поставщики
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#3473d4] bg-blue-50/70 px-3 py-1.5 rounded-md inline-block">
+              3. Ответственность, Совместимость EPS и Поставщики
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 mb-1">Совместимое оборудование EPS (через запятую)</label>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Ответственное лица (МОЛ / Заведующий)
+                </label>
+                <div className="space-y-1.5">
+                  <select
+                    value={responsibleUser}
+                    onChange={(e) => setResponsibleUser(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none bg-white"
+                  >
+                    <option value="Смирнов А.В. (Старший кладовщик)">Смирнов А.В. (Старший кладовщик)</option>
+                    <option value="Ковалев Д.М. (Кладовщик ГСМ)">Ковалев Д.М. (Кладовщик ГСМ)</option>
+                    <option value="Сидоров А.Н. (Энергетик цеха)">Сидоров А.Н. (Энергетик цеха)</option>
+                    <option value="Иванов И.И. (Главный механик)">Иванов И.И. (Главный механик)</option>
+                    <option value="Петров В.С. (Старший мастер)">Петров В.С. (Старший мастер)</option>
+                    <option value="CUSTOM">+ Назначить нового ответственного...</option>
+                  </select>
+
+                  {responsibleUser === "CUSTOM" && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="ФИО и должность ответственного..."
+                      onChange={(e) => setResponsibleUser(e.target.value)}
+                      className="w-full rounded-lg border border-[#3c82ed] bg-blue-50/50 px-3 py-2 text-xs focus:outline-none"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Совместимое оборудование EPS (через запятую)
+                </label>
                 <input
                   type="text"
                   value={compatibleEq}
                   onChange={(e) => setCompatibleEq(e.target.value)}
                   placeholder="EQ-CNC-2026-01, EQ-PRESS-2026-04"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none"
                 />
               </div>
 
@@ -347,7 +398,7 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
                   value={supplier}
                   onChange={(e) => setSupplier(e.target.value)}
                   placeholder="ООО СпецПодшипник Торг"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-purple-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-[#3c82ed] focus:outline-none"
                 />
               </div>
             </div>
