@@ -264,6 +264,18 @@ function WmsRegistryContent() {
             >
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
             </button>
+            <button
+              onClick={() => openBulkOperation("INCOMING")}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-[#3473d4] shadow-sm hover:bg-blue-50/50"
+            >
+              <ArrowDownLeft size={14} /> Создать операцию
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
+            >
+              <Plus size={14} /> Создать ТМЦ
+            </button>
           </div>
         </div>
 
