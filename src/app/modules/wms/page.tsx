@@ -552,6 +552,7 @@ function WmsRegistryContent() {
         isOpen={showOpModal}
         onClose={() => setShowOpModal(false)}
         onSubmitSuccess={() => fetchItems()}
+        items={items}
         selectedItems={opModalSelectedItems}
         allRegistryItems={items}
         defaultType={opModalDefaultType}

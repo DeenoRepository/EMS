@@ -602,6 +602,7 @@ function WmsMovementsContent() {
         isOpen={showOpModal}
         onClose={() => setShowOpModal(false)}
         onSubmitSuccess={() => fetchItemsAndMovements()}
+        items={items}
         selectedItems={items}
         allRegistryItems={items}
         defaultType={opModalDefaultType}

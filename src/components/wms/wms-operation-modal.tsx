@@ -29,7 +29,7 @@ export default function WmsOperationModal({
   const { currentUser } = useShell();
 
   const [operationType, setOperationType] = useState<WmsMovement["type"]>(defaultType);
-  const [selectedItemId, setSelectedItemId] = useState<string>(defaultItemId || (items[0]?.id || ""));
+  const [selectedItemId, setSelectedItemId] = useState<string>(defaultItemId || (items?.[0]?.id || ""));
   const [quantity, setQuantity] = useState<number>(1);
   // Состояние для хранения индивидуального количества каждой позиций при массовом выборе
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
