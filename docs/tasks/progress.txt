@@ -38,3 +38,13 @@
 - [x] autocomplete-input.tsx
 - [x] update index.ts
 
+
+## Phase 7 — Additional Page Widgets
+- [ ] tab-nav.tsx
+- [ ] document-viewer-modal.tsx
+- [ ] timeline.tsx
+- [ ] pagination.tsx
+- [ ] metric-progress-card.tsx
+- [ ] user-chip.tsx
+- [ ] update index.ts
+
