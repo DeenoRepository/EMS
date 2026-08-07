@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { useShell } from "@/components/layout/shell-context";
-import { WmsItem, WmsMovement, canUserManageItem, getWarehouseResponsibleUser } from "@/lib/modules/wms-store";
+import { WmsItem, WmsMovement, canUserManageItem, getWarehouseResponsibleUser, filterWmsItems } from "@/lib/modules/wms-store";
+import { useItemSelection } from "@/lib/hooks/use-item-selection";
 import {
   Database,
   Search,
@@ -74,9 +75,6 @@ function WmsRegistryContent() {
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
-
-  // Selection & Bulk Operations State
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -151,28 +149,22 @@ function WmsRegistryContent() {
   }, [items]);
 
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
+    const list = filterWmsItems(items, query);
+    return list.filter((item) => {
       if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
       if (warehouseFilter !== "ALL" && item.warehouse !== warehouseFilter) return false;
       if (categoryFilter !== "ALL" && item.category !== categoryFilter) return false;
       if (typeFilter !== "ALL" && item.type !== typeFilter) return false;
       return true;
     });
-  }, [items, statusFilter, warehouseFilter, categoryFilter, typeFilter]);
+  }, [items, query, statusFilter, warehouseFilter, categoryFilter, typeFilter]);
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filteredItems.length && filteredItems.length > 0) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredItems.map((i) => i.id));
-    }
-  };
-
-  const toggleSelectItem = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((iId) => iId !== id) : [...prev, id]
-    );
-  };
+  const {
+    selectedIds,
+    setSelectedIds,
+    toggleSelectAll,
+    toggleSelectItem,
+  } = useItemSelection(filteredItems);
 
   const openBulkOperation = (type: WmsMovement["type"]) => {
     const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));

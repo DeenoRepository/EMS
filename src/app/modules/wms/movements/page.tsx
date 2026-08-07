@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
 import WmsTransferRequestModal from "@/components/wms/wms-transfer-request-modal";
+import { useItemSelection } from "@/lib/hooks/use-item-selection";
 
 function WmsMovementsContent() {
   const { currentUser, refreshPendingWmsTransfers } = useShell();
@@ -48,22 +49,11 @@ function WmsMovementsContent() {
   const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
   const [selectedMovementDetails, setSelectedMovementDetails] = useState<WmsMovement | null>(null);
 
-  // Row Selection for Mass Operations
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-
-  const toggleSelectAll = () => {
-    if (selectedItemIds.length === items.length) {
-      setSelectedItemIds([]);
-    } else {
-      setSelectedItemIds(items.map((i) => i.id));
-    }
-  };
-
-  const toggleSelectItem = (id: string) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
+  const {
+    selectedIds: selectedItemIds,
+    toggleSelectAll,
+    toggleSelectItem,
+  } = useItemSelection(items);
 
   // Transfer requests filters
   const [requestQuery, setRequestQuery] = useState("");

@@ -141,6 +141,18 @@ export function canUserManageItem(
   return false;
 }
 
+export function filterWmsItems(items: WmsItem[], searchQuery: string): WmsItem[] {
+  if (!searchQuery || !searchQuery.trim()) return items;
+  const q = searchQuery.toLowerCase().trim();
+  return items.filter(
+    (item) =>
+      item.name.toLowerCase().includes(q) ||
+      item.sku.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      (item.barcode && item.barcode.includes(q))
+  );
+}
+
 export const MOCK_WMS_ITEMS: WmsItem[] = [
   {
     id: "wms-001",
