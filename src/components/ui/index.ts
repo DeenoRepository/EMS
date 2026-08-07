@@ -22,3 +22,4 @@ export * from "./key-value-editor";
 export * from "./confirm-modal";
 export * from "./autocomplete-input";
 export * from "./data-table";
+export * from "./filter-toolbar";
