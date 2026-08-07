@@ -47,8 +47,19 @@ function WmsItemDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"passport" | "movements" | "compatibility">("passport");
 
+  useEffect(() => {
+    fetch("/api/modules/wms/items")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.items && data.items.length > 0) {
+          setItems(data.items);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const item = items.find((i) => i.id === itemId) || items[0];
-  const itemMovements = MOCK_WMS_MOVEMENTS.filter((m) => m.itemId === item.id || m.itemSku === item.sku);
+  const itemMovements = MOCK_WMS_MOVEMENTS.filter((m) => m.itemId === item?.id || m.itemSku === item?.sku);
 
   const canEdit = canUserManageItem(currentUser, item);
   const responsibleUser = item.responsibleUser || getWarehouseResponsibleUser(item.warehouse);

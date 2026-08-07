@@ -35,8 +35,8 @@ import { useItemSelection } from "@/lib/hooks/use-item-selection";
 function WmsMovementsContent() {
   const { currentUser, refreshPendingWmsTransfers } = useShell();
 
-  const [movements, setMovements] = useState<WmsMovement[]>(MOCK_WMS_MOVEMENTS);
-  const [items, setItems] = useState<WmsItem[]>(MOCK_WMS_ITEMS);
+  const [movements, setMovements] = useState<WmsMovement[]>([]);
+  const [items, setItems] = useState<WmsItem[]>([]);
   const [transferRequests, setTransferRequests] = useState<WmsTransferRequest[]>([]);
   const [activeTab, setActiveTab] = useState<"JOURNAL" | "REQUESTS">("JOURNAL");
   const [query, setQuery] = useState("");
