@@ -554,12 +554,12 @@ function WmsRegistryContent() {
                 className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
               />
             </div>
-            {columns.sku && <span className="col-span-2">Артикул / SKU</span>}
-            {columns.name && <span className="col-span-3">Наименование ТМЦ</span>}
-            {columns.category && <span className="col-span-2">Категория & Тип</span>}
-            {columns.warehouse && <span className="col-span-2">Склад / Ячейка</span>}
-            {columns.quantity && <span className="col-span-1">Остаток & Статус</span>}
-            {columns.actions && <span className="col-span-1 text-right">Действия</span>}
+            {columns.sku && <span className="col-span-2 truncate">Артикул / SKU</span>}
+            {columns.name && <span className="col-span-3 truncate">Наименование ТМЦ</span>}
+            {columns.category && <span className="col-span-2 truncate">Категория & Тип</span>}
+            {columns.warehouse && <span className="col-span-2 truncate">Склад / Ячейка</span>}
+            {columns.quantity && <span className="col-span-1 truncate">Остаток</span>}
+            {columns.actions && <span className="col-span-1 text-right truncate">Действия</span>}
           </div>
 
           {loading ? (
@@ -596,56 +596,56 @@ function WmsRegistryContent() {
                   </div>
 
                   {columns.sku && (
-                    <div className="col-span-2 font-mono">
-                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline">
+                    <div className="col-span-2 font-mono min-w-0 pr-1">
+                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline truncate">
                         {item.sku}
                       </Link>
-                      {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5">ШК: {item.barcode}</span>}
+                      {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5 truncate">ШК: {item.barcode}</span>}
                     </div>
                   )}
 
                   {columns.name && (
-                    <div className="col-span-3">
-                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4]">
+                    <div className="col-span-3 min-w-0 pr-1">
+                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4] line-clamp-2">
                         {item.name}
                       </Link>
                       {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
-                        <span className="block text-[10px] text-slate-400">Совместимо: {item.compatibleEquipment.join(", ")}</span>
+                        <span className="block text-[10px] text-slate-400 truncate">Совместимо: {item.compatibleEquipment.join(", ")}</span>
                       )}
                     </div>
                   )}
 
                   {columns.category && (
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
-                        <Tag size={12} className="text-slate-400" />
-                        <span>{item.category}</span>
+                    <div className="col-span-2 min-w-0 pr-1">
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 truncate">
+                        <Tag size={12} className="text-slate-400 shrink-0" />
+                        <span className="truncate">{item.category}</span>
                       </div>
-                      <span className="block text-[10px] text-slate-400">{item.type}</span>
+                      <span className="block text-[10px] text-slate-400 truncate">{item.type}</span>
                     </div>
                   )}
 
                   {columns.warehouse && (
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
-                        <Building2 size={12} className="text-slate-400" />
-                        <span>{item.warehouse}</span>
+                    <div className="col-span-2 min-w-0 pr-1">
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 truncate">
+                        <Building2 size={12} className="text-slate-400 shrink-0" />
+                        <span className="truncate">{item.warehouse}</span>
                       </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="block text-[10px] font-mono text-slate-400">{item.cell}</span>
-                        <span className="text-slate-300">•</span>
-                        <span className={`inline-flex items-center gap-0.5 text-[10px] ${canUserManageItem(currentUser, item) ? "text-emerald-700 font-medium" : "text-slate-400"}`} title={`МОЛ: ${item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}`}>
-                          <UserCheck size={10} className={canUserManageItem(currentUser, item) ? "text-emerald-600" : "text-slate-400"} />
-                          <span className="truncate max-w-[110px]">{item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}</span>
+                      <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                        <span className="block text-[10px] font-mono text-slate-400 truncate shrink-0 max-w-[90px]">{item.cell}</span>
+                        <span className="text-slate-300 shrink-0">•</span>
+                        <span className={`inline-flex items-center gap-0.5 text-[10px] min-w-0 ${canUserManageItem(currentUser, item) ? "text-emerald-700 font-medium" : "text-slate-400"}`} title={`МОЛ: ${item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}`}>
+                          <UserCheck size={10} className={`shrink-0 ${canUserManageItem(currentUser, item) ? "text-emerald-600" : "text-slate-400"}`} />
+                          <span className="truncate">{item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}</span>
                         </span>
                       </div>
                     </div>
                   )}
 
                   {columns.quantity && (
-                    <div className="col-span-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-bold text-[11px] ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-[#17243a]"}`}>
+                    <div className="col-span-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className={`font-bold text-[11px] whitespace-nowrap ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-[#17243a]"}`}>
                           {item.quantity} {item.unit}
                         </span>
                       </div>
@@ -654,10 +654,10 @@ function WmsRegistryContent() {
                   )}
 
                   {columns.actions && (
-                    <div className="col-span-1 text-right">
+                    <div className="col-span-1 text-right shrink-0">
                       <Link
                         href={`/modules/wms/${item.id}`}
-                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition shadow-xs"
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition shadow-xs whitespace-nowrap"
                       >
                         Открыть <ChevronRight size={11} />
                       </Link>
