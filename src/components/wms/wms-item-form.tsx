@@ -49,6 +49,15 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
   const [description, setDescription] = useState(() => initialData?.description || "");
   const [barcode, setBarcode] = useState(() => initialData?.barcode || "");
   const [compatibleEq, setCompatibleEq] = useState<string>(() => (initialData?.compatibleEquipment || []).join(", "));
+  const [specsPairs, setSpecsPairs] = useState<KeyValuePair[]>(() => {
+    if (initialData?.techSpecs) {
+      return Object.entries(initialData.techSpecs).map(([key, value]) => ({ key, value }));
+    }
+    return [{ key: "материал", value: "" }, { key: "размер", value: "" }];
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const applyExistingItem = (item: WmsItem) => {
     setSku(item.sku);
