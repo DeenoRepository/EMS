@@ -29,3 +29,12 @@
 - [x] ESLint check
 - [x] Demo page /modules/eps/ui-demo
 
+## Phase 6 — Page Widgets
+- [x] page-header.tsx
+- [x] data-table.tsx
+- [x] kpi-grid.tsx
+- [x] confirm-modal.tsx
+- [x] key-value-editor.tsx
+- [x] autocomplete-input.tsx
+- [x] update index.ts
+
