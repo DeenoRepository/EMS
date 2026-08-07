@@ -93,7 +93,7 @@ export default function WmsOperationModal({
         setBulkItemList([currentItem]);
       }
     }
-  }, [isOpen, selectedItems, currentItem]);
+  }, [isOpen, selectedItems]);
 
   // Синхронизация поиска и выбранной номенклатуры при открытии модального окна
   useEffect(() => {
