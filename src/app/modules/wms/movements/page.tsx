@@ -44,7 +44,7 @@ function WmsMovementsContent() {
   // Modals state
   const [showOpModal, setShowOpModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
+  const [opModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
   const [selectedMovementDetails, setSelectedMovementDetails] = useState<WmsMovement | null>(null);
 
   // Transfer requests filters
@@ -163,16 +163,10 @@ function WmsMovementsContent() {
     const totalOps = filteredMovements.length;
     const incomingCount = filteredMovements.filter((m) => m.type === "INCOMING").length;
     const outgoingCount = filteredMovements.filter((m) => m.type === "OUTGOING").length;
-    const transferCount = filteredMovements.filter((m) => m.type === "TRANSFER").length;
     const pendingTransfers = transferRequests.filter((r) => r.status === "PENDING").length;
 
-    return { totalOps, incomingCount, outgoingCount, transferCount, pendingTransfers };
+    return { totalOps, incomingCount, outgoingCount, pendingTransfers };
   }, [filteredMovements, transferRequests]);
-
-  const openBulkOperation = (type: WmsMovement["type"]) => {
-    setOpModalDefaultType(type);
-    setShowOpModal(true);
-  };
 
   const handleApproveRequest = async (req: WmsTransferRequest) => {
     setProcessingId(req.id);
@@ -191,7 +185,7 @@ function WmsMovementsContent() {
         return;
       }
 
-      await fetchItemsAndMovements();
+      fetchItemsAndMovements();
       await refreshPendingWmsTransfers();
     } catch {
       alert("Ошибка при вызове сервера");
@@ -220,7 +214,7 @@ function WmsMovementsContent() {
         return;
       }
 
-      await fetchItemsAndMovements();
+      fetchItemsAndMovements();
       await refreshPendingWmsTransfers();
     } catch {
       alert("Ошибка при вызове сервера");
@@ -352,7 +346,7 @@ function WmsMovementsContent() {
     <main className="w-full px-5 py-6 md:px-8 space-y-6">
       <PageHeader
         title="Журнал движений и операций ТМЦ"
-        description="Полная история поступлений, выбытий, перемещений и запросов на передачу ТМЦ между складами предприяти."
+        description="Полная история поступлений, выбытий, перемещений и запросов на передачу ТМЦ между складами предприятия."
         breadcrumbs={[
           { title: "Главная", href: "/" },
           { title: "WMS Складской учёт", href: "/modules/wms" },
@@ -422,7 +416,6 @@ function WmsMovementsContent() {
         ]}
       />
 
-      {/* Tabs navigation for Journal vs Requests */}
       <TabNav
         items={[
           { id: "JOURNAL", label: "Журнал транзакций WMS", icon: <History size={14} />, badge: filteredMovements.length },
@@ -440,25 +433,6 @@ function WmsMovementsContent() {
 
       {activeTab === "JOURNAL" ? (
         <>
-          <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => openBulkOperation("INCOMING")}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 transition"
-              >
-                <ArrowDownLeft size={13} /> Оформить приход
-              </button>
-              <button
-                type="button"
-                onClick={() => openBulkOperation("OUTGOING")}
-                className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-rose-700 transition"
-              >
-                <ArrowUpRight size={13} /> Оформить расход
-              </button>
-            </div>
-          </div>
-
           <FilterToolbar
             searchQuery={query}
             onSearchChange={setQuery}
@@ -614,7 +588,6 @@ function WmsMovementsContent() {
         onSubmitSuccess={() => fetchItemsAndMovements()}
         selectedItems={items}
         allRegistryItems={items}
-        currentUser={currentUser}
       />
 
       <Modal open={Boolean(selectedMovementDetails)} onClose={() => setSelectedMovementDetails(null)} size="md">

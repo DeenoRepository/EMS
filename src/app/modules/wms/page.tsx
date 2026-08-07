@@ -2,9 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { useShell } from "@/components/layout/shell-context";
 import { WmsItem, WmsMovement, filterWmsItems } from "@/lib/modules/wms-store";
-import { useItemSelection } from "@/lib/hooks/use-item-selection";
 import {
   Plus,
   RefreshCw,
@@ -15,9 +13,6 @@ import {
   PackageCheck,
   DollarSign,
   Tag,
-  ArrowDownLeft,
-  ArrowUpRight,
-  RefreshCcw,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
@@ -30,7 +25,6 @@ import {
   FilterToolbar,
   DataTable,
   StatusBadge,
-  Checkbox,
 } from "@/components/ui";
 
 export interface WmsColumnVisibility {
@@ -58,8 +52,6 @@ const DEFAULT_WMS_COLUMNS: WmsColumnVisibility = {
 };
 
 function WmsRegistryContent() {
-  const { currentUser } = useShell();
-
   const [items, setItems] = useState<WmsItem[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -72,8 +64,7 @@ function WmsRegistryContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showOpModal, setShowOpModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
-  const [opModalSelectedItems, setOpModalSelectedItems] = useState<WmsItem[]>([]);
+  const [opModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
 
   // Column visibility state with localStorage persistence
   const [columns, setColumns] = useState<WmsColumnVisibility>(() => {
@@ -149,32 +140,12 @@ function WmsRegistryContent() {
     });
   }, [items, query, statusFilter, warehouseFilter, categoryFilter, typeFilter]);
 
-  const {
-    selectedIds,
-    toggleSelectAll,
-    toggleSelectItem,
-  } = useItemSelection(filteredItems);
-
-  const openTransferModal = () => {
-    const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
-    setOpModalSelectedItems(selectedItemsList.length > 0 ? selectedItemsList : (items[0] ? [items[0]] : []));
-    setShowTransferModal(true);
-  };
-
-  const openBulkOperation = (type: WmsMovement["type"]) => {
-    const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
-    setOpModalDefaultType(type);
-    setOpModalSelectedItems(selectedItemsList.length > 0 ? selectedItemsList : (items[0] ? [items[0]] : []));
-    setShowOpModal(true);
-  };
-
   const kpiStats = useMemo(() => {
     const totalPos = items.length;
     const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
     const lowStock = items.filter((i) => i.status === "LOW_STOCK" || i.status === "OUT_OF_STOCK").length;
-    const reserved = items.reduce((sum, i) => sum + i.reservedQuantity, 0);
     const totalValue = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-    return { totalPos, totalQty, lowStock, reserved, totalValue };
+    return { totalPos, totalQty, lowStock, totalValue };
   }, [items]);
 
   const resetAllFilters = () => {
@@ -220,23 +191,7 @@ function WmsRegistryContent() {
   };
 
   const tableColumns = useMemo(() => {
-    const cols = [
-      {
-        key: "select",
-        header: (
-          <Checkbox
-            checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
-            onChange={toggleSelectAll}
-          />
-        ),
-        cell: (item: WmsItem) => (
-          <Checkbox
-            checked={selectedIds.includes(item.id)}
-            onChange={() => toggleSelectItem(item.id)}
-          />
-        ),
-      },
-    ];
+    const cols = [];
 
     if (columns.sku) {
       cols.push({
@@ -359,7 +314,7 @@ function WmsRegistryContent() {
     }
 
     return cols;
-  }, [columns, filteredItems, selectedIds, toggleSelectAll, toggleSelectItem]);
+  }, [columns]);
 
   return (
     <main className="w-full px-5 py-6 md:px-8 space-y-6">
@@ -432,36 +387,6 @@ function WmsRegistryContent() {
           },
         ]}
       />
-
-      {/* Bulk actions bar */}
-      <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => openBulkOperation("INCOMING")}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 transition"
-          >
-            <ArrowDownLeft size={13} /> Приход ТМЦ
-          </button>
-          <button
-            type="button"
-            onClick={() => openBulkOperation("OUTGOING")}
-            className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-rose-700 transition"
-          >
-            <ArrowUpRight size={13} /> Расход / Списание
-          </button>
-          <button
-            type="button"
-            onClick={openTransferModal}
-            className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2565c8] transition"
-          >
-            <RefreshCcw size={13} /> Перемещение
-          </button>
-        </div>
-        {selectedIds.length > 0 && (
-          <span className="text-[11px] font-semibold text-[#3473d4]">Выбрано позиций: {selectedIds.length}</span>
-        )}
-      </div>
 
       <FilterToolbar
         searchQuery={query}
@@ -553,7 +478,7 @@ function WmsRegistryContent() {
         onClose={() => setShowOpModal(false)}
         onSubmitSuccess={() => fetchItems()}
         items={items}
-        selectedItems={opModalSelectedItems}
+        selectedItems={items}
         allRegistryItems={items}
         defaultType={opModalDefaultType}
       />
@@ -562,9 +487,8 @@ function WmsRegistryContent() {
         isOpen={showTransferModal}
         onClose={() => setShowTransferModal(false)}
         onSubmitSuccess={() => fetchItems()}
-        selectedItems={opModalSelectedItems}
+        selectedItems={items}
         allRegistryItems={items}
-        currentUser={currentUser}
       />
     </main>
   );
