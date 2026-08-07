@@ -112,7 +112,7 @@ export const WAREHOUSES_REGISTRY: WarehouseConfig[] = [
 
 export function getWarehouseResponsibleUser(warehouseName: string): string {
   const found = WAREHOUSES_REGISTRY.find((w) => w.name === warehouseName);
-  return found ? found.responsibleUser : "Смирнов А.В. (Старший кладовщик)";
+  return found ? found.responsibleUser : "Ответственное лицо не назначено";
 }
 
 export function canUserManageItem(

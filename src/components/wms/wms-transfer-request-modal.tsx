@@ -34,14 +34,21 @@ export default function WmsTransferRequestModal({
       const sourceWh = selectedItems[0].warehouse;
       setFromWarehouse(sourceWh);
 
-      // 2. Склад-получатель определяется строго по ответственности залогиненного кладовщика/заявителя
-      const userWh = WAREHOUSES_REGISTRY.find(
-        (w) =>
-          w.responsibleUsername === currentUser?.username ||
-          (currentUser?.displayName && w.responsibleUser.toLowerCase().includes(currentUser.displayName.toLowerCase()))
-      );
-
-      setToWarehouse(userWh ? userWh.name : "Цеховая кладовая №3");
+      fetch("/api/admin/warehouses")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.warehouses && Array.isArray(data.warehouses)) {
+            const userWh = data.warehouses.find(
+              (w: any) =>
+                w.responsibleUsername === currentUser?.username ||
+                (currentUser?.displayName && w.responsibleUser.toLowerCase().includes(currentUser.displayName.toLowerCase()))
+            );
+            if (userWh) {
+              setToWarehouse(userWh.name);
+            }
+          }
+        })
+        .catch(() => {});
 
       const initialQty: Record<string, number> = {};
       selectedItems.forEach((item) => {

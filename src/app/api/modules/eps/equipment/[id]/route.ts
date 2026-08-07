@@ -77,8 +77,12 @@ export async function PUT(
       });
       return NextResponse.json({ success: true, item: updated });
     }
-  } catch {
-    // Fallback to MOCK array update if DB offline
+    return NextResponse.json({ error: "Оборудование не найдено" }, { status: 404 });
+  } catch (err) {
+    console.error("EPS Equipment update failed:", err);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: " Ошибка базы данных при обновлении паспорта" }, { status: 500 });
+    }
   }
 
   const index = MOCK_EQUIPMENT_DATA.findIndex((eq) => eq.id === id || eq.equipmentCode === id);

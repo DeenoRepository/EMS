@@ -5,6 +5,8 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { Clock, ChevronRight, Wrench, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+import { APP_VERSION } from "@/lib/version";
+
 export default function MROModulePage() {
   return (
     <ShellLayout>
@@ -24,7 +26,7 @@ export default function MROModulePage() {
 
           <div className="mt-6 flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-600 max-w-xl">
             <Clock size={16} className="text-amber-500 shrink-0" />
-            <span>Статус разработки: <strong>v1.4.2-dev</strong>. Модуль находится в процессе активной разработки.</span>
+            <span>Статус разработки: <strong>v{APP_VERSION}-dev</strong>. Модуль находится в процессе активной разработки.</span>
           </div>
 
           <div className="mt-8 flex gap-3">

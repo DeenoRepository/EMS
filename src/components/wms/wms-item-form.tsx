@@ -56,6 +56,23 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
     return [{ key: "материал", value: "" }, { key: "размер", value: "" }];
   });
 
+  const [warehousesList, setWarehousesList] = useState<Array<{ name: string; responsibleUser: string }>>([
+    { name: "Основной склад ЗИП", responsibleUser: "Смирнов А.В. (Старший кладовщик)" },
+    { name: "Склад ГСМ №2", responsibleUser: "Ковалев Д.М. (Кладовщик ГСМ)" },
+    { name: "Цеховая кладовая №3", responsibleUser: "Сидоров А.Н. (Энергетик цеха)" }
+  ]);
+
+  useEffect(() => {
+    fetch("/api/admin/warehouses")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.warehouses && Array.isArray(data.warehouses) && data.warehouses.length > 0) {
+          setWarehousesList(data.warehouses);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -229,7 +246,7 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
         <FormSection title="2. Складское размещение и остатки" icon={<Box size={14} className="text-emerald-600" />} cols={3}>
           <FormField label="Склад хранения" required>
             <Select value={warehouse} onChange={(e) => handleWarehouseChange(e.target.value)}>
-              {WAREHOUSES_REGISTRY.map((wh) => (
+              {warehousesList.map((wh) => (
                 <option key={wh.name} value={wh.name}>
                   {wh.name}
                 </option>

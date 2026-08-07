@@ -12,21 +12,22 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" }
     });
 
-    if (dbEvents.length > 0) {
-      const items: TimelineEvent[] = dbEvents.map((evt: any) => ({
-        id: evt.id,
-        equipmentId: evt.equipmentId,
-        eventType: evt.eventType as TimelineEvent["eventType"],
-        title: evt.title,
-        description: evt.description || "",
-        actor: "system@ems.local",
-        createdAt: evt.createdAt.toISOString()
-      }));
+    const items: TimelineEvent[] = dbEvents.map((evt: any) => ({
+      id: evt.id,
+      equipmentId: evt.equipmentId,
+      eventType: evt.eventType as TimelineEvent["eventType"],
+      title: evt.title,
+      description: evt.description || "",
+      actor: evt.actor || "system@ems.local",
+      createdAt: evt.createdAt.toISOString()
+    }));
 
-      return NextResponse.json({ items });
+    return NextResponse.json({ items });
+  } catch (err) {
+    console.error("EPS Events DB query failed:", err);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: " Ошибка базы данных при загрузке событий" }, { status: 500 });
     }
-  } catch {
-    // Fallback if DB unavailable
   }
 
   let mockEvents = MOCK_EVENTS;

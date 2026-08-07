@@ -5,6 +5,8 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { PackageCheck, Clock, ChevronRight, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
+import { APP_VERSION } from "@/lib/version";
+
 export default function SRMModulePage() {
   return (
     <ShellLayout>
@@ -24,7 +26,7 @@ export default function SRMModulePage() {
 
           <div className="mt-6 flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-600 max-w-xl">
             <Clock size={16} className="text-blue-500 shrink-0" />
-            <span>Статус разработки: <strong>v0.5.8-dev</strong>. Плановый релиз в следующем спринте.</span>
+            <span>Статус разработки: <strong>v{APP_VERSION}-dev</strong>. Плановый релиз в следующем спринте.</span>
           </div>
 
           <div className="mt-8 flex gap-3">

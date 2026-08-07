@@ -28,14 +28,15 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: "desc" }
     });
 
-    if (dbItems.length > 0) {
-      return NextResponse.json({ items: dbItems, total: dbItems.length });
-    }
+    return NextResponse.json({ items: dbItems, total: dbItems.length });
   } catch (err) {
-    console.warn("WMS Items DB query failed, falling back to mock store:", err);
+    console.error("WMS Items DB query failed:", err);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: " Ошибка базы данных при загрузке ТМЦ" }, { status: 500 });
+    }
   }
 
-  // Fallback to mock data if DB is empty or connection unavailable
+  // Fallback to mock data ONLY in dev/test if connection fails
   let filtered = [...MOCK_WMS_ITEMS];
   if (query) {
     const q = query.toLowerCase();
@@ -73,11 +74,11 @@ export async function POST(request: Request) {
       maxQuantity: Number(body.maxQuantity) || 50,
       reservedQuantity: Number(body.reservedQuantity) || 0,
       unitPrice: Number(body.unitPrice) || 0,
-      currency: "RUB",
+      currency: body.currency || "RUB",
       status: calculatedStatus,
       supplier: body.supplier || "",
       compatibleEquipment: body.compatibleEquipment || [],
-      responsibleUser: body.responsibleUser || "Смирнов А.В. (Старший кладовщик)",
+      responsibleUser: body.responsibleUser || null,
       description: body.description || "",
       barcode: body.barcode || `${Math.floor(1000000000000 + Math.random() * 9000000000000)}`,
       techSpecs: body.techSpecs || {}

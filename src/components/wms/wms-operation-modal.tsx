@@ -57,10 +57,27 @@ export default function WmsOperationModal({
 
   // Поля специфичные для Списания (OUTGOING)
   const [outgoingReasonType, setOutgoingReasonType] = useState<"EQUIPMENT" | "SCRAP" | "EXPIRED">("EQUIPMENT");
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>(MOCK_EQUIPMENT_DATA[0]?.id || "");
+  const [equipmentList, setEquipmentList] = useState<Array<{ id: string; name: string; equipmentCode: string; department?: string }>>([]);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>("");
   const [equipmentSearchQuery, setEquipmentSearchQuery] = useState<string>("");
   const [showEquipmentSuggestions, setShowEquipmentSuggestions] = useState<boolean>(false);
   const [scrapWriteoffReason, setScrapWriteoffReason] = useState<string>("Износ / Естественная выработка ресурса");
+
+  useEffect(() => {
+    fetch("/api/modules/eps/equipment")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.items && Array.isArray(data.items)) {
+          setEquipmentList(data.items);
+          if (data.items.length > 0) {
+            setSelectedEquipmentId(data.items[0].id);
+          }
+        }
+      })
+      .catch(() => {
+        // Safe fallback
+      });
+  }, []);
 
   // Поля специфичные для Перемещения (TRANSFER)
   const [sourceWarehouse, setSourceWarehouse] = useState<string>("Основной склад ЗИП");

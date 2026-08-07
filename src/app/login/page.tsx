@@ -25,16 +25,16 @@ export default function LoginPage() {
         body: JSON.stringify({ username, password })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Ошибка входа в систему");
+        setError(data.error || `Ошибка сервера (${res.status})`);
         return;
       }
 
       router.push("/");
       router.refresh();
-    } catch {
-      setError("Ошибка сети при попытке авторизации");
+    } catch (err: any) {
+      setError(err?.message || "Ошибка сети при попытке авторизации");
     } finally {
       setLoading(false);
     }

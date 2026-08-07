@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 
+import { Prisma } from "@prisma/client";
+
 export async function GET() {
   const headers = [
     "ID",
@@ -22,7 +24,7 @@ export async function GET() {
     "Штрихкод / QR"
   ];
 
-  let items: any[] = [];
+  let items: Prisma.WmsItemGetPayload<{}>[] = [];
   try {
     items = await prisma.wmsItem.findMany();
   } catch (err) {

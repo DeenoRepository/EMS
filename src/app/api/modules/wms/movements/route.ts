@@ -25,11 +25,12 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" }
     });
 
-    if (dbMovements.length > 0) {
-      return NextResponse.json({ movements: dbMovements, total: dbMovements.length });
-    }
+    return NextResponse.json({ movements: dbMovements, total: dbMovements.length });
   } catch (err) {
-    console.warn("WMS Movements DB query failed, falling back to mock store:", err);
+    console.error("WMS Movements DB query failed:", err);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: " Ошибка базы данных при загрузке операций" }, { status: 500 });
+    }
   }
 
   let filtered = [...MOCK_WMS_MOVEMENTS];
@@ -53,15 +54,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    if (!body.itemId) {
+      return NextResponse.json({ error: "Поле itemId обязательно для проведения операции" }, { status: 400 });
+    }
+
     const movementData = {
-      itemId: body.itemId || "n/a",
+      itemId: body.itemId,
       itemSku: body.itemSku || "SKU-UNKNOWN",
       itemName: body.itemName || "ТМЦ Номенклатура",
       type: body.type || "INCOMING",
       quantity: Number(body.quantity) || 1,
       fromLocation: body.fromLocation || "",
       toLocation: body.toLocation || "",
-      performedBy: body.performedBy || "Кладовщик МОЛ",
+      performedBy: body.performedBy || "Оператор WMS",
       recipientUser: body.recipientUser || null,
       reason: body.reason || "",
       relatedOrderOrEq: body.relatedOrderOrEq || null

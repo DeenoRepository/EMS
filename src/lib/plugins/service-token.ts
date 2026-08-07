@@ -1,8 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 
-const SERVICE_JWT_SECRET = new TextEncoder().encode(
-  process.env.SERVICE_JWT_SECRET || "ems-inter-module-service-token-secret-2026"
-);
+const serviceSecretKey = process.env.SERVICE_JWT_SECRET || "ems-inter-module-service-token-secret-2026";
+const SERVICE_JWT_SECRET = new TextEncoder().encode(serviceSecretKey);
 
 export interface ServiceTokenPayload {
   sourceModule: string;

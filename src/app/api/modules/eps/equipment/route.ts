@@ -28,29 +28,12 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({ items, total: items.length });
-  } catch {
-    // Резервный фолбэк при отсутствии поднятой БД для локальной разработки
-    return NextResponse.json({
-      items: [
-        {
-          id: "eq-001",
-          equipmentCode: "EQ-CNC-2026-01",
-          name: "Фрезерный станок с ЧПУ HAAS VF-2",
-          type: "Обрабатывающий центр",
-          category: "Металлообработка",
-          model: "VF-2SS",
-          serialNumber: "SN-9948271",
-          inventoryNumber: "INV-440192",
-          department: "Цех №3",
-          location: "Участок ЧПУ, поз. 14",
-          status: "ACTIVE",
-          lifecycleStage: "IN_OPERATION",
-          currentVersion: 1,
-          updatedAt: new Date().toISOString()
-        }
-      ],
-      total: 1
-    });
+  } catch (err) {
+    console.error("EPS Equipment list query failed:", err);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "Ошибка базы данных при загрузке реестра оборудования" }, { status: 500 });
+    }
+    return NextResponse.json({ items: [], total: 0 });
   }
 }
 

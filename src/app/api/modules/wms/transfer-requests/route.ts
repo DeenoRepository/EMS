@@ -31,11 +31,12 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" }
     });
 
-    if (dbRequests.length > 0) {
-      return NextResponse.json({ requests: dbRequests, total: dbRequests.length });
-    }
+    return NextResponse.json({ requests: dbRequests, total: dbRequests.length });
   } catch (err) {
-    console.warn("WMS Transfer Requests DB query failed, falling back to mock store:", err);
+    console.error("WMS Transfer Requests DB query failed:", err);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: " Ошибка базы данных при загрузке запросов" }, { status: 500 });
+    }
   }
 
   let filtered = [...globalTransferRequests];
@@ -60,8 +61,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const fromWarehouse = body.fromWarehouse || "Основной склад ЗИП";
-    const toWarehouse = body.toWarehouse || "Цеховая кладовая №3";
+    if (!body.fromWarehouse || !body.toWarehouse) {
+      return NextResponse.json({ error: "Необходимые поля (fromWarehouse, toWarehouse) обязательны" }, { status: 400 });
+    }
+    const fromWarehouse = body.fromWarehouse;
+    const toWarehouse = body.toWarehouse;
     
     const targetMolUser = getWarehouseResponsibleUser(fromWarehouse);
     const foundWh = WAREHOUSES_REGISTRY.find((w) => w.name === fromWarehouse);

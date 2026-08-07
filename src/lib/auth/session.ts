@@ -2,9 +2,8 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { UserSession } from "./rbac";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "ems-corporate-platform-secret-key-2026-secure-jwt"
-);
+const secretKey = process.env.JWT_SECRET || "ems-corporate-platform-secret-key-2026-secure-jwt";
+const JWT_SECRET = new TextEncoder().encode(secretKey);
 
 const SESSION_COOKIE_NAME = "ems_session";
 
@@ -33,14 +32,18 @@ export async function getSession(): Promise<UserSession | null> {
 }
 
 export async function setSessionCookie(token: string) {
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 8 * 60 * 60 // 8 hours
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 8 * 60 * 60 // 8 hours
+    });
+  } catch (err) {
+    console.warn("Could not set cookie directly:", err);
+  }
 }
 
 export async function clearSessionCookie() {

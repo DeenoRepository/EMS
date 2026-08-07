@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import Link from "next/link";
@@ -117,6 +117,29 @@ export default function WmsSettingsPage() {
   const [query, setQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingWh, setEditingWh] = useState<WarehouseSettingItem | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/warehouses")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.warehouses && Array.isArray(data.warehouses) && data.warehouses.length > 0) {
+          const mapped: WarehouseSettingItem[] = data.warehouses.map((w: any, idx: number) => ({
+            id: w.id,
+            code: `WH-${w.id.slice(-4).toUpperCase()}`,
+            name: w.name,
+            type: "MAIN",
+            location: "Центральный комплекс",
+            responsibleUser: w.responsibleUser,
+            responsibleUserEmail: `${w.responsibleUsername || "admin"}@factory.local`,
+            responsibleUserPhone: "+7 (812) 490-12-00",
+            capacityStatus: "OK",
+            isActive: true
+          }));
+          setWarehouses(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Cell Creation State
   const [cellRack, setCellRack] = useState("");

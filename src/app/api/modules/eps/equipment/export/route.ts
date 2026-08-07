@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
 import { EquipmentItem } from "@/lib/modules/eps-store";
 
 export async function GET(request: Request) {
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   const categoryFilter = searchParams.get("category");
   const statusFilter = searchParams.get("status");
 
-  const where: any = {};
+  const where: Prisma.EquipmentWhereInput = {};
   if (departmentFilter && departmentFilter !== "ALL") {
     where.department = departmentFilter;
   }
@@ -17,10 +18,10 @@ export async function GET(request: Request) {
     where.category = categoryFilter;
   }
   if (statusFilter && statusFilter !== "ALL") {
-    where.status = statusFilter;
+    where.status = statusFilter as any;
   }
 
-  let items: any[] = [];
+  let items: Prisma.EquipmentGetPayload<{}>[] = [];
   try {
     items = await prisma.equipment.findMany({ where });
   } catch (err) {
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
   const headers = selectedFields.map((f) => f.label);
   const rows = items.map((item) =>
     selectedFields.map((field) => {
-      const val = field.extract(item);
+      const val = field.extract(item as any);
       return `"${val.replace(/"/g, '""')}"`;
     })
   );

@@ -10,14 +10,14 @@ export interface UserSession {
 
 // MOCK_USERS используется ИСКЛЮЧИТЕЛЬНО в режиме разработки/демонстрации без внешней БД LDAP
 // В продуктивном контуре используется LDAP Bind Authentication через /api/auth/login
-export const MOCK_USERS: Record<string, UserSession & { passwordHash: string }> = {
+export const MOCK_USERS: Record<string, UserSession & { _devPassword: string }> = {
   admin: {
     id: "usr-admin",
     username: "admin",
     displayName: "Администратор EMS",
     email: "admin@ems.local",
     roles: ["ADMIN", "EDITOR", "APPROVER", "VIEWER"],
-    passwordHash: "admin123" // DEV-ONLY: Plaintext fallback для локальной разработки
+    _devPassword: "admin123" // DEV-ONLY: Plaintext fallback для локальной разработки
   },
   editor: {
     id: "usr-editor",
@@ -25,7 +25,7 @@ export const MOCK_USERS: Record<string, UserSession & { passwordHash: string }> 
     displayName: "Инженер Редактор",
     email: "editor@ems.local",
     roles: ["EDITOR", "VIEWER"],
-    passwordHash: "editor123" // DEV-ONLY
+    _devPassword: "editor123" // DEV-ONLY
   },
   approver: {
     id: "usr-approver",
@@ -33,7 +33,7 @@ export const MOCK_USERS: Record<string, UserSession & { passwordHash: string }> 
     displayName: "Руководитель Согласующий",
     email: "approver@ems.local",
     roles: ["APPROVER", "VIEWER"],
-    passwordHash: "approver123" // DEV-ONLY
+    _devPassword: "approver123" // DEV-ONLY
   },
   viewer: {
     id: "usr-viewer",
@@ -41,7 +41,7 @@ export const MOCK_USERS: Record<string, UserSession & { passwordHash: string }> 
     displayName: "Наблюдатель Оборудования",
     email: "viewer@ems.local",
     roles: ["VIEWER"],
-    passwordHash: "viewer123" // DEV-ONLY
+    _devPassword: "viewer123" // DEV-ONLY
   }
 };
 
