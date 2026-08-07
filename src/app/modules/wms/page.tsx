@@ -18,7 +18,6 @@ import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
 import WmsTransferRequestModal from "@/components/wms/wms-transfer-request-modal";
-import WmsSubNav from "@/components/wms/wms-sub-nav";
 import {
   PageHeader,
   KpiGrid,
@@ -350,8 +349,6 @@ function WmsRegistryContent() {
           </>
         }
       />
-
-      <WmsSubNav totalItemsCount={kpiStats.totalPos} lowStockCount={kpiStats.lowStock} />
 
       <KpiGrid
         items={[

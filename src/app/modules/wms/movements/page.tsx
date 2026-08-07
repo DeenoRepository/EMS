@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
 import WmsTransferRequestModal from "@/components/wms/wms-transfer-request-modal";
-import WmsSubNav from "@/components/wms/wms-sub-nav";
 import {
   PageHeader,
   KpiGrid,
@@ -377,8 +376,6 @@ function WmsMovementsContent() {
           </>
         }
       />
-
-      <WmsSubNav lowStockCount={0} />
 
       <KpiGrid
         items={[
