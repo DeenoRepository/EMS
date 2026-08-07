@@ -545,124 +545,137 @@ function WmsRegistryContent() {
 
         {/* WMS Data Table styled 1-in-1 with EPS Equipment Table */}
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-          <div className="hidden border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400 md:grid grid-cols-12 gap-3 items-center">
-            <div className="col-span-1 flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={selectedIds.length === filteredItems.length && filteredItems.length > 0}
-                onChange={toggleSelectAll}
-                className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
-              />
-            </div>
-            {columns.sku && <span className="col-span-2 truncate">Артикул / SKU</span>}
-            {columns.name && <span className="col-span-3 truncate">Наименование ТМЦ</span>}
-            {columns.category && <span className="col-span-2 truncate">Категория & Тип</span>}
-            {columns.warehouse && <span className="col-span-2 truncate">Склад / Ячейка</span>}
-            {columns.quantity && <span className="col-span-1 truncate">Остаток</span>}
-            {columns.actions && <span className="col-span-1 text-right truncate">Действия</span>}
-          </div>
-
-          {loading ? (
-            <div className="px-5 py-12 text-center text-xs text-slate-400">
-              <RefreshCw className="mx-auto mb-2 animate-spin text-[#3473d4]" size={20} />
-              Загрузка реестра складских запасов...
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="px-5 py-12 text-center text-xs text-slate-400 space-y-2">
-              <p>Позиции ТМЦ по заданным критериям фильтрации не найдены.</p>
-              {activeFiltersCount > 0 && (
-                <button onClick={resetAllFilters} className="text-[11px] font-semibold text-[#3473d4] hover:underline">
-                  Сбросить все фильтры
-                </button>
-              )}
-            </div>
-          ) : (
-            filteredItems.map((item) => {
-              const isSelected = selectedIds.includes(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className={`grid grid-cols-1 md:grid-cols-12 gap-2 border-b border-slate-100 px-5 py-3.5 last:border-0 md:items-center md:gap-3 transition text-xs ${
-                    isSelected ? "bg-blue-50/40" : "hover:bg-slate-50/50"
-                  }`}
-                >
-                  <div className="col-span-1 flex items-center gap-2">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[900px]">
+              <thead className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">
+                <tr>
+                  <th className="px-4 py-3 w-[40px]">
                     <input
                       type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelectItem(item.id)}
+                      checked={selectedIds.length === filteredItems.length && filteredItems.length > 0}
+                      onChange={toggleSelectAll}
                       className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
                     />
-                  </div>
-
-                  {columns.sku && (
-                    <div className="col-span-2 font-mono min-w-0 pr-1">
-                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline truncate">
-                        {item.sku}
-                      </Link>
-                      {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5 truncate">ШК: {item.barcode}</span>}
-                    </div>
-                  )}
-
-                  {columns.name && (
-                    <div className="col-span-3 min-w-0 pr-1">
-                      <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4] line-clamp-2">
-                        {item.name}
-                      </Link>
-                      {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
-                        <span className="block text-[10px] text-slate-400 truncate">Совместимо: {item.compatibleEquipment.join(", ")}</span>
+                  </th>
+                  {columns.sku && <th className="px-3 py-3 w-[15%]">Артикул / SKU</th>}
+                  {columns.name && <th className="px-3 py-3 w-[30%]">Наименование ТМЦ</th>}
+                  {columns.category && <th className="px-3 py-3 w-[15%]">Категория & Тип</th>}
+                  {columns.warehouse && <th className="px-3 py-3 w-[22%]">Склад / Ячейка</th>}
+                  {columns.quantity && <th className="px-3 py-3 w-[10%]">Остаток</th>}
+                  {columns.actions && <th className="px-4 py-3 w-[80px] text-right">Действия</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={12} className="px-5 py-12 text-center text-xs text-slate-400">
+                      <RefreshCw className="mx-auto mb-2 animate-spin text-[#3473d4]" size={20} />
+                      Загрузка реестра складских запасов...
+                    </td>
+                  </tr>
+                ) : filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-5 py-12 text-center text-xs text-slate-400 space-y-2">
+                      <p>Позиции ТМЦ по заданным критериям фильтрации не найдены.</p>
+                      {activeFiltersCount > 0 && (
+                        <button onClick={resetAllFilters} className="text-[11px] font-semibold text-[#3473d4] hover:underline">
+                          Сбросить все фильтры
+                        </button>
                       )}
-                    </div>
-                  )}
-
-                  {columns.category && (
-                    <div className="col-span-2 min-w-0 pr-1">
-                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 truncate">
-                        <Tag size={12} className="text-slate-400 shrink-0" />
-                        <span className="truncate">{item.category}</span>
-                      </div>
-                      <span className="block text-[10px] text-slate-400 truncate">{item.type}</span>
-                    </div>
-                  )}
-
-                  {columns.warehouse && (
-                    <div className="col-span-2 min-w-0 pr-1">
-                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 truncate">
-                        <Building2 size={12} className="text-slate-400 shrink-0" />
-                        <span className="truncate">{item.warehouse}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                        <span className="block text-[10px] font-mono text-slate-400 truncate shrink-0 max-w-[90px]">{item.cell}</span>
-                        <span className="text-slate-300 shrink-0">•</span>
-                        <span className={`inline-flex items-center gap-0.5 text-[10px] min-w-0 ${canUserManageItem(currentUser, item) ? "text-emerald-700 font-medium" : "text-slate-400"}`} title={`МОЛ: ${item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}`}>
-                          <UserCheck size={10} className={`shrink-0 ${canUserManageItem(currentUser, item) ? "text-emerald-600" : "text-slate-400"}`} />
-                          <span className="truncate">{item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}</span>
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {columns.quantity && (
-                    <div className="col-span-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className={`font-bold text-[11px] whitespace-nowrap ${item.quantity <= item.minQuantity ? "text-amber-600" : "text-[#17243a]"}`}>
-                          {item.quantity} {item.unit}
-                        </span>
-                      </div>
-                      <div className="mt-0.5">{getStatusBadge(item.status)}</div>
-                    </div>
-                  )}
-
-                  {columns.actions && (
-                    <div className="col-span-1 text-right shrink-0">
-                      <Link
-                        href={`/modules/wms/${item.id}`}
-                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition shadow-xs whitespace-nowrap"
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((item) => {
+                    const isSelected = selectedIds.includes(item.id);
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`transition text-xs ${
+                          isSelected ? "bg-blue-50/40" : "hover:bg-slate-50/50"
+                        }`}
                       >
-                        Открыть <ChevronRight size={11} />
-                      </Link>
-                    </div>
-                  )}
+                        <td className="px-4 py-3.5 align-top">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectItem(item.id)}
+                            className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
+                          />
+                        </td>
+
+                        {columns.sku && (
+                          <td className="px-3 py-3.5 font-mono align-top">
+                            <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline">
+                              {item.sku}
+                            </Link>
+                            {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5">ШК: {item.barcode}</span>}
+                          </td>
+                        )}
+
+                        {columns.name && (
+                          <td className="px-3 py-3.5 align-top">
+                            <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4]">
+                              {item.name}
+                            </Link>
+                            {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
+                              <span className="block text-[10px] text-slate-400 mt-0.5">Совместимо: {item.compatibleEquipment.join(", ")}</span>
+                            )}
+                          </td>
+                        )}
+
+                        {columns.category && (
+                          <td className="px-3 py-3.5 align-top">
+                            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                              <Tag size={12} className="text-slate-400 shrink-0" />
+                              <span>{item.category}</span>
+                            </div>
+                            <span className="block text-[10px] text-slate-400 mt-0.5">{item.type}</span>
+                          </td>
+                        )}
+
+                        {columns.warehouse && (
+                          <td className="px-3 py-3.5 align-top">
+                            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                              <Building2 size={12} className="text-slate-400 shrink-0" />
+                              <span>{item.warehouse}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span className="text-[10px] font-mono text-slate-400">{item.cell}</span>
+                              <span className="text-slate-300">•</span>
+                              <span className={`inline-flex items-center gap-0.5 text-[10px] ${canUserManageItem(currentUser, item) ? "text-emerald-700 font-medium" : "text-slate-400"}`} title={`МОЛ: ${item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}`}>
+                                <UserCheck size={10} className={`shrink-0 ${canUserManageItem(currentUser, item) ? "text-emerald-600" : "text-slate-400"}`} />
+                                <span>{item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}</span>
+                              </span>
+                            </div>
+                          </td>
+                        )}
+
+                        {columns.quantity && (
+                          <td className="px-3 py-3.5 align-top">
+                            <div className="font-bold text-[11px] whitespace-nowrap text-[#17243a]">
+                              {item.quantity} {item.unit}
+                            </div>
+                            <div className="mt-1">{getStatusBadge(item.status)}</div>
+                          </td>
+                        )}
+
+                        {columns.actions && (
+                          <td className="px-4 py-3.5 text-right align-top">
+                            <Link
+                              href={`/modules/wms/${item.id}`}
+                              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition shadow-xs whitespace-nowrap"
+                            >
+                              Открыть <ChevronRight size={11} />
+                            </Link>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
                 </div>
               );
             })
