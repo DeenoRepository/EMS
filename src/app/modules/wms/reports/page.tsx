@@ -143,6 +143,26 @@ export default function WmsReportsPage() {
     });
   };
 
+  const fetchData = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      fetch("/api/modules/wms/reports"),
+      fetch("/api/modules/wms/items"),
+    ])
+      .then(async ([resRep, resItems]) => {
+        if (resRep.ok) {
+          const dRep = await resRep.json();
+          if (dRep.reports) setReports(dRep.reports);
+        }
+        if (resItems.ok) {
+          const dItems = await resItems.json();
+          if (dItems.items) setItems(dItems.items);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
     let isSubscribed = true;
     Promise.all([
