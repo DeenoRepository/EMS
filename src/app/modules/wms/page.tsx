@@ -676,10 +676,6 @@ function WmsRegistryContent() {
               </tbody>
             </table>
           </div>
-                </div>
-              );
-            })
-          )}
         </section>
 
         {/* WMS Item Creation Modal */}
