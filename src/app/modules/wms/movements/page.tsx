@@ -19,7 +19,6 @@ import {
   SlidersHorizontal,
   RotateCcw,
   CheckCircle2,
-  XCircle,
   Clock,
   Check,
   Eye,
@@ -27,8 +26,6 @@ import {
   Layers,
   ArrowRight,
   AlertCircle,
-  Archive,
-  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";

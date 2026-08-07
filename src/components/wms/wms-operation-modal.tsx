@@ -38,15 +38,6 @@ export default function WmsOperationModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Поля специфичные для Прихода (INCOMING) и Массовой накладной
-  const [incomingSubMode, setIncomingSubMode] = useState<"SINGLE" | "MASS_INVOICE">("SINGLE");
-  const [invoiceNumber, setInvoiceNumber] = useState<string>("УПД-94021");
-  const [invoiceDate, setInvoiceDate] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [supplierName, setSupplierName] = useState<string>("ООО ЭлектроКомплект");
-  const [massIncomingItems, setMassIncomingItems] = useState<
-    { itemId: string; quantity: number; cell: string }[]
-  >([]);
-
   // Состояния для живого ввода / автокомплита наименования номенклатуры при приходе
   const [incomingSearchQuery, setIncomingSearchQuery] = useState<string>("");
   const [selectedIncomingItemId, setSelectedIncomingItemId] = useState<string | null>(null);
@@ -199,45 +190,36 @@ export default function WmsOperationModal({
     }));
   };
 
-  const getHeaderMeta = () => {
-    switch (operationType) {
-      case "INCOMING":
-        return {
-          title: "Оформление прихода ТМЦ / ЗИП",
-          subtitle: "Регистрация поступления новой партии или номенклатуры на склад",
-          iconBg: "bg-blue-50 text-[#3473d4] border-blue-200",
-          submitBg: "bg-[#2f74df] hover:bg-[#2565c8] shadow-blue-200",
-          submitText: "Провести приход ТМЦ"
-        };
-      case "OUTGOING":
-        return {
-          title: "Оформление списания ТМЦ / ЗИП",
-          subtitle: "Списание на установку/ремонт оборудования EPS либо в неликвид/утиль",
-          iconBg: "bg-blue-50 text-[#3473d4] border-blue-200",
-          submitBg: "bg-[#2f74df] hover:bg-[#2565c8] shadow-blue-200",
-          submitText: "Подтвердить списание"
-        };
-      case "TRANSFER":
-        return {
-          title: "Перемещение между складами WMS",
-          subtitle: "Межскладской перевод и изменение местохранения номенклатуры",
-          iconBg: "bg-blue-50 text-[#3473d4] border-blue-200",
-          submitBg: "bg-[#2f74df] hover:bg-[#2565c8] shadow-blue-200",
-          submitText: "Провести перемещение"
-        };
-      case "PERSONAL_CARD":
-      default:
-        return {
-          title: "Выдача ТМЦ на личную карточку",
-          subtitle: "Персонифицированная выдача СИЗ, спецодежды или инструмента сотруднику",
-          iconBg: "bg-blue-50 text-[#3473d4] border-blue-200",
-          submitBg: "bg-[#2f74df] hover:bg-[#2565c8] shadow-blue-200",
-          submitText: "Выдать на карточку"
-        };
-    }
+  const HEADERS_BY_TYPE: Record<WmsMovement["type"], { title: string; subtitle: string; submitText: string }> = {
+    INCOMING: {
+      title: "Оформление прихода ТМЦ / ЗИП",
+      subtitle: "Регистрация поступления новой партии или номенклатуры на склад",
+      submitText: "Провести приход ТМЦ",
+    },
+    OUTGOING: {
+      title: "Оформление списания ТМЦ / ЗИП",
+      subtitle: "Списание на установку/ремонт оборудования EPS либо в неликвид/утиль",
+      submitText: "Подтвердить списание",
+    },
+    TRANSFER: {
+      title: "Перемещение между складами WMS",
+      subtitle: "Межскладской перевод и изменение местохранения номенклатуры",
+      submitText: "Провести перемещение",
+    },
+    PERSONAL_CARD: {
+      title: "Выдача ТМЦ на личную карточку",
+      subtitle: "Персонифицированная выдача СИЗ, спецодежды или инструмента сотруднику",
+      submitText: "Выдать на карточку",
+    },
+    RESERVE: { title: "Резерв", subtitle: "", submitText: "Сохранить" },
+    ADJUSTMENT: { title: "Корректировка", subtitle: "", submitText: "Сохранить" },
   };
 
-  const headerMeta = getHeaderMeta();
+  const headerMeta = {
+    ...HEADERS_BY_TYPE[operationType],
+    iconBg: "bg-blue-50 text-[#3473d4] border-blue-200",
+    submitBg: "bg-[#2f74df] hover:bg-[#2565c8] shadow-blue-200",
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -386,26 +368,7 @@ export default function WmsOperationModal({
     let calculatedToLocation = targetWarehouse;
     let calculatedReason = reason;
 
-    if (operationType === "INCOMING" && incomingSubMode === "MASS_INVOICE") {
-      calculatedFromLocation = supplierName || "Поставщик";
-      calculatedToLocation = targetWarehouse;
-      calculatedReason = `Приход по накладной ${invoiceNumber} от ${invoiceDate}. Поставщик: ${supplierName}`;
-
-      massIncomingItems.forEach((row) => {
-        const itemObj = items.find((i) => i.id === row.itemId);
-        if (itemObj) {
-          const newQty = itemObj.quantity + row.quantity;
-          updatedItemsList.push({
-            id: itemObj.id,
-            quantity: newQty,
-            lastIncomingDate: new Date().toISOString(),
-            status: newQty === 0 ? "OUT_OF_STOCK" : newQty <= itemObj.minQuantity ? "LOW_STOCK" : "IN_STOCK",
-            updatedAt: new Date().toISOString(),
-          });
-          totalMovementQty += row.quantity;
-        }
-      });
-    } else if (operationType === "INCOMING") {
+    if (operationType === "INCOMING") {
       calculatedFromLocation = supplierName || "Поставщик / Покупка";
       calculatedToLocation = `${targetWarehouse} (${transferCell || "Ячейка по умолчанию"})`;
       calculatedReason = reason || `Накладная ${invoiceNumber} от ${invoiceDate}`;
