@@ -216,29 +216,25 @@ export default function EpsModuleSettingsPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8">
-        <div className="mb-4 flex items-center gap-2 text-[10px] font-medium text-slate-400">
-          <Link href="/" className="hover:text-slate-600">Главная</Link>
-          <ChevronRight size={12} />
-          <Link href="/admin/settings" className="hover:text-slate-600">Настройки</Link>
-          <ChevronRight size={12} />
-          <span className="text-[#3473d4]">НСИ & Справочники EPS</span>
-        </div>
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+        <Breadcrumbs items={[{ label: "Настройки", href: "/admin/settings" }, { label: "Настройки Модуля EPS" }]} />
 
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between border-b border-slate-200 pb-4">
+        {/* Page Header */}
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
-            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a] flex items-center gap-2">
-              Справочники & Настройки EPS Паспортизации
+            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
+              Параметры и Справочники Паспортизации EPS
             </h1>
             <p className="mt-1 text-[12px] text-slate-500">
-              Управление глобальными параметрами, конструктором атрибутов и справочниками модуля EPS.
+              Конфигурация логики версионирования, динамических атрибутов типов оборудования и НСИ.
             </p>
           </div>
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+            disabled={loadingRefs}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition"
           >
-            <RefreshCw size={13} className={loadingRefs ? "animate-spin" : ""} /> Обновить данные
+            <RefreshCw size={13} className={loadingRefs ? "animate-spin" : ""} /> Обновить НСИ
           </button>
         </div>
 

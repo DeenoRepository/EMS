@@ -1,17 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import ShellLayout from "@/components/layout/shell-layout";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import {
   Save,
   HardDrive,
   KeyRound,
-  ShieldCheck,
-  Database,
-  SlidersHorizontal,
-  Gauge,
-  ChevronRight,
   CheckCircle2,
 } from "lucide-react";
 
@@ -30,16 +25,11 @@ export default function ShellGlobalSettingsPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8">
-        {/* Breadcrumbs */}
-        <div className="mb-4 flex items-center gap-2 text-[10px] font-medium text-slate-400">
-          <Link href="/" className="hover:text-slate-600">Главная</Link>
-          <ChevronRight size={12} />
-          <span className="text-[#3473d4]">Настройки</span>
-        </div>
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+        <Breadcrumbs items={[{ label: "Настройки" }]} />
 
         {/* Page Header */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between border-b border-slate-200 pb-4">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end border-b border-slate-200 pb-6">
           <div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
               Основные Настройки Платформы Shell
@@ -57,7 +47,7 @@ export default function ShellGlobalSettingsPage() {
 
         <form onSubmit={handleSave} className="space-y-6 w-full max-w-4xl">
           {/* File Storage Settings */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(15,23,42,.025)] space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-bold flex items-center gap-2 border-b border-slate-100 pb-3 text-[#17243a]">
               <HardDrive size={16} className="text-[#3473d4]" /> Хранилище Файлов и Документов
             </h2>
@@ -114,7 +104,7 @@ export default function ShellGlobalSettingsPage() {
           </div>
 
           {/* Security & Authentication */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-[0_2px_8px_rgba(15,23,42,.025)] space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-bold flex items-center gap-2 border-b border-slate-100 pb-3 text-[#17243a]">
               <KeyRound size={16} className="text-[#3473d4]" /> Интеграция Учетных Записей & Провайдеры
             </h2>
@@ -150,9 +140,9 @@ export default function ShellGlobalSettingsPage() {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-5 py-2.5 text-xs font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
+              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2.5 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
             >
-              <Save size={15} /> Сохранить конфигурацию Shell
+              <Save size={14} /> Сохранить глобальные параметры
             </button>
           </div>
         </form>

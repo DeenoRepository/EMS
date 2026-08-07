@@ -39,11 +39,11 @@ export default function AuditPage() {
 
   return (
     <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8">
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <Breadcrumbs items={[{ label: "Настройки", href: "/admin/settings" }, { label: "Аудит и Мониторинг" }]} />
 
         {/* Page Header */}
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
               Журнал Аудита & Мониторинг
@@ -55,7 +55,7 @@ export default function AuditPage() {
           <button
             onClick={fetchLogs}
             disabled={loading}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 transition"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
           </button>

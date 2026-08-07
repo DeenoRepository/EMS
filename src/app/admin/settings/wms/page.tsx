@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import Link from "next/link";
 import {
   Building2,
@@ -245,22 +246,16 @@ export default function WmsSettingsPage() {
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         {/* Breadcrumbs */}
-        <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
-          <Link href="/" className="hover:text-slate-600">Главная</Link>
-          <ChevronRight size={12} />
-          <Link href="/admin/settings" className="hover:text-slate-600">Настройки</Link>
-          <ChevronRight size={12} />
-          <span className="text-[#3473d4]">Настройки Складов, Ячеек & МОЛ WMS</span>
-        </div>
+        <Breadcrumbs items={[{ label: "Настройки", href: "/admin/settings" }, { label: "Склады & Настройки WMS" }]} />
 
         {/* Page Header */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between border-b border-slate-200 pb-4">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
-              Склады, Стеллажи, Адресные Ячейки & Назначение МОЛ
+              Настройки Складов и Материально Ответственных Лиц (МОЛ)
             </h1>
             <p className="mt-1 text-[12px] text-slate-500">
-              Администрирование физических мест хранения, топологии стеллажных ячеек и привязка материально ответственных лиц (МОЛ).
+              Управление структурой складов предприятия, ячейками хранения, закреплением МОЛ и лимитами веса.
             </p>
           </div>
           <div className="flex items-center gap-2">
