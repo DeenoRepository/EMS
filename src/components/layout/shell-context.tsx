@@ -65,7 +65,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [facilities] = useState<EnterpriseFacility[]>(DEFAULT_FACILITIES);
   const [currentFacility, setCurrentFacility] = useState<EnterpriseFacility>(DEFAULT_FACILITIES[0]);
-  const [theme, setThemeState] = useState<ThemeMode>("dark");
+  const [theme, setThemeState] = useState<ThemeMode>("light");
   const [favorites, setFavorites] = useState<NavBookmark[]>([]);
   const [recentPages, setRecentPages] = useState<RecentPage[]>([]);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -181,7 +181,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       if (found) setCurrentFacility(found);
     }
 
-    const savedTheme = (localStorage.getItem("ems_shell_theme") as ThemeMode | null) || "dark";
+    const savedTheme = (localStorage.getItem("ems_shell_theme") as ThemeMode | null) || "light";
     if (savedTheme) {
       setThemeState(savedTheme);
       applyTheme(savedTheme);
