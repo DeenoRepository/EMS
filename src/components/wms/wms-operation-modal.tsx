@@ -86,14 +86,16 @@ export default function WmsOperationModal({
 
   useEffect(() => {
     if (isOpen) {
-      if (selectedItems.length > 0) {
+      if (selectedItems && selectedItems.length > 0) {
         setBulkItemList(selectedItems);
         setIsBulkModeActive(selectedItems.length > 1);
-      } else if (currentItem) {
-        setBulkItemList([currentItem]);
+      } else {
+        const itemToUse = items.find((i) => i.id === selectedItemId) || items[0];
+        setBulkItemList(itemToUse ? [itemToUse] : []);
+        setIsBulkModeActive(false);
       }
     }
-  }, [isOpen, selectedItems]);
+  }, [isOpen]);
 
   // Синхронизация поиска и выбранной номенклатуры при открытии модального окна
   useEffect(() => {
