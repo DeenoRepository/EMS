@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import ShellLayout from "@/components/layout/shell-layout";
-import { MOCK_EQUIPMENT_DATA, EquipmentItem } from "@/lib/modules/eps-store";
+import { EquipmentItem } from "@/lib/modules/eps-store";
 import {
   BarChart3,
   FileSpreadsheet,
@@ -160,11 +160,18 @@ const INITIAL_REPORTS: ReportItem[] = [
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<ReportItem[]>(INITIAL_REPORTS);
+  const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [formatFilter, setFormatFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  useEffect(() => {
+    fetch("/api/modules/eps/equipment/export")
+      .then((res) => res.text())
+      .catch(() => "");
+  }, []);
 
   // Modal & Builder states
   const [showBuilderModal, setShowBuilderModal] = useState(false);
@@ -177,7 +184,7 @@ export default function ReportsPage() {
   const [builderDeptFilter, setBuilderDeptFilter] = useState("ALL");
   const [builderStatusFilter, setBuilderStatusFilter] = useState("ALL");
   const [builderCriticalityFilter, setBuilderCriticalityFilter] = useState("ALL");
-  
+
   // Selected fields for builder (default: primary equipment fields)
   const [selectedFields, setSelectedFields] = useState<string[]>([
     "equipmentCode",
@@ -245,8 +252,8 @@ export default function ReportsPage() {
   }, [reports]);
 
   const departments = useMemo(() => {
-    return Array.from(new Set(MOCK_EQUIPMENT_DATA.map((e) => e.department))).filter(Boolean);
-  }, []);
+    return Array.from(new Set(equipmentList.map((e) => e.department))).filter(Boolean);
+  }, [equipmentList]);
 
   const filteredReports = useMemo(() => {
     return reports.filter((rep) => {
@@ -267,13 +274,13 @@ export default function ReportsPage() {
 
   // Live preview items for report builder
   const builderPreviewData = useMemo(() => {
-    return MOCK_EQUIPMENT_DATA.filter((item) => {
+    return equipmentList.filter((item) => {
       if (builderDeptFilter !== "ALL" && item.department !== builderDeptFilter) return false;
       if (builderStatusFilter !== "ALL" && item.status !== builderStatusFilter) return false;
       if (builderCriticalityFilter !== "ALL" && item.criticality !== builderCriticalityFilter) return false;
       return true;
     });
-  }, [builderDeptFilter, builderStatusFilter, builderCriticalityFilter]);
+  }, [equipmentList, builderDeptFilter, builderStatusFilter, builderCriticalityFilter]);
 
   const kpiStats = useMemo(() => {
     const total = reports.length;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { MOCK_EQUIPMENT_DATA, EquipmentItem } from "@/lib/modules/eps-store";
+import { prisma } from "@/lib/db/prisma";
+import { EquipmentItem } from "@/lib/modules/eps-store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,16 +9,22 @@ export async function GET(request: Request) {
   const categoryFilter = searchParams.get("category");
   const statusFilter = searchParams.get("status");
 
-  let items = [...MOCK_EQUIPMENT_DATA];
-
+  const where: any = {};
   if (departmentFilter && departmentFilter !== "ALL") {
-    items = items.filter((i) => i.department === departmentFilter);
+    where.department = departmentFilter;
   }
   if (categoryFilter && categoryFilter !== "ALL") {
-    items = items.filter((i) => i.category === categoryFilter);
+    where.category = categoryFilter;
   }
   if (statusFilter && statusFilter !== "ALL") {
-    items = items.filter((i) => i.status === statusFilter);
+    where.status = statusFilter;
+  }
+
+  let items: any[] = [];
+  try {
+    items = await prisma.equipment.findMany({ where });
+  } catch (err) {
+    console.error("Failed to query equipment for export:", err);
   }
 
   // Definition of ALL available fields in EquipmentItem

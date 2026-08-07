@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MOCK_WMS_ITEMS } from "@/lib/modules/wms-store";
+import { prisma } from "@/lib/db/prisma";
 
 export async function GET() {
   const headers = [
@@ -22,7 +22,14 @@ export async function GET() {
     "Штрихкод / QR"
   ];
 
-  const rows = MOCK_WMS_ITEMS.map((item) => [
+  let items: any[] = [];
+  try {
+    items = await prisma.wmsItem.findMany();
+  } catch (err) {
+    console.error("Failed to query WMS items for export:", err);
+  }
+
+  const rows = items.map((item) => [
     item.id,
     `"${item.sku.replace(/"/g, '""')}"`,
     `"${item.name.replace(/"/g, '""')}"`,
@@ -38,7 +45,7 @@ export async function GET() {
     item.quantity * item.unitPrice,
     item.status,
     `"${(item.supplier || "").replace(/"/g, '""')}"`,
-    `"${(item.compatibleEquipment || []).join("; ").replace(/"/g, '""')}"`,
+    `"${(Array.isArray(item.compatibleEquipment) ? item.compatibleEquipment : []).join("; ").replace(/"/g, '""')}"`,
     `"${(item.barcode || "").replace(/"/g, '""')}"`
   ]);
 
