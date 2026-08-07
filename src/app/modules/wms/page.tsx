@@ -1,45 +1,37 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { useShell } from "@/components/layout/shell-context";
-import { WmsItem, WmsMovement, canUserManageItem, getWarehouseResponsibleUser, filterWmsItems } from "@/lib/modules/wms-store";
+import { WmsItem, WmsMovement, filterWmsItems } from "@/lib/modules/wms-store";
 import { useItemSelection } from "@/lib/hooks/use-item-selection";
 import {
-  Database,
-  Search,
   Plus,
   RefreshCw,
-  X,
-  SlidersHorizontal,
   Download,
   Building2,
   ChevronRight,
-  Columns3,
-  RotateCcw,
-  CheckCircle2,
-  AlertTriangle,
-  Archive,
-  Layers,
   Box,
   PackageCheck,
-  QrCode,
   DollarSign,
-  History,
-  PieChart,
   Tag,
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCcw,
-  UserCheck,
-  ShieldCheck,
-  ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
 import WmsTransferRequestModal from "@/components/wms/wms-transfer-request-modal";
 import WmsSubNav from "@/components/wms/wms-sub-nav";
+import {
+  PageHeader,
+  KpiGrid,
+  FilterToolbar,
+  DataTable,
+  StatusBadge,
+  Checkbox,
+} from "@/components/ui";
 
 export interface WmsColumnVisibility {
   sku: boolean;
@@ -83,27 +75,18 @@ function WmsRegistryContent() {
   const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
   const [opModalSelectedItems, setOpModalSelectedItems] = useState<WmsItem[]>([]);
 
-  const openTransferModal = () => {
-    const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
-    setOpModalSelectedItems(selectedItemsList.length > 0 ? selectedItemsList : (items[0] ? [items[0]] : []));
-    setShowTransferModal(true);
-  };
-
   // Column visibility state with localStorage persistence
-  const [columns, setColumns] = useState<WmsColumnVisibility>(DEFAULT_WMS_COLUMNS);
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
-
-  useEffect(() => {
+  const [columns, setColumns] = useState<WmsColumnVisibility>(() => {
     try {
-      const saved = localStorage.getItem("wms_registry_columns");
+      const saved = typeof window !== "undefined" ? localStorage.getItem("wms_registry_columns") : null;
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setColumns({ ...DEFAULT_WMS_COLUMNS, ...parsed });
+        return { ...DEFAULT_WMS_COLUMNS, ...JSON.parse(saved) };
       }
     } catch {
-      // Ignore localStorage errors
+      // Ignore
     }
-  }, []);
+    return DEFAULT_WMS_COLUMNS;
+  });
 
   const toggleColumn = (key: keyof WmsColumnVisibility) => {
     setColumns((prev) => {
@@ -117,24 +100,31 @@ function WmsRegistryContent() {
     });
   };
 
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/modules/wms/items?query=${encodeURIComponent(query)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data.items || []);
-      }
-    } catch {
-      // Ignore network errors
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let isSubscribed = true;
+    fetch(`/api/modules/wms/items?query=${encodeURIComponent(query)}`)
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => {
+        if (isSubscribed) setItems(data.items || []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isSubscribed) setLoading(false);
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
   }, [query]);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  const fetchItems = () => {
+    setLoading(true);
+    fetch(`/api/modules/wms/items?query=${encodeURIComponent(query)}`)
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => setItems(data.items || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
 
   const categories = useMemo(() => {
     return Array.from(new Set(items.map((i) => i.category))).filter(Boolean);
@@ -161,10 +151,15 @@ function WmsRegistryContent() {
 
   const {
     selectedIds,
-    setSelectedIds,
     toggleSelectAll,
     toggleSelectItem,
   } = useItemSelection(filteredItems);
+
+  const openTransferModal = () => {
+    const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
+    setOpModalSelectedItems(selectedItemsList.length > 0 ? selectedItemsList : (items[0] ? [items[0]] : []));
+    setShowTransferModal(true);
+  };
 
   const openBulkOperation = (type: WmsMovement["type"]) => {
     const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
@@ -182,16 +177,6 @@ function WmsRegistryContent() {
     return { totalPos, totalQty, lowStock, reserved, totalValue };
   }, [items]);
 
-  const activeFiltersCount = useMemo(() => {
-    let count = 0;
-    if (statusFilter !== "ALL") count++;
-    if (warehouseFilter !== "ALL") count++;
-    if (categoryFilter !== "ALL") count++;
-    if (typeFilter !== "ALL") count++;
-    if (query.trim() !== "") count++;
-    return count;
-  }, [statusFilter, warehouseFilter, categoryFilter, typeFilter, query]);
-
   const resetAllFilters = () => {
     setQuery("");
     setStatusFilter("ALL");
@@ -200,55 +185,193 @@ function WmsRegistryContent() {
     setTypeFilter("ALL");
   };
 
-  const getStatusBadge = (status: WmsItem["status"]) => {
-    switch (status) {
-      case "IN_STOCK":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> В наличии
-          </span>
-        );
-      case "LOW_STOCK":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold text-amber-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Дефицит / Мало
-          </span>
-        );
-      case "OUT_OF_STOCK":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-semibold text-rose-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Отсутствует
-          </span>
-        );
-      case "OVERSTOCKED":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-[#3473d4]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#3473d4]" /> Избыток
-          </span>
-        );
-      default:
-        return null;
+  const activeChips = useMemo(() => {
+    const chips: Array<{ id: string; label: string; onRemove: () => void }> = [];
+    if (query) {
+      chips.push({ id: "query", label: `Поиск: "${query}"`, onRemove: () => setQuery("") });
     }
+    if (statusFilter !== "ALL") {
+      chips.push({ id: "status", label: `Статус: ${statusFilter}`, onRemove: () => setStatusFilter("ALL") });
+    }
+    if (warehouseFilter !== "ALL") {
+      chips.push({ id: "wh", label: `Склад: ${warehouseFilter}`, onRemove: () => setWarehouseFilter("ALL") });
+    }
+    if (categoryFilter !== "ALL") {
+      chips.push({ id: "cat", label: `Категория: ${categoryFilter}`, onRemove: () => setCategoryFilter("ALL") });
+    }
+    if (typeFilter !== "ALL") {
+      chips.push({ id: "type", label: `Тип: ${typeFilter}`, onRemove: () => setTypeFilter("ALL") });
+    }
+    return chips;
+  }, [query, statusFilter, warehouseFilter, categoryFilter, typeFilter]);
+
+  const wmsColorMap = {
+    IN_STOCK: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-emerald-700 dark:text-emerald-400", dot: "bg-emerald-500" },
+    LOW_STOCK: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-700 dark:text-amber-400", dot: "bg-amber-500" },
+    OUT_OF_STOCK: { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-rose-700 dark:text-rose-400", dot: "bg-rose-500" },
+    OVERSTOCKED: { bg: "bg-blue-50 dark:bg-blue-950/40", text: "text-blue-700 dark:text-blue-400", dot: "bg-[#3473d4]" },
   };
+
+  const wmsStatusLabels: Record<string, string> = {
+    IN_STOCK: "В наличии",
+    LOW_STOCK: "Дефицит / Мало",
+    OUT_OF_STOCK: "Отсутствует",
+    OVERSTOCKED: "Избыток",
+  };
+
+  const tableColumns = useMemo(() => {
+    const cols = [
+      {
+        key: "select",
+        header: (
+          <Checkbox
+            checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
+            onChange={toggleSelectAll}
+          />
+        ),
+        cell: (item: WmsItem) => (
+          <Checkbox
+            checked={selectedIds.includes(item.id)}
+            onChange={() => toggleSelectItem(item.id)}
+          />
+        ),
+      },
+    ];
+
+    if (columns.sku) {
+      cols.push({
+        key: "sku",
+        header: "Артикул / SKU",
+        cell: (item: WmsItem) => (
+          <div className="font-mono">
+            <span className="block text-[11px] font-bold text-[#3473d4]">{item.sku}</span>
+            <span className="block text-[9px] text-slate-400 mt-0.5">{item.barcode || "Без штрихкода"}</span>
+          </div>
+        ),
+      });
+    }
+
+    if (columns.name) {
+      cols.push({
+        key: "name",
+        header: "Наименование ТМЦ / ЗИП",
+        cell: (item: WmsItem) => (
+          <div>
+            <span className="block text-[11px] font-semibold text-[#17243a] dark:text-slate-200">{item.name}</span>
+            {item.description && <span className="block text-[10px] text-slate-400 truncate max-w-xs">{item.description}</span>}
+          </div>
+        ),
+      });
+    }
+
+    if (columns.category) {
+      cols.push({
+        key: "category",
+        header: "Категория & Тип",
+        cell: (item: WmsItem) => (
+          <div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+              <Tag size={12} className="text-slate-400" />
+              <span>{item.category}</span>
+            </div>
+            <span className="block text-[10px] text-slate-400">{item.type}</span>
+          </div>
+        ),
+      });
+    }
+
+    if (columns.warehouse) {
+      cols.push({
+        key: "warehouse",
+        header: "Склад & МОЛ",
+        cell: (item: WmsItem) => (
+          <div>
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+              <Building2 size={12} className="text-slate-400" />
+              <span>{item.warehouse}</span>
+            </div>
+            <span className="block text-[10px] text-slate-400">МОЛ: {item.responsibleUser}</span>
+          </div>
+        ),
+      });
+    }
+
+    if (columns.cell) {
+      cols.push({
+        key: "cell",
+        header: "Ячейка",
+        cell: (item: WmsItem) => <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-400">{item.cell || "—"}</span>,
+      });
+    }
+
+    if (columns.quantity) {
+      cols.push({
+        key: "quantity",
+        header: "Остаток / Зарезерв.",
+        cell: (item: WmsItem) => (
+          <div className="font-mono">
+            <span className="block text-[11px] font-bold text-slate-800 dark:text-slate-200">
+              {item.quantity} {item.unit}
+            </span>
+            {item.reservedQuantity > 0 && (
+              <span className="block text-[9px] text-amber-600 dark:text-amber-400 font-medium">Забронировано: {item.reservedQuantity}</span>
+            )}
+          </div>
+        ),
+      });
+    }
+
+    if (columns.unitPrice) {
+      cols.push({
+        key: "unitPrice",
+        header: "Цена / Сумма",
+        cell: (item: WmsItem) => (
+          <div className="font-mono">
+            <span className="block text-[11px] text-slate-700 dark:text-slate-300">{item.unitPrice.toLocaleString("ru-RU")} ₽</span>
+            <span className="block text-[9px] text-slate-400">{(item.quantity * item.unitPrice).toLocaleString("ru-RU")} ₽</span>
+          </div>
+        ),
+      });
+    }
+
+    if (columns.status) {
+      cols.push({
+        key: "status",
+        header: "Статус",
+        cell: (item: WmsItem) => (
+          <StatusBadge status={item.status} label={wmsStatusLabels[item.status]} colorMap={wmsColorMap} />
+        ),
+      });
+    }
+
+    if (columns.actions) {
+      cols.push({
+        key: "actions",
+        header: <span className="text-right block">Действия</span>,
+        cell: (item: WmsItem) => (
+          <div className="flex items-center justify-end">
+            <Link href={`/modules/wms/items/${item.id}`} className="text-[10px] font-semibold text-[#3473d4] hover:text-blue-700">
+              Открыть <ChevronRight size={11} className="inline" />
+            </Link>
+          </div>
+        ),
+      });
+    }
+
+    return cols;
+  }, [columns, filteredItems, selectedIds, toggleSelectAll, toggleSelectItem]);
 
   return (
     <main className="w-full px-5 py-6 md:px-8 space-y-6">
-        {/* Breadcrumbs & Title Block aligned with EPS Standard */}
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-medium text-slate-400">
-              <Link href="/" className="hover:text-slate-600">Главная</Link>
-              <ChevronRight size={12} />
-              <span className="text-[#3473d4] font-semibold">WMS Складской учёт</span>
-            </div>
-            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
-              Реестр ТМЦ, ЗИП и Складских запасов
-            </h1>
-            <p className="mt-1 text-[12px] text-slate-500">
-              Централизованный учёт номенклатуры, деталей и материалов (найдено {filteredItems.length} из {items.length} ед.).
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+      <PageHeader
+        title="Реестр ТМЦ, ЗИП и Складских запасов"
+        description={`Централизованный учёт номенклатуры, деталей и материалов (найдено ${filteredItems.length} из ${items.length} ед.).`}
+        breadcrumbs={[
+          { title: "Главная", href: "/" },
+          { title: "WMS Складской учёт" },
+        ]}
+        actions={
+          <>
             <a
               href="/api/modules/wms/items/export"
               download
@@ -260,482 +383,189 @@ function WmsRegistryContent() {
               onClick={fetchItems}
               disabled={loading}
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
-              title="Обновить данные"
             >
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
-            </button>
-            <button
-              onClick={() => openBulkOperation("INCOMING")}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-[#3473d4] shadow-sm hover:bg-blue-50/50"
-            >
-              <ArrowDownLeft size={14} /> Создать операцию
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
             >
-              <Plus size={14} /> Создать ТМЦ
+              <Plus size={14} /> Создать карточку ТМЦ
             </button>
-          </div>
+          </>
+        }
+      />
+
+      <WmsSubNav totalItemsCount={kpiStats.totalPos} lowStockCount={kpiStats.lowStock} />
+
+      <KpiGrid
+        items={[
+          {
+            label: "Позиций номенклатуры",
+            value: kpiStats.totalPos,
+            icon: <Box size={14} />,
+            iconColor: "blue",
+            sub: "Учитывается в реестре",
+          },
+          {
+            label: "Всего единиц ТМЦ",
+            value: kpiStats.totalQty.toLocaleString("ru-RU"),
+            icon: <PackageCheck size={14} />,
+            iconColor: "emerald",
+            sub: "На всех складах enterprise",
+            subColor: "emerald",
+          },
+          {
+            label: "Дефицитные позиции",
+            value: kpiStats.lowStock,
+            icon: <Box size={14} />,
+            iconColor: "amber",
+            sub: "Ниже мин. порога остатка",
+            subColor: "amber",
+          },
+          {
+            label: "Оценочная стоимость",
+            value: `${(kpiStats.totalValue / 1000000).toFixed(2)} млн ₽`,
+            icon: <DollarSign size={14} />,
+            iconColor: "indigo",
+            sub: "Совокупный баланс ЗИП",
+          },
+        ]}
+      />
+
+      {/* Bulk actions bar */}
+      <div className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => openBulkOperation("INCOMING")}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 transition"
+          >
+            <ArrowDownLeft size={13} /> Приход ТМЦ
+          </button>
+          <button
+            type="button"
+            onClick={() => openBulkOperation("OUTGOING")}
+            className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-rose-700 transition"
+          >
+            <ArrowUpRight size={13} /> Расход / Списание
+          </button>
+          <button
+            type="button"
+            onClick={openTransferModal}
+            className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2565c8] transition"
+          >
+            <RefreshCcw size={13} /> Перемещение
+          </button>
         </div>
-
-        {/* Quick KPI Summary Cards */}
-        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-5">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Всего позиций
-              </span>
-              <div className="rounded-md bg-blue-50 p-1.5 text-[#3473d4]">
-                <Layers size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
-              {kpiStats.totalPos}
-            </div>
-            <div className="mt-1 text-[10px] text-slate-400">Номенклатур в картотеке</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Физ. остаток
-              </span>
-              <div className="rounded-md bg-emerald-50 p-1.5 text-emerald-600">
-                <PackageCheck size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
-              {kpiStats.totalQty} <span className="text-xs font-normal text-slate-400">ед.</span>
-            </div>
-            <div className="mt-1 text-[10px] text-emerald-600 font-semibold">На складах предприятия</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Дефицит / Мало
-              </span>
-              <div className="rounded-md bg-amber-50 p-1.5 text-amber-600">
-                <AlertTriangle size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-amber-600">
-              {kpiStats.lowStock}
-            </div>
-            <div className="mt-1 text-[10px] text-slate-400">Ниже минимального порога</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Зарезервировано
-              </span>
-              <div className="rounded-md bg-blue-50 p-1.5 text-[#3473d4]">
-                <Archive size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[22px] font-bold tracking-tight text-[#17243a]">
-              {kpiStats.reserved} <span className="text-xs font-normal text-slate-400">ед.</span>
-            </div>
-            <div className="mt-1 text-[10px] text-slate-400">Под плановые ремонты</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_2px_8px_rgba(15,23,42,.025)] col-span-2 sm:col-span-1">
-            <div className="flex items-start justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-[.1em] text-slate-400">
-                Оценка остатков
-              </span>
-              <div className="rounded-md bg-indigo-50 p-1.5 text-indigo-600">
-                <DollarSign size={14} />
-              </div>
-            </div>
-            <div className="mt-2 text-[20px] font-bold tracking-tight text-[#17243a]">
-              {(kpiStats.totalValue / 1000).toFixed(1)}k ₽
-            </div>
-            <div className="mt-1 text-[10px] text-slate-400">Балансовая стоимость</div>
-          </div>
-        </div>
-
-        {/* Enhanced Filter Toolbar & Column Selector */}
-        <div className="space-y-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-            {/* Search Input */}
-            <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
-              <div className="relative w-full">
-                <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Поиск по артикулу (SKU), наименованию ТМЦ, ячейке хранения..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
-                />
-                {query && (
-                  <button onClick={() => setQuery("")} className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600">
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Filter Controls */}
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              <div className="flex items-center gap-1 text-[#3473d4]">
-                <SlidersHorizontal size={13} />
-                <span className="font-semibold text-[11px]">Фильтры:</span>
-              </div>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
-                  statusFilter !== "ALL"
-                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
-                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
-                }`}
-              >
-                <option value="ALL">Все статусы остатков</option>
-                <option value="IN_STOCK">В наличии</option>
-                <option value="LOW_STOCK">Дефицит / Мало</option>
-                <option value="OUT_OF_STOCK">Отсутствует</option>
-                <option value="OVERSTOCKED">Избыток</option>
-              </select>
-
-              <select
-                value={warehouseFilter}
-                onChange={(e) => setWarehouseFilter(e.target.value)}
-                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
-                  warehouseFilter !== "ALL"
-                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
-                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
-                }`}
-              >
-                <option value="ALL">Все склады</option>
-                {warehouses.map((w) => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
-
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
-                  categoryFilter !== "ALL"
-                    ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold"
-                    : "border-slate-200 bg-[#f8fafc] text-slate-600 focus:border-[#3c82ed]"
-                }`}
-              >
-                <option value="ALL">Все категории</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-
-              {/* Column Selector Toggle */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowColumnMenu(!showColumnMenu)}
-                  className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 shadow-xs hover:bg-slate-50"
-                  title="Настройка видимости колонок"
-                >
-                  <Columns3 size={13} className="text-[#3473d4]" />
-                  <span>Колонки</span>
-                </button>
-
-                {showColumnMenu && (
-                  <div className="absolute right-0 top-10 z-30 w-52 rounded-xl border border-slate-200 bg-white p-3 shadow-xl space-y-2 text-xs">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-[#17243a] text-[11px]">Отображение колонок</span>
-                      <button onClick={() => setShowColumnMenu(false)} className="rounded p-0.5 text-slate-400 hover:bg-slate-100">
-                        <X size={13} />
-                      </button>
-                    </div>
-                    <div className="space-y-1.5 pt-1 text-[11px]">
-                      {Object.keys(DEFAULT_WMS_COLUMNS).map((key) => (
-                        <label key={key} className="flex items-center gap-2 cursor-pointer text-slate-700 hover:bg-slate-50 p-1 rounded">
-                          <input
-                            type="checkbox"
-                            checked={columns[key as keyof WmsColumnVisibility]}
-                            onChange={() => toggleColumn(key as keyof WmsColumnVisibility)}
-                            className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200"
-                          />
-                          <span>
-                            {key === "sku" && "Артикул / SKU"}
-                            {key === "name" && "Наименование"}
-                            {key === "category" && "Категория"}
-                            {key === "warehouse" && "Склад"}
-                            {key === "cell" && "Ячейка"}
-                            {key === "quantity" && "Остаток"}
-                            {key === "unitPrice" && "Цена ед."}
-                            {key === "status" && "Статус"}
-                            {key === "actions" && "Действие"}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Active Filter Chips */}
-          {activeFiltersCount > 0 && (
-            <div className="flex items-center gap-2 flex-wrap text-xs px-1">
-              <span className="text-[10px] font-semibold text-slate-400">Активные фильтры:</span>
-
-              {query && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Поиск: "{query}"
-                  <button onClick={() => setQuery("")} className="hover:text-blue-800">
-                    <X size={11} />
-                  </button>
-                </span>
-              )}
-
-              {statusFilter !== "ALL" && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Статус: {statusFilter}
-                  <button onClick={() => setStatusFilter("ALL")} className="hover:text-blue-800">
-                    <X size={11} />
-                  </button>
-                </span>
-              )}
-
-              {warehouseFilter !== "ALL" && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Склад: {warehouseFilter}
-                  <button onClick={() => setWarehouseFilter("ALL")} className="hover:text-blue-800">
-                    <X size={11} />
-                  </button>
-                </span>
-              )}
-
-              {categoryFilter !== "ALL" && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Категория: {categoryFilter}
-                  <button onClick={() => setCategoryFilter("ALL")} className="hover:text-blue-800">
-                    <X size={11} />
-                  </button>
-                </span>
-              )}
-
-              <button onClick={resetAllFilters} className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-slate-700 ml-1">
-                <RotateCcw size={10} /> Сбросить все
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Bulk Action Toolbar when items are selected */}
         {selectedIds.length > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2f74df] text-[11px] font-bold text-white">
-                {selectedIds.length}
-              </span>
-              <span className="font-bold text-[#17243a]">Выбрано позиций ТМЦ</span>
-              <button
-                onClick={() => setSelectedIds([])}
-                className="text-[11px] font-medium text-slate-500 hover:text-slate-700 underline ml-2"
-              >
-                Снять выделение
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={openTransferModal}
-                className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2565c8] shadow-xs transition cursor-pointer"
-              >
-                <RefreshCcw size={13} /> Запросить перемещение выбранных ({selectedIds.length})
-              </button>
-            </div>
-          </div>
+          <span className="text-[11px] font-semibold text-[#3473d4]">Выбрано позиций: {selectedIds.length}</span>
         )}
+      </div>
 
-        {/* WMS Data Table styled 1-in-1 with EPS Equipment Table */}
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_8px_rgba(15,23,42,.025)]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600 border-collapse min-w-[900px]">
-              <thead className="border-b border-slate-100 bg-slate-50/70 text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 w-[40px]">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === filteredItems.length && filteredItems.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
-                    />
-                  </th>
-                  {columns.sku && <th className="px-3 py-3 w-[15%]">Артикул / SKU</th>}
-                  {columns.name && <th className="px-3 py-3 w-[30%]">Наименование ТМЦ</th>}
-                  {columns.category && <th className="px-3 py-3 w-[15%]">Категория & Тип</th>}
-                  {columns.warehouse && <th className="px-3 py-3 w-[22%]">Склад / Ячейка</th>}
-                  {columns.quantity && <th className="px-3 py-3 w-[10%]">Остаток</th>}
-                  {columns.actions && <th className="px-4 py-3 w-[80px] text-right">Действия</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={12} className="px-5 py-12 text-center text-xs text-slate-400">
-                      <RefreshCw className="mx-auto mb-2 animate-spin text-[#3473d4]" size={20} />
-                      Загрузка реестра складских запасов...
-                    </td>
-                  </tr>
-                ) : filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={12} className="px-5 py-12 text-center text-xs text-slate-400 space-y-2">
-                      <p>Позиции ТМЦ по заданным критериям фильтрации не найдены.</p>
-                      {activeFiltersCount > 0 && (
-                        <button onClick={resetAllFilters} className="text-[11px] font-semibold text-[#3473d4] hover:underline">
-                          Сбросить все фильтры
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredItems.map((item) => {
-                    const isSelected = selectedIds.includes(item.id);
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`transition text-xs ${
-                          isSelected ? "bg-blue-50/40" : "hover:bg-slate-50/50"
-                        }`}
-                      >
-                        <td className="px-4 py-3.5 align-top">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectItem(item.id)}
-                            className="rounded border-slate-300 text-[#3473d4] focus:ring-blue-200 cursor-pointer"
-                          />
-                        </td>
+      <FilterToolbar
+        searchQuery={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Поиск по наименованию, SKU или штрихкоду…"
+        filters={[
+          {
+            key: "status",
+            label: "Статус",
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { value: "ALL", label: "Все статусы" },
+              { value: "IN_STOCK", label: "В наличии" },
+              { value: "LOW_STOCK", label: "Дефицит" },
+              { value: "OUT_OF_STOCK", label: "Отсутствует" },
+              { value: "OVERSTOCKED", label: "Избыток" },
+            ],
+          },
+          {
+            key: "warehouse",
+            label: "Склад",
+            value: warehouseFilter,
+            onChange: setWarehouseFilter,
+            options: [
+              { value: "ALL", label: "Все склады" },
+              ...warehouses.map((wh) => ({ value: wh, label: wh })),
+            ],
+          },
+          {
+            key: "category",
+            label: "Категория",
+            value: categoryFilter,
+            onChange: setCategoryFilter,
+            options: [
+              { value: "ALL", label: "Все категории" },
+              ...categories.map((cat) => ({ value: cat, label: cat })),
+            ],
+          },
+          {
+            key: "type",
+            label: "Тип",
+            value: typeFilter,
+            onChange: setTypeFilter,
+            options: [
+              { value: "ALL", label: "Все типы" },
+              ...types.map((tp) => ({ value: tp, label: tp })),
+            ],
+          },
+        ]}
+        columns={[
+          { key: "sku", label: "Артикул / SKU", visible: columns.sku },
+          { key: "name", label: "Наименование ТМЦ / ЗИП", visible: columns.name },
+          { key: "category", label: "Категория & Тип", visible: columns.category },
+          { key: "warehouse", label: "Склад & МОЛ", visible: columns.warehouse },
+          { key: "cell", label: "Ячейка", visible: columns.cell },
+          { key: "quantity", label: "Остаток / Зарезерв.", visible: columns.quantity },
+          { key: "unitPrice", label: "Цена / Сумма", visible: columns.unitPrice },
+          { key: "status", label: "Статус", visible: columns.status },
+        ]}
+        onColumnToggle={(key) => toggleColumn(key as keyof WmsColumnVisibility)}
+        onColumnReset={() => {
+          setColumns(DEFAULT_WMS_COLUMNS);
+          try {
+            localStorage.removeItem("wms_registry_columns");
+          } catch {}
+        }}
+        activeChips={activeChips}
+        onResetAll={resetAllFilters}
+      />
 
-                        {columns.sku && (
-                          <td className="px-3 py-3.5 font-mono align-top">
-                            <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-bold text-[#3473d4] hover:underline">
-                              {item.sku}
-                            </Link>
-                            {item.barcode && <span className="block text-[10px] text-slate-400 mt-0.5">ШК: {item.barcode}</span>}
-                          </td>
-                        )}
+      <DataTable
+        columns={tableColumns}
+        data={filteredItems}
+        keyExtractor={(item) => item.id}
+        loading={loading}
+        emptyText="ТМЦ по заданным фильтрам не найдены."
+      />
 
-                        {columns.name && (
-                          <td className="px-3 py-3.5 align-top">
-                            <Link href={`/modules/wms/${item.id}`} className="block text-[11px] font-semibold text-[#17243a] hover:text-[#3473d4]">
-                              {item.name}
-                            </Link>
-                            {item.compatibleEquipment && item.compatibleEquipment.length > 0 && (
-                              <span className="block text-[10px] text-slate-400 mt-0.5">Совместимо: {item.compatibleEquipment.join(", ")}</span>
-                            )}
-                          </td>
-                        )}
+      <WmsItemForm
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSubmitSuccess={() => fetchItems()}
+        existingItems={items}
+      />
 
-                        {columns.category && (
-                          <td className="px-3 py-3.5 align-top">
-                            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
-                              <Tag size={12} className="text-slate-400 shrink-0" />
-                              <span>{item.category}</span>
-                            </div>
-                            <span className="block text-[10px] text-slate-400 mt-0.5">{item.type}</span>
-                          </td>
-                        )}
+      <WmsOperationModal
+        isOpen={showOpModal}
+        onClose={() => setShowOpModal(false)}
+        onSubmitSuccess={() => fetchItems()}
+        selectedItems={opModalSelectedItems}
+        allRegistryItems={items}
+        defaultType={opModalDefaultType}
+      />
 
-                        {columns.warehouse && (
-                          <td className="px-3 py-3.5 align-top">
-                            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
-                              <Building2 size={12} className="text-slate-400 shrink-0" />
-                              <span>{item.warehouse}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              <span className="text-[10px] font-mono text-slate-400">{item.cell}</span>
-                              <span className="text-slate-300">•</span>
-                              <span className={`inline-flex items-center gap-0.5 text-[10px] ${canUserManageItem(currentUser, item) ? "text-emerald-700 font-medium" : "text-slate-400"}`} title={`МОЛ: ${item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}`}>
-                                <UserCheck size={10} className={`shrink-0 ${canUserManageItem(currentUser, item) ? "text-emerald-600" : "text-slate-400"}`} />
-                                <span>{item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}</span>
-                              </span>
-                            </div>
-                          </td>
-                        )}
-
-                        {columns.quantity && (
-                          <td className="px-3 py-3.5 align-top">
-                            <div className="font-bold text-[11px] whitespace-nowrap text-[#17243a]">
-                              {item.quantity} {item.unit}
-                            </div>
-                            <div className="mt-1">{getStatusBadge(item.status)}</div>
-                          </td>
-                        )}
-
-                        {columns.actions && (
-                          <td className="px-4 py-3.5 text-right align-top">
-                            <Link
-                              href={`/modules/wms/${item.id}`}
-                              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-[#3473d4] hover:bg-blue-50 hover:border-blue-200 transition shadow-xs whitespace-nowrap"
-                            >
-                              Открыть <ChevronRight size={11} />
-                            </Link>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* WMS Item Creation Modal */}
-        <WmsItemForm
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          existingItems={items}
-          onSubmitSuccess={(newItem) => {
-            setItems((prev) => [newItem, ...prev]);
-          }}
-        />
-
-        {/* WMS Transfer Request Modal */}
-        <WmsTransferRequestModal
-          isOpen={showTransferModal}
-          onClose={() => setShowTransferModal(false)}
-          selectedItems={opModalSelectedItems}
-          onSubmitSuccess={() => {
-            setSelectedIds([]);
-            fetchItems();
-          }}
-        />
-
-        {/* WMS Operation Modal */}
-        <WmsOperationModal
-          isOpen={showOpModal}
-          onClose={() => {
-            setShowOpModal(false);
-            setOpModalSelectedItems([]);
-          }}
-          items={items}
-          selectedItems={opModalSelectedItems}
-          defaultType={opModalDefaultType}
-          onSubmitSuccess={(_, updatedItems, newItem) => {
-            if (newItem) {
-              setItems((prev) => [newItem, ...prev]);
-            } else if (updatedItems && updatedItems.length > 0) {
-              setItems((prev) =>
-                prev.map((i) => {
-                  const match = updatedItems.find((u) => u.id === i.id);
-                  return match ? { ...i, ...match } : i;
-                })
-              );
-              setSelectedIds([]);
-            }
-          }}
-        />
-      </main>
+      <WmsTransferRequestModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        onSubmitSuccess={() => fetchItems()}
+        selectedItems={opModalSelectedItems}
+        allRegistryItems={items}
+        currentUser={currentUser}
+      />
+    </main>
   );
 }
 
@@ -746,4 +576,3 @@ export default function WmsRegistryPage() {
     </ShellLayout>
   );
 }
-

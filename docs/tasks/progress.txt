@@ -48,3 +48,11 @@
 - [ ] user-chip.tsx
 - [ ] update index.ts
 
+
+## Phase 8 — Total Codebase Migration to UI Library
+- [ ] EPS detail and subpages migration
+- [ ] WMS sub-nav & modals migration
+- [ ] WMS registry & movements migration
+- [ ] MRO & SRM modules migration
+- [ ] TypeScript & ESLint validation
+

@@ -13,7 +13,6 @@ import {
   Download,
   History,
   Eye,
-  X,
   Wrench,
   ShieldCheck,
   Activity,
@@ -24,15 +23,30 @@ import {
   Cpu,
   Clock,
   FileCode,
-  CheckCircle2,
   AlertCircle,
-  Layers,
   Save,
   Truck,
   Calendar,
   UserCheck,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  PageHeader,
+  KpiGrid,
+  TabNav,
+  StatusBadge,
+  Modal,
+  ModalHeader,
+  ModalFooter,
+  FormSection,
+  FormField,
+  Input,
+  Select,
+  Textarea,
+  Switch,
+  DocumentViewerModal,
+  Timeline,
+} from "@/components/ui";
 
 export default function EquipmentDetailPage({
   params,
