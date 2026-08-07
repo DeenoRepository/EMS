@@ -41,6 +41,106 @@ export interface WmsMovement {
   timestamp: string;
 }
 
+export interface WmsTransferRequest {
+  id: string;
+  itemId: string;
+  itemSku: string;
+  itemName: string;
+  quantity: number;
+  fromWarehouse: string;
+  toWarehouse: string;
+  requestedBy: string;
+  requestedByUsername?: string;
+  targetMolUser: string;
+  targetMolUsername?: string;
+  reason?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  comment?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const MOCK_WMS_TRANSFER_REQUESTS: WmsTransferRequest[] = [
+  {
+    id: "tr-1001",
+    itemId: "wms-001",
+    itemSku: "SKU-BRG-6204-RS",
+    itemName: "Подшипник шариковый радиальный 6204-2RS SKF",
+    quantity: 5,
+    fromWarehouse: "Основной склад ЗИП",
+    toWarehouse: "Цеховая кладовая №3",
+    requestedBy: "Сидоров А.Н. (Энергетик цеха)",
+    requestedByUsername: "approver",
+    targetMolUser: "Смирнов А.В. (Старший кладовщик)",
+    targetMolUsername: "admin",
+    reason: "Плановая замена подшипников токарного станка EQ-CNC-2026-01",
+    status: "PENDING",
+    createdAt: "2026-08-07T09:30:00Z",
+    updatedAt: "2026-08-07T09:30:00Z"
+  },
+  {
+    id: "tr-1002",
+    itemId: "wms-002",
+    itemSku: "SKU-OIL-MOBIL-VACTRA2",
+    itemName: "Масло направляющих скольжения Mobil Vactra No.2 (20л)",
+    quantity: 2,
+    fromWarehouse: "Склад ГСМ №2",
+    toWarehouse: "Основной склад ЗИП",
+    requestedBy: "Смирнов А.В. (Старший кладовщик)",
+    requestedByUsername: "admin",
+    targetMolUser: "Ковалев Д.М. (Кладовщик ГСМ)",
+    targetMolUsername: "editor",
+    reason: "Пополнение оперативного резерва перед ТО цеха №1",
+    status: "PENDING",
+    createdAt: "2026-08-07T11:15:00Z",
+    updatedAt: "2026-08-07T11:15:00Z"
+  }
+];
+
+export interface WarehouseConfig {
+  id: string;
+  name: string;
+  responsibleUser: string;
+  responsibleUsername?: string;
+}
+
+export const WAREHOUSES_REGISTRY: WarehouseConfig[] = [
+  { id: "wh-1", name: "Основной склад ЗИП", responsibleUser: "Смирнов А.В. (Старший кладовщик)", responsibleUsername: "admin" },
+  { id: "wh-2", name: "Склад ГСМ №2", responsibleUser: "Ковалев Д.М. (Кладовщик ГСМ)", responsibleUsername: "editor" },
+  { id: "wh-3", name: "Цеховая кладовая №3", responsibleUser: "Сидоров А.Н. (Энергетик цеха)", responsibleUsername: "approver" }
+];
+
+export function getWarehouseResponsibleUser(warehouseName: string): string {
+  const found = WAREHOUSES_REGISTRY.find((w) => w.name === warehouseName);
+  return found ? found.responsibleUser : "Смирнов А.В. (Старший кладовщик)";
+}
+
+export function canUserManageItem(
+  user: { username?: string; displayName?: string; roles?: string[] } | null,
+  itemOrWarehouse: WmsItem | string
+): boolean {
+  if (!user) return false;
+  // Администраторы системы имеют полный доступ ко всем складам
+  if (user.roles?.includes("ADMIN")) return true;
+
+  const warehouseName = typeof itemOrWarehouse === "string" ? itemOrWarehouse : itemOrWarehouse.warehouse;
+  const wh = WAREHOUSES_REGISTRY.find((w) => w.name === warehouseName);
+  
+  if (wh) {
+    if (wh.responsibleUsername && user.username === wh.responsibleUsername) return true;
+    if (user.displayName && wh.responsibleUser.toLowerCase().includes(user.displayName.toLowerCase())) return true;
+  }
+
+  // Также проверяем явно указанного МОЛ в самой карточке ТМЦ
+  if (typeof itemOrWarehouse !== "string" && itemOrWarehouse.responsibleUser) {
+    if (user.displayName && itemOrWarehouse.responsibleUser.toLowerCase().includes(user.displayName.toLowerCase())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export const MOCK_WMS_ITEMS: WmsItem[] = [
   {
     id: "wms-001",

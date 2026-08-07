@@ -120,6 +120,31 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
 
     refreshPendingApprovals();
 
+    // Загрузка запросов на перемещение ТМЦ и генерация уведомлений для кладовщика
+    fetch("/api/modules/wms/transfer-requests?status=PENDING")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.requests && Array.isArray(data.requests)) {
+          const transferNotifs: NotificationItem[] = data.requests.map((r: any) => ({
+            id: `notif-${r.id}`,
+            title: "Запрос на перемещение ТМЦ",
+            message: `Запрошено ${r.quantity} ед. "${r.itemName}" со склада "${r.fromWarehouse}" на склад "${r.toWarehouse}".`,
+            time: "Только что",
+            read: false,
+          }));
+
+          setNotifications((prev) => {
+            const existingIds = new Set(prev.map((n) => n.id));
+            const newNotifs = transferNotifs.filter((n) => !existingIds.has(n.id));
+            if (newNotifs.length > 0) {
+              return [...newNotifs, ...prev];
+            }
+            return prev;
+          });
+        }
+      })
+      .catch(() => {});
+
     // Автоматическое периодическое обновление очереди согласований каждые 60 секунд
     const intervalId = setInterval(() => {
       refreshPendingApprovals();

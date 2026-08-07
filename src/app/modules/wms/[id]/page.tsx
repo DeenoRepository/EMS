@@ -2,7 +2,8 @@
 
 import { useState, use } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { MOCK_WMS_ITEMS, MOCK_WMS_MOVEMENTS, WmsItem } from "@/lib/modules/wms-store";
+import { useShell } from "@/components/layout/shell-context";
+import { MOCK_WMS_ITEMS, MOCK_WMS_MOVEMENTS, WmsItem, canUserManageItem, getWarehouseResponsibleUser } from "@/lib/modules/wms-store";
 import {
   ChevronRight,
   ArrowLeft,
@@ -26,6 +27,7 @@ import {
   Archive,
   Activity,
   ShieldCheck,
+  ShieldAlert,
   FileText,
   Barcode,
   Cpu,
@@ -36,6 +38,8 @@ import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
 
 export default function WmsItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { currentUser } = useShell();
+
   const resolvedParams = use(params);
   const itemId = resolvedParams.id;
 
@@ -45,6 +49,9 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
 
   const item = items.find((i) => i.id === itemId) || items[0];
   const itemMovements = MOCK_WMS_MOVEMENTS.filter((m) => m.itemId === item.id || m.itemSku === item.sku);
+
+  const canEdit = canUserManageItem(currentUser, item);
+  const responsibleUser = item.responsibleUser || getWarehouseResponsibleUser(item.warehouse);
 
   const getStatusBadge = (status: WmsItem["status"]) => {
     switch (status) {
@@ -88,6 +95,10 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
                   <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dot}`} />
                   {statusBadge.label}
                 </span>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${canEdit ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-600 border-slate-200"}`}>
+                  <UserCheck size={11} className={canEdit ? "text-emerald-600" : "text-slate-400"} />
+                  МОЛ склада: {responsibleUser}
+                </span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                 <span>Артикул / SKU: <span className="font-mono font-bold text-[#3473d4]">{item.sku}</span></span>
@@ -107,13 +118,22 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
               >
                 <Printer size={13} /> Печать этикетки QR
               </button>
-              <button
-                type="button"
-                onClick={() => setShowEditModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition cursor-pointer"
-              >
-                <Edit size={13} /> Редактировать карточку
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(true)}
+                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition cursor-pointer"
+                >
+                  <Edit size={13} /> Редактировать карточку
+                </button>
+              ) : (
+                <div
+                  title={`Редактирование доступно только МОЛ склада: ${responsibleUser}`}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-100 px-3.5 py-2 text-[11px] font-medium text-slate-400 cursor-not-allowed"
+                >
+                  <ShieldAlert size={13} className="text-slate-400" /> Только для МОЛ
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -413,6 +433,7 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
           initialData={item}
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
+          existingItems={items}
           onSubmitSuccess={(updated) => {
             setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
           }}

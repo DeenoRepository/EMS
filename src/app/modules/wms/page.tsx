@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { WmsItem, WmsMovement } from "@/lib/modules/wms-store";
+import { useShell } from "@/components/layout/shell-context";
+import { WmsItem, WmsMovement, canUserManageItem, getWarehouseResponsibleUser } from "@/lib/modules/wms-store";
 import {
   Database,
   Search,
@@ -30,10 +31,13 @@ import {
   ArrowUpRight,
   RefreshCcw,
   UserCheck,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
+import WmsTransferRequestModal from "@/components/wms/wms-transfer-request-modal";
 import WmsSubNav from "@/components/wms/wms-sub-nav";
 
 export interface WmsColumnVisibility {
@@ -60,7 +64,9 @@ const DEFAULT_WMS_COLUMNS: WmsColumnVisibility = {
   actions: true,
 };
 
-export default function WmsRegistryPage() {
+function WmsRegistryContent() {
+  const { currentUser } = useShell();
+
   const [items, setItems] = useState<WmsItem[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -75,8 +81,15 @@ export default function WmsRegistryPage() {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showOpModal, setShowOpModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
   const [opModalSelectedItems, setOpModalSelectedItems] = useState<WmsItem[]>([]);
+
+  const openTransferModal = () => {
+    const selectedItemsList = items.filter((i) => selectedIds.includes(i.id));
+    setOpModalSelectedItems(selectedItemsList.length > 0 ? selectedItemsList : (items[0] ? [items[0]] : []));
+    setShowTransferModal(true);
+  };
 
   // Column visibility state with localStorage persistence
   const [columns, setColumns] = useState<WmsColumnVisibility>(DEFAULT_WMS_COLUMNS);
@@ -227,8 +240,7 @@ export default function WmsRegistryPage() {
   };
 
   return (
-    <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+    <main className="w-full px-5 py-6 md:px-8 space-y-6">
         {/* Breadcrumbs & Title Block aligned with EPS Standard */}
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
@@ -259,12 +271,6 @@ export default function WmsRegistryPage() {
               title="Обновить данные"
             >
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
-            >
-              <Plus size={14} /> Создать ТМЦ
             </button>
           </div>
         </div>
@@ -536,28 +542,10 @@ export default function WmsRegistryPage() {
 
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => openBulkOperation("INCOMING")}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 shadow-xs transition"
+                onClick={openTransferModal}
+                className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2565c8] shadow-xs transition cursor-pointer"
               >
-                <ArrowDownLeft size={13} /> Массовый приход
-              </button>
-              <button
-                onClick={() => openBulkOperation("TRANSFER")}
-                className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#2565c8] shadow-xs transition"
-              >
-                <RefreshCcw size={13} /> Массовое перемещение
-              </button>
-              <button
-                onClick={() => openBulkOperation("OUTGOING")}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 shadow-xs transition"
-              >
-                <ArrowUpRight size={13} /> Массовое списание
-              </button>
-              <button
-                onClick={() => openBulkOperation("PERSONAL_CARD")}
-                className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-purple-700 shadow-xs transition"
-              >
-                <UserCheck size={13} /> Массовая выдача
+                <RefreshCcw size={13} /> Запросить перемещение выбранных ({selectedIds.length})
               </button>
             </div>
           </div>
@@ -651,7 +639,14 @@ export default function WmsRegistryPage() {
                         <Building2 size={12} className="text-slate-400" />
                         <span>{item.warehouse}</span>
                       </div>
-                      <span className="block text-[10px] font-mono text-slate-400">{item.cell}</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="block text-[10px] font-mono text-slate-400">{item.cell}</span>
+                        <span className="text-slate-300">•</span>
+                        <span className={`inline-flex items-center gap-0.5 text-[10px] ${canUserManageItem(currentUser, item) ? "text-emerald-700 font-medium" : "text-slate-400"}`} title={`МОЛ: ${item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}`}>
+                          <UserCheck size={10} className={canUserManageItem(currentUser, item) ? "text-emerald-600" : "text-slate-400"} />
+                          <span className="truncate max-w-[110px]">{item.responsibleUser || getWarehouseResponsibleUser(item.warehouse)}</span>
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -686,12 +681,24 @@ export default function WmsRegistryPage() {
         <WmsItemForm
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
+          existingItems={items}
           onSubmitSuccess={(newItem) => {
             setItems((prev) => [newItem, ...prev]);
           }}
         />
 
-        {/* WMS Operation Modal with Bulk Support */}
+        {/* WMS Transfer Request Modal */}
+        <WmsTransferRequestModal
+          isOpen={showTransferModal}
+          onClose={() => setShowTransferModal(false)}
+          selectedItems={opModalSelectedItems}
+          onSubmitSuccess={() => {
+            setSelectedIds([]);
+            fetchItems();
+          }}
+        />
+
+        {/* WMS Operation Modal */}
         <WmsOperationModal
           isOpen={showOpModal}
           onClose={() => {
@@ -701,8 +708,10 @@ export default function WmsRegistryPage() {
           items={items}
           selectedItems={opModalSelectedItems}
           defaultType={opModalDefaultType}
-          onSubmitSuccess={(_, updatedItems) => {
-            if (updatedItems && updatedItems.length > 0) {
+          onSubmitSuccess={(_, updatedItems, newItem) => {
+            if (newItem) {
+              setItems((prev) => [newItem, ...prev]);
+            } else if (updatedItems && updatedItems.length > 0) {
               setItems((prev) =>
                 prev.map((i) => {
                   const match = updatedItems.find((u) => u.id === i.id);
@@ -714,6 +723,13 @@ export default function WmsRegistryPage() {
           }}
         />
       </main>
+  );
+}
+
+export default function WmsRegistryPage() {
+  return (
+    <ShellLayout>
+      <WmsRegistryContent />
     </ShellLayout>
   );
 }
