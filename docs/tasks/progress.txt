@@ -1,27 +1,31 @@
-# WMS Module Design Standardization Checklist
+# Progress Checklist
 
-- [x] 1. Главная страница WMS (Реестр ТМЦ и ЗИП - `/modules/wms`)
-  - [x] Выравнивание заголовка, хлебных крошек и кнопок действий
-  - [x] Унификация KPI-карточек по размеру, шрифтам и иконкам EPS
-  - [x] Настройка интерактивных селекторов фильтров и чипсов сброса
-  - [x] Проверка таблицы, выравнивания текста и выпадающего меню колонок
+## Phase 1 � Base Controls
+- [x] input.tsx
+- [x] select.tsx
+- [x] textarea.tsx
+- [x] checkbox.tsx
+- [x] switch.tsx
+- [x] form-field.tsx
+- [x] form-section.tsx
 
-- [x] 2. Страница движений WMS (`/modules/wms/movements`)
-  - [x] Приведение заголовков и хлебных крошек к EPS-стандарту
-  - [x] Добавление управления колонками таблицы (`Columns3`) с `localStorage`
-  - [x] Чипсы активных фильтров и кнопка сброса
-  - [x] Дизайн таблицы операций и бейджей видов движений
+## Phase 2 � Modal System
+- [x] modal.tsx
+- [x] modal-header.tsx
+- [x] modal-footer.tsx
 
-- [x] 3. Страница складов и ячеек WMS (`/modules/wms/warehouses`)
-  - [x] Единый блок заголовка и хлебных крошек
-  - [x] Единые KPI карточки емкости складов и ячеек
-  - [x] Таблицы складов и ячеек по стандартам EPS
+## Phase 3 � Data Display
+- [x] status-badge.tsx
+- [x] kpi-card.tsx
+- [x] filter-chip.tsx
 
-- [x] 4. Страница отчетов WMS (`/modules/wms/reports`)
-  - [x] Приведение к стандарту EPS Reports
-  - [x] Конструктор отчетов и селекторы полей
-  - [x] Форматирование бейджей XLSX/PDF/CSV и списка отчетов
+## Phase 4 � Composite Controls
+- [x] search-input.tsx
+- [x] column-toggle.tsx
+- [x] index.ts
 
-- [x] 5. Детальная карточка ТМЦ (`/modules/wms/[id]`)
-  - [x] Приведение структуры страницы, заголовочного блока и кнопок к EPS
-  - [x] Оформление вкладок, технических характеристик, QR/Barcode карточки и истории
+## Phase 5 � Validation
+- [x] TypeScript verification
+- [x] ESLint check
+- [x] Demo page /modules/eps/ui-demo
+
