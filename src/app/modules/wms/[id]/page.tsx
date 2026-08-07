@@ -37,7 +37,7 @@ import {
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
 
-export default function WmsItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function WmsItemDetailContent({ params }: { params: Promise<{ id: string }> }) {
   const { currentUser } = useShell();
 
   const resolvedParams = use(params);
@@ -71,8 +71,7 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
   const statusBadge = getStatusBadge(item.status);
 
   return (
-    <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-5">
+    <main className="w-full px-5 py-6 md:px-8 space-y-5">
         {/* Top Header Block: Breadcrumbs & Main Actions */}
         <div>
           {/* Breadcrumbs */}
@@ -439,6 +438,13 @@ export default function WmsItemDetailPage({ params }: { params: Promise<{ id: st
           }}
         />
       </main>
+  );
+}
+
+export default function WmsItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <ShellLayout>
+      <WmsItemDetailContent params={params} />
     </ShellLayout>
   );
 }
