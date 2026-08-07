@@ -65,18 +65,19 @@ function WmsRegistryContent() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [opModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
 
-  // Column visibility state with localStorage persistence
-  const [columns, setColumns] = useState<WmsColumnVisibility>(() => {
+  // Column visibility state with localStorage persistence (hydrated in useEffect to prevent SSR mismatch)
+  const [columns, setColumns] = useState<WmsColumnVisibility>(DEFAULT_WMS_COLUMNS);
+
+  useEffect(() => {
     try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("wms_registry_columns") : null;
+      const saved = localStorage.getItem("wms_registry_columns");
       if (saved) {
-        return { ...DEFAULT_WMS_COLUMNS, ...JSON.parse(saved) };
+        setColumns({ ...DEFAULT_WMS_COLUMNS, ...JSON.parse(saved) });
       }
     } catch {
       // Ignore
     }
-    return DEFAULT_WMS_COLUMNS;
-  });
+  }, []);
 
   const toggleColumn = (key: keyof WmsColumnVisibility) => {
     setColumns((prev) => {

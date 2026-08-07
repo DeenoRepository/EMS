@@ -119,17 +119,18 @@ export default function WmsReportsPage() {
   ]);
   const [generating, setGenerating] = useState(false);
 
-  const [columns, setColumns] = useState<WmsReportColumnVisibility>(() => {
+  const [columns, setColumns] = useState<WmsReportColumnVisibility>(DEFAULT_COLUMNS);
+
+  useEffect(() => {
     try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("wms_reports_columns") : null;
+      const saved = localStorage.getItem("wms_reports_columns");
       if (saved) {
-        return { ...DEFAULT_COLUMNS, ...JSON.parse(saved) };
+        setColumns({ ...DEFAULT_COLUMNS, ...JSON.parse(saved) });
       }
     } catch {
       // Ignore
     }
-    return DEFAULT_COLUMNS;
-  });
+  }, []);
 
   const toggleColumn = (key: keyof WmsReportColumnVisibility) => {
     setColumns((prev) => {

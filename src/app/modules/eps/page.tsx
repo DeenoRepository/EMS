@@ -57,18 +57,19 @@ export default function EpsEquipmentPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Column visibility state with localStorage persistence
-  const [columns, setColumns] = useState<ColumnVisibility>(() => {
+  // Column visibility state with localStorage persistence (hydrated in useEffect to prevent SSR mismatch)
+  const [columns, setColumns] = useState<ColumnVisibility>(DEFAULT_COLUMNS);
+
+  useEffect(() => {
     try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("eps_registry_columns") : null;
+      const saved = localStorage.getItem("eps_registry_columns");
       if (saved) {
-        return { ...DEFAULT_COLUMNS, ...JSON.parse(saved) };
+        setColumns({ ...DEFAULT_COLUMNS, ...JSON.parse(saved) });
       }
     } catch {
       // Игнорируем
     }
-    return DEFAULT_COLUMNS;
-  });
+  }, []);
 
   const toggleColumn = (key: keyof ColumnVisibility) => {
     setColumns((prev) => {
