@@ -328,7 +328,8 @@ export default function WmsReportsPage() {
     if (columns.actions) {
       cols.push({
         key: "actions",
-        header: <span className="text-right block">Действия</span>,
+        header: "Действия",
+        className: "text-right",
         cell: (r: WmsReportItem) => (
           <div className="flex items-center justify-end gap-3">
             <button
@@ -706,7 +707,7 @@ export default function WmsReportsPage() {
                         {builderPreviewData.map((item) => (
                           <tr key={item.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/60">
                             {selectedFields.map((fKey) => {
-                              let val = (item as Record<string, unknown>)[fKey];
+                              let val = (item as unknown as Record<string, unknown>)[fKey];
                               if (fKey === "techSpecs" && item.techSpecs) {
                                 val = Object.entries(item.techSpecs)
                                   .map(([k, v]) => `${k}: ${v}`)

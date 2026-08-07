@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
 import { MOCK_WMS_TRANSFER_REQUESTS, WmsTransferRequest, getWarehouseResponsibleUser, WAREHOUSES_REGISTRY } from "@/lib/modules/wms-store";
 
-// Используем в памяти глобальное состояние для хранения созданных запросов во время работы dev-сервера
 let globalTransferRequests: WmsTransferRequest[] = [...MOCK_WMS_TRANSFER_REQUESTS];
 
 export async function GET(request: Request) {
@@ -11,28 +11,49 @@ export async function GET(request: Request) {
   const warehouse = searchParams.get("warehouse");
 
   try {
-    let filtered = [...globalTransferRequests];
-
-    if (status && status !== "ALL") {
-      filtered = filtered.filter((r) => r.status === status);
-    }
-
+    const where: any = {};
+    if (status && status !== "ALL") where.status = status;
     if (targetMol) {
-      filtered = filtered.filter(
-        (r) =>
-          (r.targetMolUsername && r.targetMolUsername === targetMol) ||
-          r.targetMolUser.toLowerCase().includes(targetMol.toLowerCase())
-      );
+      where.OR = [
+        { targetMolUsername: targetMol },
+        { targetMolUser: { contains: targetMol, mode: "insensitive" } }
+      ];
     }
-
     if (warehouse && warehouse !== "ALL") {
-      filtered = filtered.filter((r) => r.fromWarehouse === warehouse || r.toWarehouse === warehouse);
+      where.OR = [
+        { fromWarehouse: warehouse },
+        { toWarehouse: warehouse }
+      ];
     }
 
-    return NextResponse.json({ requests: filtered, total: filtered.length });
-  } catch {
-    return NextResponse.json({ requests: globalTransferRequests, total: globalTransferRequests.length });
+    const dbRequests = await prisma.wmsTransferRequest.findMany({
+      where,
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (dbRequests.length > 0) {
+      return NextResponse.json({ requests: dbRequests, total: dbRequests.length });
+    }
+  } catch (err) {
+    console.warn("WMS Transfer Requests DB query failed, falling back to mock store:", err);
   }
+
+  let filtered = [...globalTransferRequests];
+  if (status && status !== "ALL") {
+    filtered = filtered.filter((r) => r.status === status);
+  }
+  if (targetMol) {
+    filtered = filtered.filter(
+      (r) =>
+        (r.targetMolUsername && r.targetMolUsername === targetMol) ||
+        r.targetMolUser.toLowerCase().includes(targetMol.toLowerCase())
+    );
+  }
+  if (warehouse && warehouse !== "ALL") {
+    filtered = filtered.filter((r) => r.fromWarehouse === warehouse || r.toWarehouse === warehouse);
+  }
+
+  return NextResponse.json({ requests: filtered, total: filtered.length });
 }
 
 export async function POST(request: Request) {
@@ -42,12 +63,10 @@ export async function POST(request: Request) {
     const fromWarehouse = body.fromWarehouse || "Основной склад ЗИП";
     const toWarehouse = body.toWarehouse || "Цеховая кладовая №3";
     
-    // Определение МОЛ склада-источника
     const targetMolUser = getWarehouseResponsibleUser(fromWarehouse);
     const foundWh = WAREHOUSES_REGISTRY.find((w) => w.name === fromWarehouse);
 
-    const newRequest: WmsTransferRequest = {
-      id: `tr-${Date.now()}`,
+    const reqData = {
       itemId: body.itemId || "wms-001",
       itemSku: body.itemSku || "SKU-UNKNOWN",
       itemName: body.itemName || "Позиция ТМЦ",
@@ -55,28 +74,34 @@ export async function POST(request: Request) {
       fromWarehouse,
       toWarehouse,
       requestedBy: body.requestedBy || "Пользователь системы",
-      requestedByUsername: body.requestedByUsername || undefined,
+      requestedByUsername: body.requestedByUsername || null,
       targetMolUser,
-      targetMolUsername: foundWh?.responsibleUsername || undefined,
+      targetMolUsername: foundWh?.responsibleUsername || null,
       reason: body.reason || "Запрос перемещения ТМЦ",
-      status: "PENDING",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      status: "PENDING"
     };
 
-    globalTransferRequests = [newRequest, ...globalTransferRequests];
-
-    return NextResponse.json({ success: true, request: newRequest }, { status: 201 });
+    try {
+      const created = await prisma.wmsTransferRequest.create({
+        data: reqData as any
+      });
+      return NextResponse.json({ success: true, request: created }, { status: 201 });
+    } catch {
+      const newRequest: WmsTransferRequest = {
+        id: `tr-${Date.now()}`,
+        ...reqData,
+        requestedByUsername: body.requestedByUsername || undefined,
+        targetMolUsername: foundWh?.responsibleUsername || undefined,
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      globalTransferRequests = [newRequest, ...globalTransferRequests];
+      return NextResponse.json({ success: true, request: newRequest }, { status: 201 });
+    }
   } catch {
     return NextResponse.json({ error: "Ошибка создания запроса на перемещение ТМЦ" }, { status: 400 });
   }
 }
 
-export function getGlobalTransferRequests() {
-  return globalTransferRequests;
-}
 
-export function updateGlobalTransferRequest(id: string, updated: Partial<WmsTransferRequest>) {
-  globalTransferRequests = globalTransferRequests.map((r) => (r.id === id ? { ...r, ...updated, updatedAt: new Date().toISOString() } : r));
-  return globalTransferRequests.find((r) => r.id === id);
-}

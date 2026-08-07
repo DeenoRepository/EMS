@@ -1,0 +1,33 @@
+# Task: Module Hardcode Cleanup & Database Migration Checklist
+
+## 1. Database Schema & Infrastructure
+- [x] Add WMS models (Warehouse, StorageCell, WmsItem, WmsTransferRequest, WmsMovement) to schema.prisma
+- [x] Add Facility & SystemModule models to schema.prisma
+- [x] Generate Prisma Client (npx prisma generate)
+- [x] Create seed script (prisma/seed.ts) with initial data
+
+## 2. EPS Module Refactoring
+- [x] Refactor /api/modules/eps/equipment/[id] to use Prisma
+- [x] Refactor /api/modules/eps/documents to use Prisma
+- [x] Refactor /api/modules/eps/events to use Prisma
+- [x] Refactor /api/modules/eps/equipment/export to use Prisma
+- [x] Remove direct imports of MOCK_EQUIPMENT_DATA from UI components
+
+## 3. WMS Module Refactoring
+- [x] Refactor /api/modules/wms/items to use Prisma
+- [x] Refactor /api/modules/wms/movements to use Prisma
+- [x] Refactor /api/modules/wms/transfer-requests to use Prisma
+- [x] Refactor /api/modules/wms/items/export to use Prisma
+- [x] Update /admin/settings/wms page to fetch settings via API
+
+## 4. Auth & RBAC Refactoring
+- [x] Implement AuthProvider interface (Database, LDAP, Mock)
+- [x] Update /api/auth/login to use configured AuthProvider
+- [x] Configurable ENV variables for Auth and Mock modes
+
+## 5. UI Cleanup & Verification
+- [x] Audit remaining UI components for static fallbacks
+- [x] Run build and type check (npm run build)
+- [x] Verify API endpoints and complete manual smoke testing
+
+

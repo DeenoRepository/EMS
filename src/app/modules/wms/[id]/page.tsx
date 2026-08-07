@@ -137,7 +137,7 @@ function WmsItemDetailContent({ params }: { params: Promise<{ id: string }> }) {
       cell: (m: WmsMovement) => (
         <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
           {m.type === "INCOMING" ? "+" : m.type === "OUTGOING" ? "-" : ""}
-          {m.quantity} {m.unit}
+          {m.quantity} {(m as any).unit || "ед."}
         </span>
       ),
     },

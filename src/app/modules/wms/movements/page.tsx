@@ -174,7 +174,7 @@ function WmsMovementsContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          performedBy: currentUser?.fullName || "Складской оператор",
+          performedBy: currentUser?.displayName || "Складской оператор",
         }),
       });
 
@@ -296,10 +296,10 @@ function WmsMovementsContent() {
             }`}
           >
             {m.type === "INCOMING" ? "+" : m.type === "OUTGOING" ? "-" : ""}
-            {m.quantity} {m.unit}
+            {m.quantity} {(m as any).unit || "ед."}
           </span>
-          {m.unitPrice ? (
-            <span className="block text-[9px] text-slate-400">{(m.quantity * m.unitPrice).toLocaleString("ru-RU")} ₽</span>
+          {(m as any).unitPrice ? (
+            <span className="block text-[9px] text-slate-400">{(m.quantity * (m as any).unitPrice).toLocaleString("ru-RU")} ₽</span>
           ) : null}
         </div>
       ),
@@ -309,8 +309,8 @@ function WmsMovementsContent() {
       header: "Маршрут складов",
       cell: (m: WmsMovement) => (
         <div className="text-[11px]">
-          {m.fromWarehouse && <span className="text-slate-500">{m.fromWarehouse} ➔ </span>}
-          <span className="font-semibold text-slate-800 dark:text-slate-200">{m.toWarehouse || m.fromWarehouse || "Основной склад"}</span>
+          {m.fromLocation && <span className="text-slate-500">{m.fromLocation} ➔ </span>}
+          <span className="font-semibold text-slate-800 dark:text-slate-200">{m.toLocation || m.fromLocation || "Основной склад"}</span>
         </div>
       ),
     },
@@ -326,7 +326,8 @@ function WmsMovementsContent() {
     },
     {
       key: "actions",
-      header: <span className="text-right block">Подробно</span>,
+      header: "Подробно",
+      className: "text-right",
       cell: (m: WmsMovement) => (
         <div className="flex justify-end">
           <button
@@ -575,7 +576,6 @@ function WmsMovementsContent() {
         onSubmitSuccess={() => fetchItemsAndMovements()}
         items={items}
         selectedItems={items}
-        allRegistryItems={items}
         defaultType={opModalDefaultType}
       />
 
@@ -584,7 +584,6 @@ function WmsMovementsContent() {
         onClose={() => setShowTransferModal(false)}
         onSubmitSuccess={() => fetchItemsAndMovements()}
         selectedItems={items}
-        allRegistryItems={items}
       />
 
       <Modal open={Boolean(selectedMovementDetails)} onClose={() => setSelectedMovementDetails(null)} size="md">
@@ -607,7 +606,7 @@ function WmsMovementsContent() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Количество:</span>
-                <span className="font-bold">{selectedMovementDetails.quantity} {selectedMovementDetails.unit}</span>
+                <span className="font-bold">{selectedMovementDetails.quantity} {(selectedMovementDetails as any).unit || "ед."}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Причина / Обоснование:</span>

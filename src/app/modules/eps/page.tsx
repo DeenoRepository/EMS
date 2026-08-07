@@ -240,7 +240,8 @@ export default function EpsEquipmentPage() {
     if (columns.actions) {
       cols.push({
         key: "actions",
-        header: <span className="text-right block">Действие</span>,
+        header: "Действие",
+        className: "text-right",
         cell: (item: EquipmentItem) => (
           <div className="flex items-center justify-end">
             <Link

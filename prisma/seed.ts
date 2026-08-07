@@ -407,7 +407,222 @@ async function main() {
     ]
   });
 
-  console.log("Сидирование завершено: создано 50 единиц оборудования и 50 документов.");
+  // WMS Seed Data
+  await prisma.warehouse.deleteMany();
+  await prisma.warehouse.createMany({
+    data: [
+      { name: "Основной склад ЗИП", responsibleUser: "Смирнов А.В. (Старший кладовщик)", responsibleUsername: "admin" },
+      { name: "Склад ГСМ №2", responsibleUser: "Ковалев Д.М. (Кладовщик ГСМ)", responsibleUsername: "editor" },
+      { name: "Цеховая кладовая №3", responsibleUser: "Сидоров А.Н. (Энергетик цеха)", responsibleUsername: "approver" }
+    ]
+  });
+
+  await prisma.wmsItem.deleteMany();
+  await prisma.wmsItem.createMany({
+    data: [
+      {
+        id: "wms-001",
+        sku: "SKU-BRG-6204-RS",
+        name: "Подшипник шариковый радиальный 6204-2RS SKF",
+        category: "Подшипники",
+        type: "ZIP",
+        unit: "pcs",
+        warehouse: "Основной склад ЗИП",
+        cell: "Стеллаж A-04 / Ячейка 12",
+        quantity: 48,
+        minQuantity: 15,
+        maxQuantity: 100,
+        reservedQuantity: 8,
+        unitPrice: 1250,
+        currency: "RUB",
+        status: "IN_STOCK",
+        supplier: "ООО СпецПодшипник Торг",
+        compatibleEquipment: ["EQ-CNC-2026-01", "EQ-PRESS-2026-04"],
+        lastIncomingDate: new Date("2026-07-20"),
+        lastOutgoingDate: new Date("2026-08-04"),
+        responsibleUser: "Смирнов А.В. (Старший кладовщик)",
+        description: "Шарикоподшипник с двухсторонним резиновым уплотнением для шпиндельных узлов.",
+        barcode: "4607012948120",
+        techSpecs: { "внутренний_диаметр": "20 мм", "внешний_диаметр": "47 мм", "ширина": "14 мм" }
+      },
+      {
+        id: "wms-002",
+        sku: "SKU-OIL-MOBIL-VACTRA2",
+        name: "Масло направляющих скольжения Mobil Vactra No.2 (20л)",
+        category: "Смазочные материалы",
+        type: "CONSUMABLE",
+        unit: "l",
+        warehouse: "Склад ГСМ №2",
+        cell: "Стеллаж G-01 / Бочка 03",
+        quantity: 12,
+        minQuantity: 40,
+        maxQuantity: 200,
+        reservedQuantity: 5,
+        unitPrice: 850,
+        currency: "RUB",
+        status: "LOW_STOCK",
+        supplier: "ООО ПромМасла Центр",
+        compatibleEquipment: ["EQ-CNC-2026-01"],
+        lastIncomingDate: new Date("2026-06-15"),
+        lastOutgoingDate: new Date("2026-08-05"),
+        responsibleUser: "Ковалев Д.М. (Кладовщик ГСМ)",
+        description: "Высококачественное масло для смазки направляющих станочного оборудования.",
+        barcode: "4607012948991"
+      },
+      {
+        id: "wms-003",
+        sku: "SKU-HYD-SEAL-P6334",
+        name: "Ремкомплект гидравлических уплотнений пресса П6334",
+        category: "Гидравлика",
+        type: "ZIP",
+        unit: "set",
+        warehouse: "Основной склад ЗИП",
+        cell: "Стеллаж H-02 / Ячейка 05",
+        quantity: 2,
+        minQuantity: 3,
+        maxQuantity: 10,
+        reservedQuantity: 2,
+        unitPrice: 18400,
+        currency: "RUB",
+        status: "LOW_STOCK",
+        supplier: "АО Тяжмехпресс",
+        compatibleEquipment: ["EQ-PRESS-2026-04"],
+        responsibleUser: "Смирнов А.В. (Старший кладовщик)",
+        barcode: "4607012948773"
+      },
+      {
+        id: "wms-004",
+        sku: "SKU-FILT-ATLAS-GA37",
+        name: "Масляный фильтр компрессора Atlas Copco GA37",
+        category: "Расходные элементы",
+        type: "CONSUMABLE",
+        unit: "pcs",
+        warehouse: "Цеховая кладовая №3",
+        cell: "Полка 03 / Ячейка C",
+        quantity: 0,
+        minQuantity: 4,
+        maxQuantity: 20,
+        reservedQuantity: 0,
+        unitPrice: 4200,
+        currency: "RUB",
+        status: "OUT_OF_STOCK",
+        supplier: "ООО Компрессор Технологии",
+        compatibleEquipment: ["EQ-COMP-2026-09"],
+        responsibleUser: "Сидоров А.Н. (Энергетик цеха)",
+        barcode: "4607012948332"
+      },
+      {
+        id: "wms-005",
+        sku: "SKU-ELEC-RELAY-24V",
+        name: "Реле промежутельное Finder 40.52 24V DC",
+        category: "Электроника",
+        type: "ZIP",
+        unit: "pcs",
+        warehouse: "Основной склад ЗИП",
+        cell: "Стеллаж E-01 / Блок 14",
+        quantity: 120,
+        minQuantity: 20,
+        maxQuantity: 80,
+        reservedQuantity: 10,
+        unitPrice: 650,
+        currency: "RUB",
+        status: "OVERSTOCKED",
+        supplier: "ООО ЭлектроКомплект",
+        compatibleEquipment: ["EQ-CNC-2026-01", "EQ-PRESS-2026-04"],
+        responsibleUser: "Смирнов А.В. (Старший кладовщик)",
+        barcode: "4607012948554"
+      }
+    ]
+  });
+
+  await prisma.wmsTransferRequest.deleteMany();
+  await prisma.wmsTransferRequest.createMany({
+    data: [
+      {
+        id: "tr-1001",
+        itemId: "wms-001",
+        itemSku: "SKU-BRG-6204-RS",
+        itemName: "Подшипник шариковый радиальный 6204-2RS SKF",
+        quantity: 5,
+        fromWarehouse: "Основной склад ЗИП",
+        toWarehouse: "Цеховая кладовая №3",
+        requestedBy: "Сидоров А.Н. (Энергетик цеха)",
+        requestedByUsername: "approver",
+        targetMolUser: "Смирнов А.В. (Старший кладовщик)",
+        targetMolUsername: "admin",
+        reason: "Плановая замена подшипников токарного станка EQ-CNC-2026-01",
+        status: "PENDING"
+      },
+      {
+        id: "tr-1002",
+        itemId: "wms-002",
+        itemSku: "SKU-OIL-MOBIL-VACTRA2",
+        itemName: "Масло направляющих скольжения Mobil Vactra No.2 (20л)",
+        quantity: 2,
+        fromWarehouse: "Склад ГСМ №2",
+        toWarehouse: "Основной склад ЗИП",
+        requestedBy: "Смирнов А.В. (Старший кладовщик)",
+        requestedByUsername: "admin",
+        targetMolUser: "Ковалев Д.М. (Кладовщик ГСМ)",
+        targetMolUsername: "editor",
+        reason: "Пополнение оперативного резерва перед ТО цеха №1",
+        status: "PENDING"
+      }
+    ]
+  });
+
+  await prisma.wmsMovement.deleteMany();
+  await prisma.wmsMovement.createMany({
+    data: [
+      {
+        id: "mov-001",
+        itemId: "wms-001",
+        itemSku: "SKU-BRG-6204-RS",
+        itemName: "Подшипник шариковый радиальный 6204-2RS SKF",
+        type: "OUTGOING",
+        quantity: 4,
+        fromLocation: "Основной склад ЗИП",
+        toLocation: "Цех №3 (Ремонт EQ-CNC-2026-01)",
+        performedBy: "Смирнов А.В.",
+        reason: "Замена подшипника шпиндельного узла фрезерного станка",
+        relatedOrderOrEq: "EQ-CNC-2026-01"
+      },
+      {
+        id: "mov-002",
+        itemId: "wms-002",
+        itemSku: "SKU-OIL-MOBIL-VACTRA2",
+        itemName: "Масло направляющих скольжения Mobil Vactra No.2 (20л)",
+        type: "OUTGOING",
+        quantity: 10,
+        fromLocation: "Склад ГСМ №2",
+        toLocation: "Участок ЧПУ",
+        performedBy: "Ковалев Д.М.",
+        reason: "Плановая доливка масла в гидростанцию",
+        relatedOrderOrEq: "EQ-CNC-2026-01"
+      }
+    ]
+  });
+
+  await prisma.enterpriseFacility.deleteMany();
+  await prisma.enterpriseFacility.createMany({
+    data: [
+      { code: "FAC-1", name: "Завод «Западный» - Цех №1 (Механообработка)" },
+      { code: "FAC-2", name: "Завод «Западный» - Цех №2 (Сборка & Литье)" },
+      { code: "FAC-3", name: "Завод «Северный» - Цех №4 (Энергокомплекс)" }
+    ]
+  });
+
+  await prisma.systemModule.deleteMany();
+  await prisma.systemModule.createMany({
+    data: [
+      { code: "EPS", name: "EPS Паспортизация", description: "Паспорта и учет промышленного оборудования", version: "1.16.0", isEnabled: true },
+      { code: "MRO", name: "MRO (ТОИР)", description: "Техническое обслуживание и ремонты", version: "0.9.0-dev", isEnabled: true },
+      { code: "SRM", name: "SRM Заявки", description: "Управление сервисными заявками", version: "1.0.0", isEnabled: true },
+      { code: "WMS", name: "WMS Склад", description: "Учет материалов и складские запасы", version: "1.0.0", isEnabled: true }
+    ]
+  });
+
+  console.log("Сидирование завершено: полная структура EPS, WMS, Facility и SystemModules успешно инициализирована.");
 }
 
 main()
@@ -419,3 +634,4 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+

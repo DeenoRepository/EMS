@@ -301,7 +301,8 @@ function WmsRegistryContent() {
     if (columns.actions) {
       cols.push({
         key: "actions",
-        header: <span className="text-right block">Действия</span>,
+        header: "Действия",
+        className: "text-right",
         cell: (item: WmsItem) => (
           <div className="flex items-center justify-end">
             <Link href={`/modules/wms/items/${item.id}`} className="text-[10px] font-semibold text-[#3473d4] hover:text-blue-700">
@@ -476,7 +477,6 @@ function WmsRegistryContent() {
         onSubmitSuccess={() => fetchItems()}
         items={items}
         selectedItems={items}
-        allRegistryItems={items}
         defaultType={opModalDefaultType}
       />
 
@@ -485,7 +485,6 @@ function WmsRegistryContent() {
         onClose={() => setShowTransferModal(false)}
         onSubmitSuccess={() => fetchItems()}
         selectedItems={items}
-        allRegistryItems={items}
       />
     </main>
   );

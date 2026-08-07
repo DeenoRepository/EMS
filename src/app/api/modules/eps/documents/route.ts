@@ -1,9 +1,41 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db/prisma";
 import { MOCK_DOCUMENTS, DocumentItem } from "@/lib/modules/eps-advanced-store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const equipmentCode = searchParams.get("equipmentCode");
+
+  try {
+    const where: any = {};
+    if (equipmentCode) {
+      where.equipment = { equipmentCode };
+    }
+
+    const dbDocs = await prisma.document.findMany({
+      where,
+      include: { equipment: true, versions: true },
+      orderBy: { updatedAt: "desc" }
+    });
+
+    if (dbDocs.length > 0) {
+      const mapped = dbDocs.map((d) => ({
+        id: d.id,
+        equipmentId: d.equipmentId,
+        equipmentCode: d.equipment.equipmentCode,
+        title: d.title,
+        docType: d.docType,
+        status: d.status,
+        fileName: d.versions[0]?.fileName || "document.pdf",
+        fileSize: "1.2 MB",
+        version: d.versions[0]?.versionNumber || 1,
+        updatedAt: d.updatedAt.toISOString()
+      }));
+      return NextResponse.json({ items: mapped, total: mapped.length });
+    }
+  } catch (err) {
+    console.warn("EPS Documents DB query failed, falling back to mock store:", err);
+  }
 
   let items = MOCK_DOCUMENTS;
   if (equipmentCode) {
@@ -41,4 +73,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ошибка загрузки документа" }, { status: 400 });
   }
 }
+
 
