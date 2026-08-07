@@ -127,23 +127,23 @@ export default function WmsTransferRequestModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-5">
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+        <div className="flex items-start justify-between border-b border-slate-100 pb-3.5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#3473d4] border border-blue-200">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#3473d4] border border-blue-200 shadow-2xs">
               <RefreshCcw size={20} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#17243a]">
+              <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-slate-400">
+                WMS Складской учёт • Форма заявки на перемещение
+              </div>
+              <h2 className="text-base font-bold text-[#17243a] mt-0.5 tracking-tight">
                 Запрос позиций с другого склада
               </h2>
-              <p className="text-[11px] text-slate-500">
-                Заявка будет направлена кладовщику (МОЛ) склада-источника на согласование
-              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -167,22 +167,22 @@ export default function WmsTransferRequestModal({
           {/* Warehouse Selector Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div className="space-y-1.5 flex flex-col h-full">
-              <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
-                <Building2 size={13} className="text-amber-600 shrink-0" />
+              <label className="text-[11px] font-bold text-[#17243a] flex items-center gap-1.5">
+                <Building2 size={13} className="text-[#3473d4] shrink-0" />
                 {uniqueSourceWarehouses.length > 1
                   ? `Склады-источники (${uniqueSourceWarehouses.length}):`
                   : "Склад-источник (Откуда запрашиваем):"}
               </label>
 
               {uniqueSourceWarehouses.length > 1 ? (
-                <div className="flex-1 rounded-xl border border-amber-200/80 bg-amber-50/40 p-2.5 space-y-1.5 text-xs">
-                  <div className="font-semibold text-amber-900 text-[10px] uppercase tracking-wider flex items-center gap-1">
-                    <Building2 size={11} className="text-amber-600" />
+                <div className="flex-1 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 space-y-1.5 text-xs">
+                  <div className="font-bold text-[#17243a] text-[10px] uppercase tracking-wider flex items-center gap-1">
+                    <Building2 size={11} className="text-[#3473d4]" />
                     <span>Запрос с {uniqueSourceWarehouses.length} разных складов:</span>
                   </div>
                   <div className="space-y-1 text-[11px]">
                     {targetMolsList.map((item) => (
-                      <div key={item.warehouse} className="flex items-center justify-between bg-white px-2.5 py-1 rounded-lg border border-amber-200/60 shadow-2xs">
+                      <div key={item.warehouse} className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
                         <span className="font-bold text-[#17243a] text-[11px] truncate max-w-[120px]">{item.warehouse}</span>
                         <span className="text-[10px] text-slate-500 font-medium truncate max-w-[130px]" title={item.mol}>МОЛ: {item.mol}</span>
                       </div>
@@ -191,27 +191,27 @@ export default function WmsTransferRequestModal({
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col justify-between space-y-1">
-                  <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-xs font-semibold text-slate-700">
+                  <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#17243a]">
                     <span className="truncate">{uniqueSourceWarehouses[0] || fromWarehouse}</span>
                   </div>
                   <span className="block text-[10px] text-slate-400">
-                    Ответственный МОЛ склада: <span className="font-semibold text-slate-600">{targetMolsList[0]?.mol}</span>
+                    Ответственный МОЛ склада: <span className="font-semibold text-slate-700">{targetMolsList[0]?.mol}</span>
                   </span>
                 </div>
               )}
             </div>
 
             <div className="space-y-1.5 flex flex-col h-full">
-              <label className="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
+              <label className="text-[11px] font-bold text-[#17243a] flex items-center gap-1.5">
                 <Building2 size={13} className="text-[#3473d4] shrink-0" />
                 Склад-получатель (Ваш склад):
               </label>
               <div className="flex-1 flex flex-col justify-between space-y-1">
-                <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-slate-100 px-3 text-xs font-semibold text-slate-700">
+                <div className="flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-[#17243a]">
                   <span className="truncate">{toWarehouse}</span>
                 </div>
                 <span className="block text-[10px] text-slate-400">
-                  Запрашивающий сотрудник: <span className="font-semibold text-slate-600">{currentUser?.displayName || "Кладовщик-заявитель"}</span>
+                  Запрашивающий сотрудник: <span className="font-semibold text-slate-700">{currentUser?.displayName || "Администратор EMS"}</span>
                 </span>
               </div>
             </div>
@@ -219,40 +219,40 @@ export default function WmsTransferRequestModal({
 
           {/* Selected Items List */}
           <div className="space-y-2 pt-1">
-            <label className="text-[11px] font-semibold text-slate-700 flex items-center justify-between">
+            <label className="text-[11px] font-bold text-[#17243a] flex items-center justify-between">
               <span>Запрашиваемые позиции ТМЦ ({selectedItems.length}):</span>
             </label>
             <div className="max-h-52 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
               {selectedItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-[#f8fafc] p-3 text-xs hover:border-blue-200 transition"
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-xs shadow-2xs hover:border-blue-300 transition"
                 >
-                  <div className="flex items-start gap-2.5 max-w-[320px]">
+                  <div className="flex items-start gap-2.5 max-w-[340px]">
                     <div className="rounded-lg bg-blue-50 p-2 text-[#3473d4] border border-blue-100 shrink-0 mt-0.5">
-                      <Box size={14} />
+                      <Box size={15} />
                     </div>
                     <div>
                       <div className="font-bold text-[#17243a] text-[12px] leading-tight">{item.name}</div>
-                      <div className="text-[10px] text-slate-500 font-medium mt-1 flex items-center gap-1">
-                        <Building2 size={11} className="text-amber-600 shrink-0" />
-                        <span>Склад хранения: <strong className="text-slate-700">{item.warehouse}</strong></span>
+                      <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                        <Building2 size={11} className="text-[#3473d4] shrink-0" />
+                        <span>Склад хранения: <strong className="text-slate-800">{item.warehouse}</strong></span>
                       </div>
                       <div className="text-[10px] font-mono text-slate-400 mt-0.5">
-                        {item.sku} • Доступно: {item.quantity} {item.unit}
+                        <span className="font-bold text-[#3473d4]">{item.sku}</span> • Доступно: {item.quantity} {item.unit}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Запрос:</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Запрос:</span>
                     <input
                       type="number"
                       min={1}
                       max={item.quantity || 999}
                       value={quantityMap[item.id] || 1}
                       onChange={(e) => handleQtyChange(item.id, Number(e.target.value))}
-                      className="h-8 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center font-bold text-[#17243a] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
+                      className="h-9 w-16 rounded-lg border border-slate-200 bg-white px-2 text-center font-bold text-[#17243a] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
                     />
                     <span className="text-slate-500 font-semibold text-[11px] w-10 text-left truncate">{item.unit}</span>
                   </div>
@@ -263,13 +263,13 @@ export default function WmsTransferRequestModal({
 
           {/* Reason */}
           <div className="space-y-1.5 pt-1">
-            <label className="text-[11px] font-semibold text-slate-700">Основание / Причина перемещения:</label>
+            <label className="text-[11px] font-bold text-[#17243a]">Основание / Причина перемещения:</label>
             <textarea
               rows={2}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Укажите причину перемещения, объект или заказ-наряд..."
-              className="w-full rounded-lg border border-slate-200 bg-[#f8fafc] p-2.5 text-xs outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 transition"
+              className="w-full rounded-lg border border-slate-200 bg-white p-3 text-[11px] font-medium text-[#17243a] outline-none transition focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 placeholder:text-slate-400"
             />
           </div>
 
@@ -278,17 +278,16 @@ export default function WmsTransferRequestModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[11px] font-semibold text-slate-600 shadow-2xs hover:bg-slate-50 transition cursor-pointer"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#2565c8] transition cursor-pointer"
+              className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition cursor-pointer disabled:opacity-50"
             >
               <Send size={13} />
-              {loading ? "Отправка запроса..." : "Отправить запрос кладовщику"}
             </button>
           </div>
         </form>

@@ -217,25 +217,27 @@ export default function WmsItemForm({ initialData, isOpen, onClose, onSubmitSucc
         aria-modal="true"
         className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col my-auto"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        {/* Header EPS Standard */}
+        <div className="flex items-start justify-between border-b border-slate-100 pb-3.5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-[#3473d4]">
-              <Box size={18} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#3473d4] border border-blue-200 shadow-2xs">
+              <Box size={20} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#17243a]">
+              <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-slate-400">
+                WMS Складской учёт • Форма паспортизации ТМЦ
+              </div>
+              <h3 className="text-base font-bold text-[#17243a] mt-0.5 tracking-tight">
                 {initialData?.id ? "Редактирование карточки ТМЦ / ЗИП" : "Создание новой карточки ТМЦ / ЗИП"}
               </h3>
-              <p className="text-[10px] text-slate-400">Заполните складские реквизиты, нормативы и технические характеристики</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition cursor-pointer"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 

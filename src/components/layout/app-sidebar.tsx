@@ -40,6 +40,7 @@ function SidebarContent() {
     setSidebarCollapsed,
     toggleSidebar: onToggle,
     pendingApprovals,
+    pendingWmsTransfers,
   } = useShell();
 
   const pathname = usePathname();
@@ -471,6 +472,11 @@ function SidebarContent() {
                           {sub.id === "nav-wms-warehouses" && <Building2 size={12} />}
                           {sub.id === "nav-wms-reports" && <PieChart size={12} />}
                           <span className="flex-1">{sub.title}</span>
+                          {sub.id === "nav-wms-movements" && pendingWmsTransfers > 0 && (
+                            <span className="rounded bg-[#2366c6]/40 px-1.5 py-0.5 text-[8px] font-bold text-[#55a5ff] font-mono">
+                              {pendingWmsTransfers}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}

@@ -49,6 +49,8 @@ interface ShellContextType {
   addRecentPage: (page: { title: string; href: string }) => void;
   pendingApprovals: number;
   refreshPendingApprovals: () => Promise<void>;
+  pendingWmsTransfers: number;
+  refreshPendingWmsTransfers: () => Promise<void>;
   notifications: NotificationItem[];
   markNotificationRead: (id: string) => void;
   searchModalOpen: boolean;
@@ -69,6 +71,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
+  const [pendingWmsTransfers, setPendingWmsTransfers] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   const refreshPendingApprovals = useCallback(async () => {
@@ -82,6 +85,20 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // Игнорируем ошибки при отсутствии сети
+    }
+  }, []);
+
+  const refreshPendingWmsTransfers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/modules/wms/transfer-requests?status=PENDING");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.requests && Array.isArray(data.requests)) {
+          setPendingWmsTransfers(data.requests.length);
+        }
+      }
+    } catch {
+      // Игнорируем
     }
   }, []);
 
@@ -119,12 +136,14 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
 
     refreshPendingApprovals();
+    refreshPendingWmsTransfers();
 
     // Загрузка запросов на перемещение ТМЦ и генерация уведомлений для кладовщика
     fetch("/api/modules/wms/transfer-requests?status=PENDING")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.requests && Array.isArray(data.requests)) {
+          setPendingWmsTransfers(data.requests.length);
           const transferNotifs: NotificationItem[] = data.requests.map((r: any) => ({
             id: `notif-${r.id}`,
             title: "Запрос на перемещение ТМЦ",
@@ -148,6 +167,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     // Автоматическое периодическое обновление очереди согласований каждые 60 секунд
     const intervalId = setInterval(() => {
       refreshPendingApprovals();
+      refreshPendingWmsTransfers();
     }, 60000);
 
     const savedCollapsed = localStorage.getItem("ems_shell_sidebar_collapsed");
@@ -274,6 +294,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
         addRecentPage,
         pendingApprovals,
         refreshPendingApprovals,
+        pendingWmsTransfers,
+        refreshPendingWmsTransfers,
         notifications,
         markNotificationRead,
         searchModalOpen,

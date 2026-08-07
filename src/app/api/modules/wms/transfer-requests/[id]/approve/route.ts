@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getGlobalTransferRequests, updateGlobalTransferRequest } from "../route";
+import { getGlobalTransferRequests, updateGlobalTransferRequest } from "../../route";
+import { WmsTransferRequest } from "@/lib/modules/wms-store";
 
 export async function POST(
   request: Request,
@@ -11,7 +12,7 @@ export async function POST(
     const { action, comment, approvedBy } = body; // action: 'APPROVE' | 'REJECT'
 
     const requests = getGlobalTransferRequests();
-    const found = requests.find((r) => r.id === id);
+    const found = requests.find((r: WmsTransferRequest) => r.id === id);
 
     if (!found) {
       return NextResponse.json({ error: "Запрос на перемещение не найден" }, { status: 404 });
