@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { useShell } from "@/components/layout/shell-context";
 import { MOCK_WMS_ITEMS, MOCK_WMS_MOVEMENTS, WmsItem, canUserManageItem, getWarehouseResponsibleUser } from "@/lib/modules/wms-store";

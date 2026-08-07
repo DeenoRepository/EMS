@@ -39,11 +39,15 @@ export default function WmsOperationModal({
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Состояния для живого ввода / автокомплита наименования номенклатуры при приходе
+  const [incomingSubMode, setIncomingSubMode] = useState<"SINGLE" | "BULK" | "MASS_INVOICE">("SINGLE");
   const [incomingSearchQuery, setIncomingSearchQuery] = useState<string>("");
   const [selectedIncomingItemId, setSelectedIncomingItemId] = useState<string | null>(null);
   const [showIncomingSuggestions, setShowIncomingSuggestions] = useState<boolean>(false);
 
   // Расширенные параметры для создания новой номенклатуры ТМЦ (БЕЗ СТОИМОСТИ)
+  const [supplierName, setSupplierName] = useState<string>("");
+  const [invoiceNumber, setInvoiceNumber] = useState<string>("");
+  const [invoiceDate, setInvoiceDate] = useState<string>("");
   const [newItemCategory, setNewItemCategory] = useState<string>("ЗИП и запчасти");
   const [newItemUnit, setNewItemUnit] = useState<WmsItem["unit"]>("pcs");
   const [newItemSku, setNewItemSku] = useState<string>("");
@@ -74,6 +78,7 @@ export default function WmsOperationModal({
   const currentItem = items.find((i) => i.id === selectedItemId) || items[0];
 
   // Состояние группового/массового выбора номенклатур
+  const [massIncomingItems, setMassIncomingItems] = useState<Array<{ name: string; sku: string; category: string; quantity: number; unit: WmsItem["unit"]; cell: string }>>([]);
   const [bulkItemList, setBulkItemList] = useState<WmsItem[]>(selectedItems);
   const [isBulkModeActive, setIsBulkModeActive] = useState<boolean>(selectedItems.length > 1);
   const [addBulkSearchQuery, setAddBulkSearchQuery] = useState<string>("");
