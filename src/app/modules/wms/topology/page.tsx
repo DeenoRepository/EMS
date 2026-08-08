@@ -1,9 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { MapPin, Warehouse as WarehouseIcon, Plus, RefreshCw, Layers } from "lucide-react";
-import { PageHeader, Modal, ModalHeader } from "@/components/ui";
+import {
+  MapPin,
+  Warehouse as WarehouseIcon,
+  Plus,
+  RefreshCw,
+  Layers,
+  Search,
+  CheckCircle2,
+  Box,
+  SlidersHorizontal
+} from "lucide-react";
+import {
+  PageHeader,
+  KpiGrid,
+  DataTable,
+  StatusBadge,
+  Modal,
+  ModalHeader,
+  FilterToolbar
+} from "@/components/ui";
 
 interface StorageCell {
   id: string;
@@ -30,6 +48,8 @@ interface Warehouse {
 export default function WmsTopologyPage() {
   const [warehousesList, setWarehousesList] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [warehouseFilter, setWarehouseFilter] = useState("ALL");
   const [showAddCellModal, setShowAddCellModal] = useState(false);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
   const [cellCode, setCellCode] = useState("");
@@ -51,6 +71,58 @@ export default function WmsTopologyPage() {
   useEffect(() => {
     fetchTopology();
   }, []);
+
+  const kpiStats = useMemo(() => {
+    const totalWarehouses = warehousesList.length;
+    const totalCells = warehousesList.reduce((acc, w) => acc + (w.storageCells?.length || 0), 0);
+    const totalMols = Array.from(new Set(warehousesList.map((w) => w.responsibleUser))).length;
+    return { totalWarehouses, totalCells, totalMols };
+  }, [warehousesList]);
+
+  const filteredWarehouses = useMemo(() => {
+    return warehousesList.filter((wh) => {
+      if (warehouseFilter !== "ALL" && wh.id !== warehouseFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchesWh = wh.name.toLowerCase().includes(q) || wh.responsibleUser.toLowerCase().includes(q);
+        const matchesCell = wh.storageCells?.some(
+          (c) => c.code.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q))
+        );
+        return matchesWh || matchesCell;
+      }
+      return true;
+    });
+  }, [warehousesList, warehouseFilter, searchQuery]);
+
+  const allCellsList = useMemo(() => {
+    const list: { id: string; code: string; description?: string; warehouseName: string; responsibleUser: string }[] = [];
+    warehousesList.forEach((wh) => {
+      (wh.storageCells || []).forEach((c) => {
+        list.push({
+          id: c.id,
+          code: c.code,
+          description: c.description,
+          warehouseName: wh.name,
+          responsibleUser: wh.responsibleUser
+        });
+      });
+    });
+    return list.filter((c) => {
+      if (warehouseFilter !== "ALL") {
+        const whObj = warehousesList.find((w) => w.id === warehouseFilter);
+        if (whObj && c.warehouseName !== whObj.name) return false;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          c.code.toLowerCase().includes(q) ||
+          c.warehouseName.toLowerCase().includes(q) ||
+          (c.description && c.description.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [warehousesList, warehouseFilter, searchQuery]);
 
   const handleAddCell = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +155,7 @@ export default function WmsTopologyPage() {
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
-          title="Адресный учет складов"
+          title="Адресный учет складов & Топология ячеек"
           description="Управление стеллажами, зонами и динамическими ячейками хранения (Bins) по складам предприятия."
           breadcrumbs={[
             { title: "Главная", href: "/" },
@@ -101,7 +173,7 @@ export default function WmsTopologyPage() {
               </button>
               <button
                 onClick={() => setShowAddCellModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-[#2565c8]"
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
               >
                 <Plus size={14} /> Добавить ячейку
               </button>
@@ -109,8 +181,56 @@ export default function WmsTopologyPage() {
           }
         />
 
+        <KpiGrid
+          items={[
+            {
+              label: "Складов в топологии",
+              value: kpiStats.totalWarehouses,
+              sub: "Складских комплексов",
+              subColor: "slate",
+              icon: <WarehouseIcon size={18} />,
+              iconColor: "blue"
+            },
+            {
+              label: "Конфигурировано ячеек",
+              value: kpiStats.totalCells,
+              sub: "Адресных ячеек хранения (Bins)",
+              subColor: "emerald",
+              icon: <MapPin size={18} />,
+              iconColor: "emerald"
+            },
+            {
+              label: "Ответственных МОЛ",
+              value: kpiStats.totalMols,
+              sub: "Закрепленных кладовщиков",
+              subColor: "slate",
+              icon: <Layers size={18} />,
+              iconColor: "indigo"
+            }
+          ]}
+        />
+
+        <FilterToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Поиск по коду ячейки (напр. С-01-А3), стеллажу, складу, МОЛ..."
+          filters={[
+            {
+              key: "warehouse",
+              label: "Склад",
+              value: warehouseFilter,
+              options: [
+                { label: "Все склады", value: "ALL" },
+                ...warehousesList.map((w) => ({ label: w.name, value: w.id }))
+              ],
+              onChange: setWarehouseFilter
+            }
+          ]}
+        />
+
+        {/* TOPOLOGY WAREHOUSE CARDS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {warehousesList.map((wh) => (
+          {filteredWarehouses.map((wh) => (
             <div key={wh.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -133,7 +253,8 @@ export default function WmsTopologyPage() {
                     wh.storageCells.map((cell) => (
                       <div
                         key={cell.id}
-                        className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-mono font-semibold text-slate-700 shadow-2xs transition-colors hover:border-blue-300 hover:bg-blue-50"
+                        className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-mono font-semibold text-slate-700 shadow-2xs transition-colors hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                        title={cell.description || `Ячейка ${cell.code}`}
                       >
                         <MapPin size={12} className="text-blue-500" />
                         {cell.code}
@@ -148,6 +269,60 @@ export default function WmsTopologyPage() {
           ))}
         </div>
 
+        {/* DETAILED STORAGE BINS REPOSITORY TABLE */}
+        <div className="space-y-3 pt-2">
+          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <Layers size={16} className="text-blue-600" /> Реестр ячеек адресного хранения (Bins)
+          </h3>
+
+          <DataTable
+            columns={[
+              {
+                key: "code",
+                header: "Код ячейки",
+                cell: (row) => (
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-blue-50 px-2 py-0.5 font-mono text-xs font-bold text-blue-700 border border-blue-100">
+                      {row.code}
+                    </span>
+                  </div>
+                )
+              },
+              {
+                key: "warehouseName",
+                header: "Склад",
+                cell: (row) => (
+                  <span className="font-semibold text-slate-900 text-xs">{row.warehouseName}</span>
+                )
+              },
+              {
+                key: "description",
+                header: "Описание / Стеллаж",
+                cell: (row) => (
+                  <span className="text-xs text-slate-600">{row.description || "Стандартная ячейка"}</span>
+                )
+              },
+              {
+                key: "responsibleUser",
+                header: "Ответственный МОЛ",
+                cell: (row) => (
+                  <span className="text-xs font-medium text-slate-700">{row.responsibleUser}</span>
+                )
+              },
+              {
+                key: "status",
+                header: "Статус ячейки",
+                cell: () => (
+                  <StatusBadge status="ACTIVE" label="Активна" />
+                )
+              }
+            ]}
+            data={allCellsList}
+            keyExtractor={(row) => row.id}
+          />
+        </div>
+
+        {/* ADD CELL MODAL */}
         <Modal open={showAddCellModal} onClose={() => setShowAddCellModal(false)} size="md">
           <ModalHeader
             icon={<MapPin size={16} />}
