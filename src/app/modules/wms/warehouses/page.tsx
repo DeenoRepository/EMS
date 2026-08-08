@@ -41,17 +41,13 @@ export default function WmsWarehousesPage() {
     responsibleUser: "Кладовщик И.И.",
   });
 
-  const fetchWarehouses = async () => {
+  const fetchWarehouses = () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/modules/wms/warehouses");
-      const data = await res.json();
-      setWarehouses(data.warehouses || []);
-    } catch (err) {
-      console.error("Failed to fetch warehouses:", err);
-    } finally {
-      setLoading(false);
-    }
+    fetch("/api/modules/wms/warehouses")
+      .then((res) => (res.ok ? res.json() : { warehouses: [] }))
+      .then((data) => setWarehouses(data.warehouses || []))
+      .catch((err) => console.error("Failed to fetch warehouses:", err))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -84,27 +80,31 @@ export default function WmsWarehousesPage() {
 
   return (
     <ShellLayout>
-      <div className="space-y-6">
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Склады & Ячейки хранения"
           description="Управление топологией складских помещений и местами размещения ТМЦ"
+          breadcrumbs={[
+            { title: "Главная", href: "/" },
+            { title: "WMS Складской учет", href: "/modules/wms" },
+            { title: "Склады & Ячейки" },
+          ]}
           actions={
-            <div className="flex items-center gap-2">
+            <>
               <button
                 onClick={fetchWarehouses}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
               >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                Обновить
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
               <button
                 onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500"
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
               >
-                <Plus size={14} />
-                Добавить склад
+                <Plus size={14} /> Добавить склад
               </button>
-            </div>
+            </>
           }
         />
 
@@ -112,16 +112,16 @@ export default function WmsWarehousesPage() {
           {warehouses.map((wh) => (
             <div
               key={wh.id}
-              className="rounded-xl border border-slate-800 bg-[#162238]/60 p-5 shadow-sm transition hover:border-slate-700"
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600/10 text-blue-400 border border-blue-500/20">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-[#3473d4]">
                     <WarehouseIcon size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">{wh.name}</h3>
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                    <h3 className="text-[13px] font-bold text-[#17243a]">{wh.name}</h3>
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
                       <UserCheck size={12} />
                       <span>МОЛ: {wh.responsibleUser}</span>
                     </div>
@@ -130,10 +130,10 @@ export default function WmsWarehousesPage() {
                 <StatusBadge status="ACTIVE" label="Активен" />
               </div>
 
-              <div className="mt-4 border-t border-slate-800/80 pt-4">
-                <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-                  <span className="font-semibold text-slate-300">Ячейки хранения</span>
-                  <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-blue-400 font-semibold">
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mb-2 flex items-center justify-between text-[11px] text-slate-500">
+                  <span className="font-semibold text-slate-700">Ячейки хранения</span>
+                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] text-[#3473d4] font-semibold">
                     {wh.storageCells.length} ячеек
                   </span>
                 </div>
@@ -142,13 +142,13 @@ export default function WmsWarehousesPage() {
                     wh.storageCells.map((cell) => (
                       <span
                         key={cell.id}
-                        className="inline-flex items-center gap-1 rounded bg-slate-900 border border-slate-800 px-2 py-1 text-[10px] font-mono text-slate-300"
+                        className="inline-flex items-center gap-1 rounded bg-slate-50 border border-slate-200 px-2 py-1 text-[10px] font-mono text-slate-700"
                       >
-                        <MapPin size={9} className="text-slate-500" /> {cell.code}
+                        <MapPin size={9} className="text-slate-400" /> {cell.code}
                       </span>
                     ))
                   ) : (
-                    <span className="text-[11px] italic text-slate-500">Ячейки не сконфигурированы</span>
+                    <span className="text-[11px] italic text-slate-400">Ячейки не сконфигурированы</span>
                   )}
                 </div>
               </div>
@@ -156,50 +156,55 @@ export default function WmsWarehousesPage() {
           ))}
         </div>
 
-        <Modal open={showModal} onClose={() => setShowModal(false)}>
-          <ModalHeader title="Добавление нового склада" onClose={() => setShowModal(false)} />
+        <Modal open={showModal} onClose={() => setShowModal(false)} size="lg">
+          <ModalHeader
+            icon={<WarehouseIcon size={16} />}
+            title="Добавление нового склада"
+            subtitle="Укажите наименование и материально ответственное лицо"
+            onClose={() => setShowModal(false)}
+          />
           <form onSubmit={handleSubmit} className="space-y-4 p-5">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-300">Наименование склада *</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">Наименование склада *</label>
               <input
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Склад №3 (Запчасти и расходники)"
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-300">Материально ответственное лицо (МОЛ) *</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">Материально ответственное лицо (МОЛ) *</label>
               <input
                 required
                 value={formData.responsibleUser}
                 onChange={(e) => setFormData({ ...formData, responsibleUser: e.target.value })}
                 placeholder="Иванов И.И."
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-800 pt-4">
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
                 Отмена
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
               >
                 {submitting ? "Создание..." : "Создать склад"}
               </button>
             </div>
           </form>
         </Modal>
-      </div>
+      </main>
     </ShellLayout>
   );
 }

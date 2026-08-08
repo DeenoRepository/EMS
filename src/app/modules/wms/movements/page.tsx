@@ -5,7 +5,8 @@ import ShellLayout from "@/components/layout/shell-layout";
 import {
   Plus,
   RefreshCw,
-  Server
+  Server,
+  History
 } from "lucide-react";
 import {
   PageHeader,
@@ -60,29 +61,23 @@ export default function WmsMovementsPage() {
     performedBy: "Кладовщик",
   });
 
-  const fetchData = async () => {
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const [movRes, itemsRes, eqRes] = await Promise.all([
-        fetch("/api/modules/wms/movements"),
-        fetch("/api/modules/wms/items"),
-        fetch("/api/modules/eps/equipment")
-      ]);
-      const movData = await movRes.json();
-      const itemsData = await itemsRes.json();
-      const eqData = await eqRes.json();
-
-      setMovements(movData.movements || []);
-      setItems(itemsData.items || []);
-      setEquipments(eqData.items || []);
-      if (itemsData.items?.length > 0) {
-        setFormData((prev) => ({ ...prev, itemId: itemsData.items[0].id }));
-      }
-    } catch (err) {
-      console.error("Failed to load WMS movements:", err);
-    } finally {
-      setLoading(false);
-    }
+    Promise.all([
+      fetch("/api/modules/wms/movements").then((res) => (res.ok ? res.json() : { movements: [] })),
+      fetch("/api/modules/wms/items").then((res) => (res.ok ? res.json() : { items: [] })),
+      fetch("/api/modules/eps/equipment").then((res) => (res.ok ? res.json() : { items: [] }))
+    ])
+      .then(([movData, itemsData, eqData]) => {
+        setMovements(movData.movements || []);
+        setItems(itemsData.items || []);
+        setEquipments(eqData.items || []);
+        if (itemsData.items?.length > 0) {
+          setFormData((prev) => ({ ...prev, itemId: itemsData.items[0].id }));
+        }
+      })
+      .catch((err) => console.error("Failed to load WMS movements:", err))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -114,31 +109,35 @@ export default function WmsMovementsPage() {
 
   return (
     <ShellLayout>
-      <div className="space-y-6">
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Складские операции & Списание на оборудование"
           description="Журнал движения ТМЦ, регистрация приходов и списаний запчастей на EPS единицы оборудования"
+          breadcrumbs={[
+            { title: "Главная", href: "/" },
+            { title: "WMS Складской учет", href: "/modules/wms" },
+            { title: "Движения & Списание" },
+          ]}
           actions={
-            <div className="flex items-center gap-2">
+            <>
               <button
                 onClick={fetchData}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
               >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                Обновить
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
               <button
                 onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500"
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
               >
-                <Plus size={14} />
-                Оформить операцию / Списание
+                <Plus size={14} /> Оформить операцию
               </button>
-            </div>
+            </>
           }
         />
 
-        <div className="rounded-xl border border-slate-800 bg-[#162238]/60 p-5">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <DataTable
             keyExtractor={(row) => row.id}
             data={movements}
@@ -147,7 +146,7 @@ export default function WmsMovementsPage() {
                 key: "createdAt",
                 header: "Дата / Время",
                 cell: (row) => (
-                  <span className="text-xs text-slate-400">
+                  <span className="text-[11px] text-slate-500">
                     {new Date(row.createdAt).toLocaleString("ru-RU")}
                   </span>
                 ),
@@ -156,9 +155,9 @@ export default function WmsMovementsPage() {
                 key: "itemSku",
                 header: "Артикул / ТМЦ",
                 cell: (row) => (
-                  <div>
-                    <div className="font-semibold text-white">{row.itemName}</div>
-                    <div className="text-[10px] text-slate-400">SKU: {row.itemSku}</div>
+                  <div className="font-mono">
+                    <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
+                    <span className="block text-[10px] text-slate-400">SKU: {row.itemSku}</span>
                   </div>
                 ),
               },
@@ -166,28 +165,24 @@ export default function WmsMovementsPage() {
                 key: "type",
                 header: "Тип операции",
                 cell: (row) => {
-                  if (row.type === "INCOMING") {
-                    return <StatusBadge status="ACTIVE" label="Приход (+)" />;
-                  }
-                  if (row.type === "OUTGOING" || row.type === "PERSONAL_CARD") {
-                    return <StatusBadge status="DECOMMISSIONED" label="Списание (-)" />;
-                  }
+                  if (row.type === "INCOMING") return <StatusBadge status="ACTIVE" label="Приход (+)" />;
+                  if (row.type === "OUTGOING" || row.type === "PERSONAL_CARD") return <StatusBadge status="DECOMMISSIONED" label="Списание (-)" />;
                   return <StatusBadge status="INACTIVE" label="Перемещение" />;
                 },
               },
               {
                 key: "quantity",
                 header: "Количество",
-                cell: (row) => <span className="font-bold text-white">{row.quantity}</span>,
+                cell: (row) => <span className="text-[11px] font-bold text-slate-800">{row.quantity}</span>,
               },
               {
                 key: "reason",
                 header: "Причина / Оборудование (EPS)",
                 cell: (row) => (
                   <div>
-                    <div className="text-xs text-slate-300">{row.reason || "Запланированное движение"}</div>
+                    <div className="text-[11px] text-slate-700">{row.reason || "Запланированное движение"}</div>
                     {row.relatedOrderOrEq && (
-                      <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-blue-400">
+                      <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-[#3473d4]">
                         <Server size={10} /> {row.relatedOrderOrEq}
                       </div>
                     )}
@@ -197,22 +192,27 @@ export default function WmsMovementsPage() {
               {
                 key: "performedBy",
                 header: "Ответственный",
-                cell: (row) => <span className="text-xs text-slate-400">{row.performedBy}</span>,
+                cell: (row) => <span className="text-[11px] text-slate-500">{row.performedBy}</span>,
               },
             ]}
           />
         </div>
 
-        <Modal open={showModal} onClose={() => setShowModal(false)}>
-          <ModalHeader title="Регистрация движения / Списания ТМЦ" onClose={() => setShowModal(false)} />
+        <Modal open={showModal} onClose={() => setShowModal(false)} size="lg">
+          <ModalHeader
+            icon={<History size={16} />}
+            title="Регистрация движения / Списания ТМЦ"
+            subtitle="Выберите позицию ТМЦ и основание выполнения операции"
+            onClose={() => setShowModal(false)}
+          />
           <form onSubmit={handleSubmit} className="space-y-4 p-5">
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-300">Выберите позицию ТМЦ *</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">Выберите позицию ТМЦ *</label>
               <select
                 required
                 value={formData.itemId}
                 onChange={(e) => setFormData({ ...formData, itemId: e.target.value })}
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
               >
                 {items.map((i) => (
                   <option key={i.id} value={i.id}>
@@ -224,11 +224,11 @@ export default function WmsMovementsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-300">Тип операции *</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Тип операции *</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="INCOMING">Приход на склад (+)</option>
                   <option value="OUTGOING">Списание со склада (-)</option>
@@ -237,26 +237,26 @@ export default function WmsMovementsPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-300">Количество *</label>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Количество *</label>
                 <input
                   type="number"
                   min="1"
                   required
                   value={formData.quantity}
                   onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value) })}
-                  className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-300">
+              <label className="mb-1 block text-xs font-semibold text-slate-700">
                 Привязать к оборудованию EPS (необязательно)
               </label>
               <select
                 value={formData.relatedOrderOrEq}
                 onChange={(e) => setFormData({ ...formData, relatedOrderOrEq: e.target.value })}
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
               >
                 <option value="">-- Без привязки к оборудованию --</option>
                 {equipments.map((eq) => (
@@ -268,34 +268,34 @@ export default function WmsMovementsPage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-300">Причина / Основание</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-700">Причина / Основание</label>
               <input
                 value={formData.reason}
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                 placeholder="Плановое обслуживание / Аварийная замена"
-                className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
               />
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-800 pt-4">
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
                 Отмена
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
               >
                 {submitting ? "Проведение..." : "Провести операцию"}
               </button>
             </div>
           </form>
         </Modal>
-      </div>
+      </main>
     </ShellLayout>
   );
 }

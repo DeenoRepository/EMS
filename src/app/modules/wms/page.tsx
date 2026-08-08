@@ -1,25 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import {
-  Warehouse,
+  Warehouse as WarehouseIcon,
   Box,
   TrendingUp,
   AlertTriangle,
-  ArrowUpRight,
-  ArrowDownLeft,
   RefreshCw,
+  Plus,
+  ChevronRight,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  Archive,
+  ArrowDownLeft,
+  ArrowUpRight,
   ArrowRightLeft
 } from "lucide-react";
 import Link from "next/link";
 import {
   PageHeader,
   KpiGrid,
+  Modal,
+  ModalHeader,
+  FilterToolbar,
+  DataTable,
   StatusBadge,
-  DonutChart,
-  BarChart,
-  DataTable
 } from "@/components/ui";
 
 interface WmsItem {
@@ -54,145 +61,110 @@ export default function WmsDashboardPage() {
   const [movements, setMovements] = useState<WmsMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const [itemsRes, movRes] = await Promise.all([
-        fetch("/api/modules/wms/items"),
-        fetch("/api/modules/wms/movements")
-      ]);
-      const itemsData = await itemsRes.json();
-      const movData = await movRes.json();
-
-      setItems(itemsData.items || []);
-      setMovements(movData.movements || []);
-    } catch (err) {
-      console.error("Failed to load WMS data:", err);
-    } finally {
-      setLoading(false);
-    }
+    Promise.all([
+      fetch("/api/modules/wms/items").then((res) => (res.ok ? res.json() : { items: [] })),
+      fetch("/api/modules/wms/movements").then((res) => (res.ok ? res.json() : { movements: [] }))
+    ])
+      .then(([itemsData, movData]) => {
+        setItems(itemsData.items || []);
+        setMovements(movData.movements || []);
+      })
+      .catch((err) => console.error("Failed to load WMS data:", err))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const totalPositions = items.length;
-  const totalUnits = items.reduce((acc, i) => acc + i.quantity, 0);
-  const lowStockCount = items.filter((i) => i.status === "LOW_STOCK" || i.quantity <= i.minQuantity).length;
-  const totalValue = items.reduce((acc, i) => acc + i.quantity * i.unitPrice, 0);
-
-  const kpiItems = [
-    {
-      id: "total-pos",
-      label: "Всего наименований",
-      value: totalPositions,
-      icon: <Box size={18} />,
-      iconColor: "blue" as const
-    },
-    {
-      id: "total-qty",
-      label: "Суммарный остаток (ед.)",
-      value: totalUnits,
-      icon: <Warehouse size={18} />,
-      iconColor: "emerald" as const
-    },
-    {
-      id: "low-stock",
-      label: "Дефицитные позиции",
-      value: lowStockCount,
-      icon: <AlertTriangle size={18} />,
-      iconColor: "amber" as const
-    },
-    {
-      id: "total-val",
-      label: "Оценка запасов",
-      value: `${totalValue.toLocaleString("ru-RU")} ₽`,
-      icon: <TrendingUp size={18} />,
-      iconColor: "indigo" as const
-    }
-  ];
-
-  const statusChartData = [
-    { label: "В наличии", value: items.filter((i) => i.status === "IN_STOCK").length, color: "#10b981" },
-    { label: "Заканчивается", value: lowStockCount, color: "#f59e0b" },
-    { label: "Отсутствует", value: items.filter((i) => i.status === "OUT_OF_STOCK").length, color: "#ef4444" },
-  ];
-
-  const warehouseMap = items.reduce((acc, i) => {
-    acc[i.warehouse] = (acc[i.warehouse] || 0) + i.quantity;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const warehouseChartData = Object.entries(warehouseMap).map(([label, value]) => ({
-    label,
-    value,
-    color: "#3b82f6"
-  }));
+  const kpiStats = useMemo(() => {
+    const totalPositions = items.length;
+    const totalUnits = items.reduce((acc, i) => acc + i.quantity, 0);
+    const lowStockCount = items.filter((i) => i.status === "LOW_STOCK" || i.quantity <= i.minQuantity).length;
+    const totalValue = items.reduce((acc, i) => acc + i.quantity * i.unitPrice, 0);
+    return { totalPositions, totalUnits, lowStockCount, totalValue };
+  }, [items]);
 
   return (
     <ShellLayout>
-      <div className="space-y-6">
+      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+        {/* Page Header matching EPS style */}
         <PageHeader
-          title="WMS Складской учет"
-          description="Мониторинг складских остатков ТМЦ, управление ячейками и отслеживание движений"
+          title="Дашборд Склада WMS"
+          description="Оперативный складской учет ТМЦ, мониторинг остатков и контрольные показатели"
+          breadcrumbs={[
+            { title: "Главная", href: "/" },
+            { title: "WMS Складской учет" },
+          ]}
           actions={
-            <div className="flex items-center gap-2">
+            <>
               <button
                 onClick={fetchData}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
               >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                Обновить
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
               <Link
                 href="/modules/wms/items"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500"
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
               >
-                <Box size={14} />
-                Каталог ТМЦ
+                <Box size={14} /> Каталог ТМЦ
               </Link>
-            </div>
+            </>
           }
         />
 
-        <KpiGrid items={kpiItems} />
+        {/* Quick KPI Summary Cards matching EPS style */}
+        <KpiGrid
+          items={[
+            {
+              label: "Всего наименований",
+              value: kpiStats.totalPositions,
+              icon: <Box size={14} />,
+              iconColor: "blue",
+              sub: "Артикулов в каталоге",
+            },
+            {
+              label: "Суммарный остаток",
+              value: kpiStats.totalUnits,
+              icon: <WarehouseIcon size={14} />,
+              iconColor: "emerald",
+              sub: "Единиц на хранении",
+              subColor: "emerald",
+            },
+            {
+              label: "Дефицитные позиции",
+              value: kpiStats.lowStockCount,
+              icon: <AlertTriangle size={14} />,
+              iconColor: "amber",
+              sub: "Требуют пополнения",
+              subColor: "amber",
+            },
+            {
+              label: "Оценка запасов",
+              value: `${kpiStats.totalValue.toLocaleString("ru-RU")} ₽`,
+              icon: <TrendingUp size={14} />,
+              iconColor: "indigo",
+              sub: "Балансовая стоимость",
+            },
+          ]}
+        />
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-slate-800 bg-[#162238]/60 p-5 shadow-sm">
-            <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-300">
-              Состояние складских запасов
-            </h3>
-            {items.length > 0 ? (
-              <DonutChart data={statusChartData} />
-            ) : (
-              <div className="py-12 text-center text-xs text-slate-500">Нет данных о запасах</div>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-[#162238]/60 p-5 shadow-sm">
-            <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-300">
-              Распределение позиций по складам
-            </h3>
-            {warehouseChartData.length > 0 ? (
-              <BarChart data={warehouseChartData} />
-            ) : (
-              <div className="py-12 text-center text-xs text-slate-500">Нет сохраненных складов</div>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-800 bg-[#162238]/60 p-5">
+        {/* Catalog Preview Table matching EPS DataTable design */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-white">Последние складские операции</h3>
-              <p className="text-xs text-slate-400">История приходов, списаний и перемещений</p>
+              <h3 className="text-[13px] font-bold text-[#17243a]">Последние складские операции</h3>
+              <p className="text-[11px] text-slate-400">История регистраций, списаний и перемещений ТМЦ</p>
             </div>
             <Link
               href="/modules/wms/movements"
-              className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+              className="text-[11px] font-semibold text-[#3473d4] hover:text-blue-700"
             >
-              Смотреть все →
+              Все движения <ChevronRight size={11} className="inline" />
             </Link>
           </div>
 
@@ -202,11 +174,11 @@ export default function WmsDashboardPage() {
             columns={[
               {
                 key: "itemSku",
-                header: "Артикул / ТМЦ",
+                header: "Артикул (SKU)",
                 cell: (row) => (
-                  <div>
-                    <div className="font-semibold text-white">{row.itemName}</div>
-                    <div className="text-[10px] text-slate-400">SKU: {row.itemSku}</div>
+                  <div className="font-mono">
+                    <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
+                    <span className="block text-[10px] text-slate-400">SKU: {row.itemSku}</span>
                   </div>
                 ),
               },
@@ -214,36 +186,30 @@ export default function WmsDashboardPage() {
                 key: "type",
                 header: "Тип операции",
                 cell: (row) => {
-                  if (row.type === "INCOMING") {
-                    return <StatusBadge status="ACTIVE" label="Приход (+)" />;
-                  }
-                  if (row.type === "OUTGOING" || row.type === "PERSONAL_CARD") {
-                    return <StatusBadge status="DECOMMISSIONED" label="Списание (-)" />;
-                  }
+                  if (row.type === "INCOMING") return <StatusBadge status="ACTIVE" label="Приход (+)" />;
+                  if (row.type === "OUTGOING" || row.type === "PERSONAL_CARD") return <StatusBadge status="DECOMMISSIONED" label="Списание (-)" />;
                   return <StatusBadge status="INACTIVE" label="Перемещение" />;
                 },
               },
               {
                 key: "quantity",
                 header: "Количество",
-                cell: (row) => <span className="font-semibold text-slate-200">{row.quantity}</span>,
+                cell: (row) => <span className="text-[11px] font-semibold text-slate-700">{row.quantity}</span>,
               },
               {
                 key: "fromLocation",
                 header: "Локация / Ячейка",
-                cell: (row) => (
-                  <span className="text-slate-300">{row.fromLocation || "Основная"}</span>
-                ),
+                cell: (row) => <span className="text-[11px] text-slate-600">{row.fromLocation || "Основная"}</span>,
               },
               {
                 key: "performedBy",
                 header: "Ответственный",
-                cell: (row) => <span className="text-slate-400">{row.performedBy}</span>,
+                cell: (row) => <span className="text-[11px] text-slate-500">{row.performedBy}</span>,
               },
             ]}
           />
         </div>
-      </div>
+      </main>
     </ShellLayout>
   );
 }
