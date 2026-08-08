@@ -10,9 +10,8 @@ import {
   RefreshCw,
   Plus,
   Tag,
-  Layers
+  UserCheck
 } from "lucide-react";
-import Link from "next/link";
 import {
   PageHeader,
   KpiGrid,
@@ -22,6 +21,18 @@ import {
   DataTable,
   StatusBadge,
 } from "@/components/ui";
+
+interface StorageCell {
+  id: string;
+  code: string;
+}
+
+interface Warehouse {
+  id: string;
+  name: string;
+  responsibleUser: string;
+  storageCells: StorageCell[];
+}
 
 interface WmsItem {
   id: string;
@@ -43,6 +54,7 @@ interface WmsItem {
 
 export default function ConsolidatedWmsDashboardPage() {
   const [items, setItems] = useState<WmsItem[]>([]);
+  const [warehousesList, setWarehousesList] = useState<Warehouse[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [warehouseFilter, setWarehouseFilter] = useState("ALL");
@@ -53,8 +65,8 @@ export default function ConsolidatedWmsDashboardPage() {
   const [formData, setFormData] = useState({
     name: "",
     sku: "",
-    category: "Запчасти",
-    warehouse: "Склад №1",
+    category: "Запчасти & Механика",
+    warehouse: "",
     cell: "А-01-1",
     quantity: 10,
     minQuantity: 2,
@@ -66,9 +78,22 @@ export default function ConsolidatedWmsDashboardPage() {
 
   const fetchData = () => {
     setLoading(true);
-    fetch(`/api/modules/wms/items?query=${encodeURIComponent(query)}`)
-      .then((res) => (res.ok ? res.json() : { items: [] }))
-      .then((data) => setItems(data.items || []))
+    Promise.all([
+      fetch(`/api/modules/wms/items?query=${encodeURIComponent(query)}`).then((res) => (res.ok ? res.json() : { items: [] })),
+      fetch("/api/modules/wms/warehouses").then((res) => (res.ok ? res.json() : { warehouses: [] }))
+    ])
+      .then(([itemsData, whData]) => {
+        setItems(itemsData.items || []);
+        const whs = whData.warehouses || [];
+        setWarehousesList(whs);
+        if (whs.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            warehouse: prev.warehouse || whs[0].name,
+            cell: whs[0].storageCells?.[0]?.code || "А-01-1"
+          }));
+        }
+      })
       .catch((err) => console.error("Failed to load WMS items:", err))
       .finally(() => setLoading(false));
   };
@@ -81,9 +106,11 @@ export default function ConsolidatedWmsDashboardPage() {
     return Array.from(new Set(items.map((i) => i.category))).filter(Boolean);
   }, [items]);
 
-  const warehouses = useMemo(() => {
-    return Array.from(new Set(items.map((i) => i.warehouse))).filter(Boolean);
-  }, [items]);
+  const availableWarehouses = useMemo(() => {
+    return Array.from(new Set(warehousesList.map((w) => w.name))).filter(Boolean);
+  }, [warehousesList]);
+
+  const selectedWarehouseObj = warehousesList.find((w) => w.name === formData.warehouse);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -115,9 +142,9 @@ export default function ConsolidatedWmsDashboardPage() {
         setFormData({
           name: "",
           sku: "",
-          category: "Запчасти",
-          warehouse: "Склад №1",
-          cell: "А-01-1",
+          category: "Запчасти & Механика",
+          warehouse: warehousesList[0]?.name || "",
+          cell: warehousesList[0]?.storageCells?.[0]?.code || "А-01-1",
           quantity: 10,
           minQuantity: 2,
           unit: "шт",
@@ -140,7 +167,6 @@ export default function ConsolidatedWmsDashboardPage() {
   return (
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
-        {/* Page Header */}
         <PageHeader
           title="Дашборд & Каталог ТМЦ WMS"
           description={`Консолидированный дашборд складского учета и остатков ТМЦ (всего ${filteredItems.length} из ${items.length} поз.).`}
@@ -167,7 +193,6 @@ export default function ConsolidatedWmsDashboardPage() {
           }
         />
 
-        {/* Quick KPI Summary Cards */}
         <KpiGrid
           items={[
             {
@@ -203,7 +228,6 @@ export default function ConsolidatedWmsDashboardPage() {
           ]}
         />
 
-        {/* Filter Toolbar */}
         <FilterToolbar
           searchQuery={query}
           onSearchChange={setQuery}
@@ -226,13 +250,12 @@ export default function ConsolidatedWmsDashboardPage() {
               onChange: setWarehouseFilter,
               options: [
                 { value: "ALL", label: "Все склады" },
-                ...warehouses.map((w) => ({ value: w, label: w })),
+                ...availableWarehouses.map((w) => ({ value: w, label: w })),
               ],
             },
           ]}
         />
 
-        {/* Consolidated Items Catalog Table */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <DataTable
             keyExtractor={(row) => row.id}
@@ -313,7 +336,7 @@ export default function ConsolidatedWmsDashboardPage() {
           />
         </div>
 
-        {/* Modal: Add New Item */}
+        {/* Modal: Add New Item with Automatic Warehouse Dropdown & MOL Info */}
         <Modal open={showCreateModal} onClose={() => setShowCreateModal(false)} size="lg">
           <ModalHeader
             icon={<Box size={16} />}
@@ -347,24 +370,55 @@ export default function ConsolidatedWmsDashboardPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Склад *</label>
-                <input
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Склад размещения *</label>
+                <select
                   required
                   value={formData.warehouse}
-                  onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
+                  onChange={(e) => {
+                    const selectedWh = e.target.value;
+                    const whObj = warehousesList.find((w) => w.name === selectedWh);
+                    setFormData({
+                      ...formData,
+                      warehouse: selectedWh,
+                      cell: whObj?.storageCells?.[0]?.code || "А-01-1"
+                    });
+                  }}
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
+                >
+                  {warehousesList.map((w) => (
+                    <option key={w.id} value={w.name}>
+                      {w.name} (МОЛ: {w.responsibleUser})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">Ячейка хранения *</label>
-                <input
+                <select
                   required
                   value={formData.cell}
                   onChange={(e) => setFormData({ ...formData, cell: e.target.value })}
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
+                >
+                  {selectedWarehouseObj?.storageCells && selectedWarehouseObj.storageCells.length > 0 ? (
+                    selectedWarehouseObj.storageCells.map((c) => (
+                      <option key={c.id} value={c.code}>
+                        {c.code}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="А-01-1">А-01-1 (По умолчанию)</option>
+                  )}
+                </select>
               </div>
             </div>
+
+            {selectedWarehouseObj && (
+              <div className="rounded-lg bg-blue-50/60 p-2.5 border border-blue-100 text-xs flex items-center gap-2 text-blue-900">
+                <UserCheck size={14} className="text-[#3473d4]" />
+                <span>Закрепленное МОЛ склада: <strong>{selectedWarehouseObj.responsibleUser}</strong></span>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-4">
               <div>

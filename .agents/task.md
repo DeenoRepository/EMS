@@ -1,22 +1,22 @@
-# Industrial WMS Upgrade Tasks
+# WMS Automatic MOL/Warehouses Autofill & Seed Tasks
 
-## 1. Database & Schema (`postgres-prisma-engineer`)
-- [ ] Add `WmsPersonalCard` model to `prisma/schema.prisma` for employee asset tracking.
-- [ ] Ensure `WmsTransferRequest` relations and `npx prisma generate` execution.
+## 1. Database & Seed (`postgres-prisma-engineer`)
+- [ ] Create `prisma/seed.ts` script populating warehouses, storage cells, initial WMS items, movements, and personal cards.
+- [ ] Configure `package.json` with `"prisma": { "seed": "ts-node prisma/seed.ts" }` script.
 
-## 2. Backend & Business Logic (`backend-api-architect`)
-- [ ] Build `/api/modules/wms/transfers` for 2-step inter-warehouse MOL transfer approvals.
-- [ ] Build `/api/modules/wms/personal-cards` for issuing assets and registering returns with item conditions.
+## 2. Backend & API Services (`backend-api-architect`)
+- [ ] Update `/api/modules/wms/warehouses` to return active warehouses and their assigned MOLs.
+- [ ] Ensure automatic warehouse/MOL selection based on operation direction (incoming/outgoing/transfers).
 
 ## 3. Frontend Architecture (`nextjs-frontend-architect`)
-- [ ] Create `/modules/wms/transfers/page.tsx` for MOL transfer requests and approvals.
-- [ ] Create `/modules/wms/personal-cards/page.tsx` for personal asset cards and returns.
-- [ ] Create `BarcodeLabelModal` component for SVG QR/barcode label printing.
-- [ ] Update `src/lib/config/nav.ts` and `AppSidebar` with new subpages.
+- [ ] Update WMS modal forms (`transfers/page.tsx`, `personal-cards/page.tsx`, `page.tsx`) to auto-populate warehouses and assigned MOLs without manual typing.
 
-## 4. Verification & QA (`qa-code-reviewer`)
+## 4. Quality Assurance & Verification (`qa-code-reviewer`)
+- [ ] Execute `npx prisma db seed` (or `npx ts-node prisma/seed.ts`) to verify seeding.
 - [ ] Run `npx tsc --noEmit` type checking.
 - [ ] Run `npx next build` production build verification.
+
+
 
 
 

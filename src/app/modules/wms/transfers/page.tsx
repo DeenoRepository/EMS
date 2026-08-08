@@ -8,7 +8,6 @@ import {
   RefreshCw,
   CheckCircle2,
   XCircle,
-  Clock,
   Warehouse as WarehouseIcon
 } from "lucide-react";
 import {
@@ -33,6 +32,12 @@ interface WmsTransferRequest {
   createdAt: string;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+  responsibleUser: string;
+}
+
 interface WmsItem {
   id: string;
   sku: string;
@@ -44,6 +49,7 @@ interface WmsItem {
 export default function WmsTransfersPage() {
   const [requests, setRequests] = useState<WmsTransferRequest[]>([]);
   const [items, setItems] = useState<WmsItem[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -51,7 +57,7 @@ export default function WmsTransfersPage() {
   const [formData, setFormData] = useState({
     itemId: "",
     quantity: 1,
-    toWarehouse: "Склад №2",
+    toWarehouse: "",
     reason: "Производственная необходимость",
   });
 
@@ -59,13 +65,21 @@ export default function WmsTransfersPage() {
     setLoading(true);
     Promise.all([
       fetch("/api/modules/wms/transfers").then((res) => (res.ok ? res.json() : { requests: [] })),
-      fetch("/api/modules/wms/items").then((res) => (res.ok ? res.json() : { items: [] }))
+      fetch("/api/modules/wms/items").then((res) => (res.ok ? res.json() : { items: [] })),
+      fetch("/api/modules/wms/warehouses").then((res) => (res.ok ? res.json() : { warehouses: [] }))
     ])
-      .then(([reqData, itemsData]) => {
+      .then(([reqData, itemsData, whData]) => {
         setRequests(reqData.requests || []);
         setItems(itemsData.items || []);
+        const whList = whData.warehouses || [];
+        setWarehouses(whList);
+
         if (itemsData.items?.length > 0) {
-          setFormData((prev) => ({ ...prev, itemId: itemsData.items[0].id }));
+          setFormData((prev) => ({
+            ...prev,
+            itemId: itemsData.items[0].id,
+            toWarehouse: whList.find((w: Warehouse) => w.name !== itemsData.items[0].warehouse)?.name || whList[0]?.name || ""
+          }));
         }
       })
       .catch((err) => console.error("Failed to load transfers:", err))
@@ -75,6 +89,11 @@ export default function WmsTransfersPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Автоматический подбор МОЛ целевого склада при выборе склада назначения
+  const selectedItem = items.find((i) => i.id === formData.itemId);
+  const targetWarehouseObj = warehouses.find((w) => w.name === formData.toWarehouse);
+  const availableTargetWarehouses = warehouses.filter((w) => w.name !== selectedItem?.warehouse);
 
   const handleAction = async (requestId: string, action: "APPROVE" | "REJECT") => {
     try {
@@ -101,7 +120,10 @@ export default function WmsTransfersPage() {
       const res = await fetch("/api/modules/wms/transfers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          targetMolUser: targetWarehouseObj?.responsibleUser || ""
+        })
       });
       if (res.ok) {
         setShowModal(false);
@@ -179,9 +201,14 @@ export default function WmsTransfersPage() {
                 cell: (row) => <span className="text-[11px] font-bold text-slate-800">{row.quantity}</span>,
               },
               {
-                key: "requestedBy",
-                header: "Инициатор",
-                cell: (row) => <span className="text-[11px] text-slate-600">{row.requestedBy}</span>,
+                key: "targetMolUser",
+                header: "Ответственные МОЛ",
+                cell: (row) => (
+                  <div>
+                    <span className="block text-[11px] font-medium text-slate-700">Инициатор: {row.requestedBy}</span>
+                    <span className="block text-[10px] text-blue-600">Приемщик МОЛ: {row.targetMolUser}</span>
+                  </div>
+                ),
               },
               {
                 key: "status",
@@ -221,12 +248,12 @@ export default function WmsTransfersPage() {
           />
         </div>
 
-        {/* Modal: New Transfer Request */}
+        {/* Modal: New Transfer Request with Automatic Warehouse/MOL Selection */}
         <Modal open={showModal} onClose={() => setShowModal(false)} size="lg">
           <ModalHeader
             icon={<ArrowRightLeft size={16} />}
             title="Запрос на межскладское перемещение"
-            subtitle="Заполните позицию ТМЦ и склад-получатель"
+            subtitle="Выберите позицию ТМЦ и целевой склад (МОЛ подтянется автоматически)"
             onClose={() => setShowModal(false)}
           />
           <form onSubmit={handleCreate} className="space-y-4 p-5">
@@ -235,12 +262,17 @@ export default function WmsTransfersPage() {
               <select
                 required
                 value={formData.itemId}
-                onChange={(e) => setFormData({ ...formData, itemId: e.target.value })}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  const itemObj = items.find((i) => i.id === newId);
+                  const validTargetWh = warehouses.find((w) => w.name !== itemObj?.warehouse)?.name || "";
+                  setFormData({ ...formData, itemId: newId, toWarehouse: validTargetWh });
+                }}
                 className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
               >
                 {items.map((i) => (
                   <option key={i.id} value={i.id}>
-                    {i.name} (SKU: {i.sku}) — Склад: {i.warehouse} (Доступно: {i.quantity})
+                    {i.name} (SKU: {i.sku}) — Исходный Склад: {i.warehouse} (Остаток: {i.quantity})
                   </option>
                 ))}
               </select>
@@ -261,15 +293,27 @@ export default function WmsTransfersPage() {
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-700">Склад назначения (Получатель) *</label>
-                <input
+                <select
                   required
                   value={formData.toWarehouse}
                   onChange={(e) => setFormData({ ...formData, toWarehouse: e.target.value })}
-                  placeholder="Склад №2"
                   className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
+                >
+                  {availableTargetWarehouses.map((w) => (
+                    <option key={w.id} value={w.name}>
+                      {w.name} (МОЛ: {w.responsibleUser})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            {targetWarehouseObj && (
+              <div className="rounded-lg bg-blue-50/60 p-3 border border-blue-100 text-xs">
+                <span className="font-semibold text-blue-900">Автоматически определен МОЛ-приемщик:</span>{" "}
+                <span className="font-bold text-blue-700">{targetWarehouseObj.responsibleUser}</span>
+              </div>
+            )}
 
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-700">Причина / Основание передачи</label>
