@@ -15,7 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   QrCode,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown
 } from "lucide-react";
 import {
   PageHeader,
@@ -101,6 +102,7 @@ export default function ConsolidatedWmsOperationsPage() {
   const [loading, setLoading] = useState(true);
 
   // Modals state
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showMovModal, setShowMovModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -354,7 +356,7 @@ export default function ConsolidatedWmsOperationsPage() {
             { title: "Движения ТМЦ" },
           ]}
           actions={
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 relative">
               <button
                 onClick={fetchData}
                 disabled={loading}
@@ -362,30 +364,90 @@ export default function ConsolidatedWmsOperationsPage() {
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
-              <button
-                onClick={() => setShowInboundModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-[#2565c8]"
-              >
-                <Plus size={14} /> Оформить Приход
-              </button>
-              <button
-                onClick={() => setShowCardModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-700"
-              >
-                <UserCheck size={14} /> Выдать сотруднику
-              </button>
-              <button
-                onClick={() => setShowTransferModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700"
-              >
-                <ArrowRightLeft size={14} /> Переместить ТМЦ
-              </button>
-              <button
-                onClick={() => setShowMovModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-rose-700"
-              >
-                <FileSpreadsheet size={14} /> Списать ТМЦ
-              </button>
+
+              {/* Unified Action Dropdown Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setActionMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
+                >
+                  <Plus size={14} /> Оформить складскую операцию <ChevronDown size={13} className={actionMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+                </button>
+
+                {actionMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setActionMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl space-y-0.5">
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          setShowInboundModal(true);
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                      >
+                        <div className="rounded p-1 bg-blue-100 text-blue-600">
+                          <Plus size={14} />
+                        </div>
+                        <div>
+                          <div>Оформить Приход</div>
+                          <div className="text-[10px] font-normal text-slate-400">Поступление новой партии</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          setShowCardModal(true);
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition"
+                      >
+                        <div className="rounded p-1 bg-emerald-100 text-emerald-600">
+                          <UserCheck size={14} />
+                        </div>
+                        <div>
+                          <div>Выдать сотруднику</div>
+                          <div className="text-[10px] font-normal text-slate-400">Выдача СИЗ / Личная карточка</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          setShowTransferModal(true);
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                      >
+                        <div className="rounded p-1 bg-indigo-100 text-indigo-600">
+                          <ArrowRightLeft size={14} />
+                        </div>
+                        <div>
+                          <div>Переместить ТМЦ</div>
+                          <div className="text-[10px] font-normal text-slate-400">Трансфер другому МОЛ</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          setShowMovModal(true);
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                      >
+                        <div className="rounded p-1 bg-rose-100 text-rose-600">
+                          <FileSpreadsheet size={14} />
+                        </div>
+                        <div>
+                          <div>Списать ТМЦ</div>
+                          <div className="text-[10px] font-normal text-slate-400">Акт списания / Ремонт</div>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           }
         />
