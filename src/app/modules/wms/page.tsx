@@ -13,6 +13,7 @@ import {
   PackageCheck,
   DollarSign,
   Tag,
+  ArrowLeftRight,
 } from "lucide-react";
 import Link from "next/link";
 import WmsItemForm from "@/components/wms/wms-item-form";
@@ -63,6 +64,7 @@ function WmsRegistryContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showOpModal, setShowOpModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferModalItems, setTransferModalItems] = useState<WmsItem[]>([]);
   const [opModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
 
   // Column visibility state with localStorage persistence (hydrated in useEffect to prevent SSR mismatch)
@@ -305,7 +307,17 @@ function WmsRegistryContent() {
         header: "Действия",
         className: "text-right",
         cell: (item: WmsItem) => (
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-end gap-3">
+            <button
+              onClick={() => {
+                setTransferModalItems([item]);
+                setShowTransferModal(true);
+              }}
+              className="text-[10px] font-semibold text-slate-600 hover:text-[#3473d4]"
+              title="Запрос на перемещение"
+            >
+              Переместить
+            </button>
             <Link href={`/modules/wms/items/${item.id}`} className="text-[10px] font-semibold text-[#3473d4] hover:text-blue-700">
               Открыть <ChevronRight size={11} className="inline" />
             </Link>
@@ -341,6 +353,15 @@ function WmsRegistryContent() {
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
             >
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
+            </button>
+            <button
+              onClick={() => {
+                setTransferModalItems(filteredItems.length > 0 ? filteredItems : items);
+                setShowTransferModal(true);
+              }}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+            >
+              <ArrowLeftRight size={13} /> Создать запрос на перемещение
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -485,7 +506,7 @@ function WmsRegistryContent() {
         isOpen={showTransferModal}
         onClose={() => setShowTransferModal(false)}
         onSubmitSuccess={() => fetchItems()}
-        selectedItems={items}
+        selectedItems={transferModalItems.length > 0 ? transferModalItems : items}
       />
     </main>
   );
