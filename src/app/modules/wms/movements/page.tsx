@@ -14,6 +14,7 @@ import {
   Clock,
   Layers,
   FileSpreadsheet,
+  UserCheck,
 } from "lucide-react";
 import WmsOperationModal from "@/components/wms/wms-operation-modal";
 import WmsTransferRequestModal from "@/components/wms/wms-transfer-request-modal";
@@ -43,8 +44,13 @@ function WmsMovementsContent() {
   // Modals state
   const [showOpModal, setShowOpModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [opModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
+  const [opModalDefaultType, setOpModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
   const [selectedMovementDetails, setSelectedMovementDetails] = useState<WmsMovement | null>(null);
+
+  const openOperationModal = (type: WmsMovement["type"]) => {
+    setOpModalDefaultType(type);
+    setShowOpModal(true);
+  };
 
   // Transfer requests filters
   const [requestQuery, setRequestQuery] = useState("");
@@ -364,15 +370,38 @@ function WmsMovementsContent() {
             <button
               onClick={fetchItemsAndMovements}
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
             </button>
+            <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 hidden sm:block" />
             <button
-              onClick={() => setShowTransferModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
+              onClick={() => openOperationModal("INCOMING")}
+              className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold text-emerald-700 shadow-2xs hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 transition cursor-pointer"
+              title="Провести приход ТМЦ"
             >
-              <RefreshCcw size={14} /> Создать запрос на перемещение
+              <ArrowDownLeft size={13} /> Приход
+            </button>
+            <button
+              onClick={() => openOperationModal("TRANSFER")}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-semibold text-blue-700 shadow-2xs hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 transition cursor-pointer"
+              title="Перемещение между складами"
+            >
+              <RefreshCcw size={13} /> Перемещение
+            </button>
+            <button
+              onClick={() => openOperationModal("PERSONAL_CARD")}
+              className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 transition cursor-pointer"
+              title="Выдача ТМЦ в цех или сотруднику"
+            >
+              <UserCheck size={13} /> Выдача
+            </button>
+            <button
+              onClick={() => openOperationModal("OUTGOING")}
+              className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700 shadow-2xs hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60 transition cursor-pointer"
+              title="Списание ТМЦ"
+            >
+              <ArrowUpRight size={13} /> Списание
             </button>
           </>
         }
