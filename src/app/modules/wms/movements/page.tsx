@@ -364,12 +364,12 @@ export default function ConsolidatedWmsOperationsPage() {
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
-          title="Движения ТМЦ"
-          description="Единый центр проведения прихода номенклатуры, межскладских перемещений и списаний ТМЦ по оборудованию."
+          title="Аудит и Журнал движений ТМЦ"
+          description="Полный регистрационный журнал (аудит-трейл) всех физических и системных операций с ТМЦ: приходы, перемещения, выдачи и акты списания."
           breadcrumbs={[
             { title: "Главная", href: "/" },
             { title: "WMS Складской учет", href: "/modules/wms" },
-            { title: "Движения ТМЦ" },
+            { title: "Аудит движений ТМЦ" },
           ]}
           actions={
             <div className="flex items-center gap-2 relative">

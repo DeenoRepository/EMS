@@ -86,7 +86,7 @@ export const NAV_ITEMS: NavItem[] = [
       },
       {
         id: "nav-wms-movements",
-        title: "Движения ТМЦ",
+        title: "Аудит движений ТМЦ",
         href: "/modules/wms/movements",
         category: "Бизнес-модули",
         keywords: ["приход", "расход", "перемещение", "списание", "оборудование", "мол", "сиз", "карточки"],
