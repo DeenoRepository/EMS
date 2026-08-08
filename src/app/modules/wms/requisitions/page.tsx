@@ -39,7 +39,7 @@ interface WmsRequisition {
   items: RequisitionItem[];
 }
 
-export default function WmsRequisitionsPage() {
+function WmsRequisitionsPageContent() {
   const { refreshPendingWmsRequisitions } = useShell();
   const [requisitions, setRequisitions] = useState<WmsRequisition[]>([]);
   const [items, setItems] = useState<WmsItem[]>([]);
@@ -142,8 +142,7 @@ export default function WmsRequisitionsPage() {
   const pendingRequisitions = requisitions.filter((r) => r.status === "REQUESTED");
 
   return (
-    <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+    <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Журнал межскладских запросов"
           description="Оперативные заявки кладовщиков на перемещение номенклатуры со сторонних складов."
@@ -395,6 +394,13 @@ export default function WmsRequisitionsPage() {
           </form>
         </Modal>
       </main>
+  );
+}
+
+export default function WmsRequisitionsPage() {
+  return (
+    <ShellLayout>
+      <WmsRequisitionsPageContent />
     </ShellLayout>
   );
 }
