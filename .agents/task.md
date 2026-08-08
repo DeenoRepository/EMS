@@ -1,20 +1,16 @@
-# Task Decomposition: Automatic Nomenclature Item Integration on Receiving (Приход ТМЦ)
+# Task Decomposition: Editing TMC Item Position & Details (Редактирование позиции ТМЦ)
 
-## 1. Database & ORM Agent (`postgres-prisma-engineer`)
-- [x] Verify `WmsItem` model in `prisma/schema.prisma` (`sku`, `name`, `category`, `unit`, `unitPrice`, `minQuantity`, `warehouse`, `quantity`).
+## 1. Backend & Business Logic Agent (`backend-api-architect`)
+- [x] Create `src/app/api/modules/wms/items/[id]/route.ts`:
+  - `PUT` handler to update TMC item details (`name`, `sku`, `category`, `type`, `unit`, `warehouse`, `zone`, `cell`, `quantity`, `minQuantity`, `maxQuantity`, `unitPrice`, `supplier`, `batchNumber`, `serialNumber`, `description`).
+  - RBAC verification via `getUserResponsibleWarehouses()`.
+  - Log `WmsMovement` adjustment if cell/zone/warehouse or quantity changed.
 
-## 2. Backend & Business Logic Agent (`backend-api-architect`)
-- [ ] Enhance `src/app/api/modules/wms/items/route.ts`:
-  - When `POST` receiving an item, search by `sku` or `id`.
-  - If existing nomenclature found: increase stock quantity (`quantity += newQty`) and update cell/price.
-  - If new nomenclature: create new `WmsItem` record in master catalog.
+## 2. Frontend Architect Agent (`nextjs-frontend-architect`)
+- [x] Update `src/app/modules/wms/page.tsx`:
+  - Add "Редактировать" action button to TMC row actions.
+  - Implement `EditItemModal` pre-populated with TMC item details.
+  - Submit form to `PUT /api/modules/wms/items/[id]` and update local catalog state.
 
-## 3. Frontend Architect Agent (`nextjs-frontend-architect`)
-- [ ] Update `src/app/modules/wms/movements/page.tsx`:
-  - In Receiving modal rows, add a dropdown/autocomplete selector: **«Выберите существующую номенклатуру или введите новую»**.
-  - Auto-fill **Наименование**, **Артикул SKU**, **Категорию**, **Единицу измерения**, **Базовую цену** when an existing nomenclature item is selected.
-  - Show a clear indicator tag: **«Существующая номенклатура»** or **«Новая номенклатурная единица»**.
-
-## 4. Code Review & QA Agent (`qa-code-reviewer`)
-- [ ] Run `npx tsc --noEmit`.
-- [ ] Run `npm run build`.
+## 3. Code Review & QA Agent (`qa-code-reviewer`)
+- [x] Run `npx tsc --noEmit` and build verification. Verified pass.
