@@ -253,7 +253,7 @@ export default function WmsPersonalCardsPage() {
         });
         fetchData();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         alert(err.error || "Ошибка выдачи ТМЦ на карточку");
       }
     } catch (err) {
@@ -283,7 +283,7 @@ export default function WmsPersonalCardsPage() {
         setSelectedCard(null);
         fetchData();
       } else {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         alert(err.error || "Ошибка возврата ТМЦ");
       }
     } catch (err) {

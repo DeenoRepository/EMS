@@ -51,6 +51,9 @@ interface ShellContextType {
   refreshPendingApprovals: () => Promise<void>;
   pendingWmsRequisitions: number;
   refreshPendingWmsRequisitions: () => Promise<void>;
+  sidebarCounters: Record<string, number>;
+  refreshSidebarCounters: () => Promise<void>;
+  markSectionAsSeen: (sectionId: string) => void;
   notifications: NotificationItem[];
   markNotificationRead: (id: string) => void;
   searchModalOpen: boolean;
@@ -71,6 +74,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
   const [pendingWmsRequisitions, setPendingWmsRequisitions] = useState<number>(0);
+  const [sidebarCounters, setSidebarCounters] = useState<Record<string, number>>({});
+  const [sectionSeenTimestamps, setSectionSeenTimestamps] = useState<Record<string, number>>({});
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
@@ -119,6 +124,15 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
           if (Array.isArray(parsed)) setNotifications(parsed);
         } catch {}
       }
+
+      // Restore section seen timestamps
+      const savedSeen = localStorage.getItem("ems_shell_section_seen");
+      if (savedSeen) {
+        try {
+          const parsed = JSON.parse(savedSeen);
+          if (typeof parsed === "object" && parsed !== null) setSectionSeenTimestamps(parsed);
+        } catch {}
+      }
     });
 
     return () => {
@@ -154,6 +168,52 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshSidebarCounters = useCallback(async () => {
+    try {
+      const savedSeenStr = localStorage.getItem("ems_shell_section_seen");
+      let seenMap: Record<string, number> = {};
+      if (savedSeenStr) {
+        try {
+          seenMap = JSON.parse(savedSeenStr);
+        } catch {}
+      }
+
+      const params = new URLSearchParams();
+      Object.entries(seenMap).forEach(([k, v]) => {
+        params.set(`seen_${k}`, String(v));
+      });
+
+      const res = await fetch(`/api/modules/sidebar-counters?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.counters && typeof data.counters === "object") {
+          setSidebarCounters(data.counters);
+          if (typeof data.counters["nav-eps-approvals"] === "number") {
+            setPendingApprovals(data.counters["nav-eps-approvals"]);
+          }
+          if (typeof data.counters["nav-wms-requisitions"] === "number") {
+            setPendingWmsRequisitions(data.counters["nav-wms-requisitions"]);
+          }
+        }
+      }
+    } catch {
+      // Игнорируем ошибки сети
+    }
+  }, []);
+
+  const markSectionAsSeen = useCallback((sectionId: string) => {
+    const now = Date.now();
+    setSectionSeenTimestamps((prev) => {
+      const updated = { ...prev, [sectionId]: now };
+      localStorage.setItem("ems_shell_section_seen", JSON.stringify(updated));
+      return updated;
+    });
+    setSidebarCounters((prev) => {
+      const updated = { ...prev, [sectionId]: 0 };
+      return updated;
+    });
+  }, []);
+
   const markNotificationRead = (id: string) => {
     setNotifications((prev) => {
       const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
@@ -187,22 +247,24 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    // Асинхронное получение первичной очереди согласований и WMS запросов
+    // Асинхронное получение первичной очереди согласований, WMS запросов и счетчиков сайдбара
     void (async () => {
       await refreshPendingApprovals();
       await refreshPendingWmsRequisitions();
+      await refreshSidebarCounters();
     })();
 
-    // Автоматическое периодическое обновление очереди согласований каждые 60 секунд
+    // Автоматическое периодическое обновление очереди согласований и счетчиков каждые 60 секунд
     const intervalId = setInterval(() => {
       void refreshPendingApprovals();
       void refreshPendingWmsRequisitions();
+      void refreshSidebarCounters();
     }, 60000);
 
     applyTheme(theme);
 
     return () => clearInterval(intervalId);
-  }, [refreshPendingApprovals, refreshPendingWmsRequisitions, applyTheme, theme]);
+  }, [refreshPendingApprovals, refreshPendingWmsRequisitions, refreshSidebarCounters, applyTheme, theme]);
 
   const logout = async () => {
     try {
@@ -286,6 +348,9 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
         refreshPendingApprovals,
         pendingWmsRequisitions,
         refreshPendingWmsRequisitions,
+        sidebarCounters,
+        refreshSidebarCounters,
+        markSectionAsSeen,
         notifications,
         markNotificationRead,
         searchModalOpen,

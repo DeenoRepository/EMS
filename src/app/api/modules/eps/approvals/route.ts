@@ -4,6 +4,30 @@ import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 import { logEvent } from "@/lib/telemetry/logger";
 
+async function ensureDbUser(session: { id: string; email?: string; displayName?: string; username?: string }) {
+  try {
+    let user = await prisma.user.findUnique({ where: { id: session.id } });
+    if (user) return user.id;
+
+    if (session.email) {
+      user = await prisma.user.findUnique({ where: { email: session.email } });
+      if (user) return user.id;
+    }
+
+    const created = await prisma.user.create({
+      data: {
+        id: session.id,
+        email: session.email || `${session.id}@ems.local`,
+        displayName: session.displayName || session.username || "Пользователь EMS",
+      },
+    });
+    return created.id;
+  } catch (err) {
+    console.warn("[EPS Approvals] User auto-create warning:", err);
+    return session.id;
+  }
+}
+
 export async function GET() {
   const session = await getSession();
   if (!session) {
@@ -14,13 +38,13 @@ export async function GET() {
     const dbApprovals = await prisma.approvalRequest.findMany({
       include: {
         requestedBy: {
-          select: { displayName: true, email: true }
+          select: { displayName: true, email: true },
         },
         decidedBy: {
-          select: { displayName: true, email: true }
-        }
+          select: { displayName: true, email: true },
+        },
       },
-      orderBy: { submittedAt: "desc" }
+      orderBy: { submittedAt: "desc" },
     });
 
     const items = dbApprovals.map((req) => ({
@@ -29,11 +53,11 @@ export async function GET() {
       targetCode: req.targetId,
       title: req.comments ? req.comments.split("\n")[0] : `Заявка на согласование ${req.targetId}`,
       comments: req.comments,
-      requestedBy: req.requestedBy.email || req.requestedBy.displayName,
+      requestedBy: req.requestedBy?.email || req.requestedBy?.displayName || "Система",
       status: req.status,
       submittedAt: req.submittedAt.toISOString(),
       decidedAt: req.decidedAt ? req.decidedAt.toISOString() : undefined,
-      decidedBy: req.decidedBy ? (req.decidedBy.email || req.decidedBy.displayName) : undefined
+      decidedBy: req.decidedBy ? req.decidedBy.email || req.decidedBy.displayName : undefined,
     }));
 
     return NextResponse.json({ items });
@@ -54,6 +78,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { id, action, targetCode, title, comments } = body;
 
+    const actorId = await ensureDbUser(session);
+
     if (action === "CREATE") {
       if (!permissions.canEdit) {
         return NextResponse.json({ error: "Отказано в доступе. Подача заявок доступна только редакторам." }, { status: 403 });
@@ -62,18 +88,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Необходимы targetCode и title" }, { status: 400 });
       }
 
-      // Создаем заявку в PostgreSQL через Prisma
       const newApproval = await prisma.approvalRequest.create({
         data: {
           targetType: "EQUIPMENT_VERSION",
           targetId: String(targetCode),
           status: "PENDING",
           comments: `${title}${comments ? `\n${comments}` : ""}`,
-          requestedById: session.id,
+          requestedById: actorId,
         },
         include: {
-          requestedBy: { select: { email: true, displayName: true } }
-        }
+          requestedBy: { select: { email: true, displayName: true } },
+        },
       });
 
       logEvent({
@@ -82,7 +107,7 @@ export async function POST(request: Request) {
         action: "APPROVAL_CREATED",
         userId: session.id,
         userEmail: session.email,
-        details: { approvalId: newApproval.id, targetCode }
+        details: { approvalId: newApproval.id, targetCode },
       });
 
       return NextResponse.json(
@@ -94,33 +119,44 @@ export async function POST(request: Request) {
             targetCode: newApproval.targetId,
             title,
             comments,
-            requestedBy: newApproval.requestedBy.email || newApproval.requestedBy.displayName,
+            requestedBy: newApproval.requestedBy?.email || newApproval.requestedBy?.displayName || session.email,
             status: newApproval.status,
-            submittedAt: newApproval.submittedAt.toISOString()
-          }
+            submittedAt: newApproval.submittedAt.toISOString(),
+          },
         },
         { status: 201 }
       );
     }
 
-    // Разрешение заявки (APPROVE / REJECT)
+    // Разрешение заявки (APPROVED / REJECTED)
     if (!permissions.canApprove) {
       return NextResponse.json({ error: "Отказано в доступе. Согласование доступно только согласующим и администраторам." }, { status: 403 });
     }
 
-    const newStatus = (action === "APPROVED" || action === "APPROVE") ? "APPROVED" : "REJECTED";
+    const newStatus = action === "APPROVED" || action === "APPROVE" ? "APPROVED" : "REJECTED";
+
+    const existing = await prisma.approvalRequest.findUnique({
+      where: { id: String(id) },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: `Заявка на согласование с ID "${id}" не найдена в базе данных` },
+        { status: 404 }
+      );
+    }
 
     const updated = await prisma.approvalRequest.update({
       where: { id: String(id) },
       data: {
         status: newStatus,
-        decidedById: session.id,
-        decidedAt: new Date()
+        decidedById: actorId,
+        decidedAt: new Date(),
       },
       include: {
         requestedBy: { select: { email: true, displayName: true } },
-        decidedBy: { select: { email: true, displayName: true } }
-      }
+        decidedBy: { select: { email: true, displayName: true } },
+      },
     });
 
     logEvent({
@@ -129,7 +165,7 @@ export async function POST(request: Request) {
       action: newStatus === "APPROVED" ? "APPROVAL_RESOLVED_APPROVED" : "APPROVAL_RESOLVED_REJECTED",
       userId: session.id,
       userEmail: session.email,
-      details: { approvalId: updated.id, targetId: updated.targetId }
+      details: { approvalId: updated.id, targetId: updated.targetId },
     });
 
     return NextResponse.json({
@@ -140,15 +176,21 @@ export async function POST(request: Request) {
         targetCode: updated.targetId,
         title: updated.comments ? updated.comments.split("\n")[0] : updated.targetId,
         comments: updated.comments,
-        requestedBy: updated.requestedBy.email || updated.requestedBy.displayName,
+        requestedBy: updated.requestedBy?.email || updated.requestedBy?.displayName || "Система",
         status: updated.status,
         submittedAt: updated.submittedAt.toISOString(),
         decidedAt: updated.decidedAt?.toISOString(),
-        decidedBy: updated.decidedBy?.email || updated.decidedBy?.displayName
-      }
+        decidedBy: updated.decidedBy?.email || updated.decidedBy?.displayName || session.email,
+      },
     });
-  } catch (error) {
-    console.error("[EPS Approvals POST] Error:", error);
-    return NextResponse.json({ error: "Ошибка обработки согласования в БД" }, { status: 500 });
+  } catch (error: any) {
+    console.error("[EPS Approvals POST] Detailed Error Stack:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Ошибка обработки согласования в БД",
+        details: String(error),
+      },
+      { status: 500 }
+    );
   }
 }

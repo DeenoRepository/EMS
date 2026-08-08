@@ -4,7 +4,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export interface ModalProps {
-  open: boolean;
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   size?: "sm" | "md" | "lg" | "xl" | "full";
   closeOnBackdrop?: boolean;
@@ -15,6 +16,7 @@ export interface ModalProps {
 
 export function Modal({
   open,
+  isOpen,
   onClose,
   size = "lg",
   closeOnBackdrop = true,
@@ -22,8 +24,10 @@ export function Modal({
   children,
   className,
 }: ModalProps) {
+  const isModalOpen = open ?? isOpen ?? false;
+
   React.useEffect(() => {
-    if (!open || !closeOnEscape) return;
+    if (!isModalOpen || !closeOnEscape) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -33,9 +37,9 @@ export function Modal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, closeOnEscape, onClose]);
+  }, [isModalOpen, closeOnEscape, onClose]);
 
-  if (!open) return null;
+  if (!isModalOpen) return null;
 
   const maxWidthClass = {
     sm: "max-w-md",

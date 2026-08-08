@@ -144,6 +144,14 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  return handleReturn(request);
+}
+
+export async function PATCH(request: Request) {
+  return handleReturn(request);
+}
+
+async function handleReturn(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
@@ -151,7 +159,8 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { cardId, returnCondition } = body;
+    const cardId = body.cardId || body.id;
+    const { returnCondition } = body;
 
     if (!cardId || !returnCondition) {
       return NextResponse.json(

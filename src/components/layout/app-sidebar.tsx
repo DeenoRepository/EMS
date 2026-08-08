@@ -24,6 +24,8 @@ function SidebarContent() {
     toggleSidebar: onToggle,
     pendingApprovals,
     pendingWmsRequisitions,
+    sidebarCounters,
+    markSectionAsSeen,
   } = useShell();
 
   const pathname = usePathname();
@@ -265,6 +267,14 @@ function SidebarContent() {
               const isOpen = !!openSections[mod.id];
               const healthStatus = moduleHealth[mod.id] || mod.status;
 
+              // Суммарное количество событий для модуля при свёрнутом сайдбаре
+              const moduleEventsTotal = mod.navItems.reduce((sum, item) => {
+                let cnt = sidebarCounters[item.id] || 0;
+                if (item.id === "nav-eps-approvals") cnt = Math.max(cnt, pendingApprovals);
+                if (item.id === "nav-wms-requisitions") cnt = Math.max(cnt, pendingWmsRequisitions);
+                return sum + cnt;
+              }, 0);
+
               return (
                 <React.Fragment key={mod.id}>
                   <button
@@ -272,13 +282,20 @@ function SidebarContent() {
                     onClick={() => handleModuleClick(mod)}
                     aria-expanded={isOpen}
                     aria-label={`${mod.name} подменю`}
-                    className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] font-medium transition ${
+                    className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] font-medium transition relative ${
                       collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
                     } ${
                       isModuleActive ? "bg-[#1b2945] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
                     }`}
                   >
-                    <DynamicIcon name={mod.iconName} size={14} className={`shrink-0 ${isModuleActive ? "text-[#55a5ff]" : "text-slate-400"}`} />
+                    <div className="relative shrink-0 flex items-center justify-center">
+                      <DynamicIcon name={mod.iconName} size={14} className={`${isModuleActive ? "text-[#55a5ff]" : "text-slate-400"}`} />
+                      {collapsed && moduleEventsTotal > 0 && (
+                        <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[8px] font-bold text-white shadow-xs ring-1 ring-[#111a2e] animate-pulse">
+                          {moduleEventsTotal > 99 ? "99+" : moduleEventsTotal}
+                        </span>
+                      )}
+                    </div>
                     {!collapsed && (
                       <>
                         <span className="flex-1 truncate whitespace-nowrap">{mod.name}</span>
@@ -308,24 +325,35 @@ function SidebarContent() {
 
                         const isSubActive = pathname === sub.href;
 
+                        let eventCount = sidebarCounters[sub.id] || 0;
+                        if (sub.id === "nav-eps-approvals" && pendingApprovals > 0) {
+                          eventCount = Math.max(eventCount, pendingApprovals);
+                        }
+                        if (sub.id === "nav-wms-requisitions" && pendingWmsRequisitions > 0) {
+                          eventCount = Math.max(eventCount, pendingWmsRequisitions);
+                        }
+
                         return (
                           <Link
                             key={sub.id}
                             href={sub.href}
+                            onClick={() => markSectionAsSeen(sub.id)}
                             className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
                               isSubActive ? "bg-white/10 text-white font-semibold" : "hover:bg-white/5 hover:text-white"
                             }`}
                           >
                             <DynamicIcon name={sub.iconName} size={12} className="shrink-0" />
                             <span className="flex-1 truncate whitespace-nowrap">{sub.title}</span>
-                            {sub.id === "nav-eps-approvals" && pendingApprovals > 0 && (
-                              <span className="rounded bg-[#2366c6]/40 px-1 py-0.5 text-[8px] font-bold text-[#55a5ff] font-mono shrink-0">
-                                {pendingApprovals}
-                              </span>
-                            )}
-                            {sub.id === "nav-wms-requisitions" && pendingWmsRequisitions > 0 && (
-                              <span className="rounded bg-amber-500/25 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono animate-pulse border border-amber-500/30 shrink-0">
-                                {pendingWmsRequisitions}
+                            {eventCount > 0 && (
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[8px] font-bold font-mono shrink-0 shadow-2xs border ${
+                                  sub.id === "nav-eps-approvals" || sub.id === "nav-wms-requisitions"
+                                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse"
+                                    : "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                                }`}
+                                title={`Количество активных событий / задач: ${eventCount}`}
+                              >
+                                {eventCount > 999 ? "999+" : eventCount}
                               </span>
                             )}
                           </Link>

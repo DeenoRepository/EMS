@@ -7,16 +7,28 @@ import { cn } from "@/lib/utils";
 export interface SearchableSelectItem {
   id: string;
   name: string;
-  sku: string;
+  sku?: string;
   quantity?: number;
   unit?: string;
   warehouse?: string;
 }
 
+export interface SearchableSelectOption {
+  value: string;
+  label: string;
+}
+
 export interface SearchableSelectProps {
-  items: SearchableSelectItem[];
-  selectedId: string;
-  onSelect: (item: SearchableSelectItem) => void;
+  // Legacy / Direct Object format
+  items?: SearchableSelectItem[];
+  selectedId?: string;
+  onSelect?: (item: SearchableSelectItem) => void;
+
+  // Key-Value options format
+  options?: SearchableSelectOption[];
+  value?: string;
+  onChange?: (value: string) => void;
+
   placeholder?: string;
   className?: string;
 }
@@ -25,7 +37,10 @@ export function SearchableSelect({
   items,
   selectedId,
   onSelect,
-  placeholder = "Введите для поиска ТМЦ (название, SKU)...",
+  options,
+  value,
+  onChange,
+  placeholder = "Введите для поиска...",
   className
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -33,15 +48,32 @@ export function SearchableSelect({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  // Normalize options/items list to a unified format
+  const normalizedList = React.useMemo(() => {
+    if (options && Array.isArray(options)) {
+      return options.map((opt) => ({
+        id: opt.value,
+        name: opt.label,
+        sku: ""
+      }));
+    }
+    if (items && Array.isArray(items)) {
+      return items;
+    }
+    return [];
+  }, [options, items]);
+
+  const activeId = selectedId !== undefined ? selectedId : value !== undefined ? value : "";
+
   const selectedItem = React.useMemo(() => {
-    return items.find((i) => i.id === selectedId);
-  }, [items, selectedId]);
+    return normalizedList.find((i) => i.id === activeId);
+  }, [normalizedList, activeId]);
 
   // Sync input value with selectedItem when closed
   React.useEffect(() => {
     if (!isOpen) {
       if (selectedItem) {
-        setSearchQuery(`${selectedItem.name} (${selectedItem.sku})`);
+        setSearchQuery(selectedItem.name);
       } else {
         setSearchQuery("");
       }
@@ -49,17 +81,17 @@ export function SearchableSelect({
   }, [selectedItem, isOpen]);
 
   const filteredItems = React.useMemo(() => {
-    if (!searchQuery.trim() || (selectedItem && searchQuery === `${selectedItem.name} (${selectedItem.sku})`)) {
-      return items;
+    if (!searchQuery.trim() || (selectedItem && searchQuery === selectedItem.name)) {
+      return normalizedList;
     }
     const q = searchQuery.toLowerCase().trim();
-    return items.filter(
+    return normalizedList.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
-        item.sku.toLowerCase().includes(q) ||
+        (item.sku && item.sku.toLowerCase().includes(q)) ||
         (item.warehouse && item.warehouse.toLowerCase().includes(q))
     );
-  }, [items, searchQuery, selectedItem]);
+  }, [normalizedList, searchQuery, selectedItem]);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -70,6 +102,17 @@ export function SearchableSelect({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleChoose = (item: SearchableSelectItem) => {
+    if (onSelect) {
+      onSelect(item);
+    }
+    if (onChange) {
+      onChange(item.id);
+    }
+    setSearchQuery(item.name);
+    setIsOpen(false);
+  };
 
   return (
     <div className={cn("relative w-full", className)} ref={containerRef}>
@@ -85,13 +128,12 @@ export function SearchableSelect({
           }}
           onFocus={() => {
             setIsOpen(true);
-            if (selectedItem && searchQuery === `${selectedItem.name} (${selectedItem.sku})`) {
-              // Option to clear search on focus or keep text selected
+            if (selectedItem && searchQuery === selectedItem.name) {
               inputRef.current?.select();
             }
           }}
           placeholder={placeholder}
-          className="w-full rounded-lg border border-slate-300 bg-white pl-8 pr-8 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs font-medium"
+          className="w-full rounded-lg border border-slate-300 bg-white pl-8 pr-8 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs font-medium"
         />
         {searchQuery ? (
           <button
@@ -114,20 +156,16 @@ export function SearchableSelect({
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-1 text-xs">
           {filteredItems.length === 0 ? (
             <div className="px-3 py-2 text-slate-400 text-center text-[11px]">
-              Номенклатура не найдена
+              Ничего не найдено
             </div>
           ) : (
             filteredItems.map((item) => {
-              const isSelected = item.id === selectedId;
+              const isSelected = item.id === activeId;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    onSelect(item);
-                    setSearchQuery(`${item.name} (${item.sku})`);
-                    setIsOpen(false);
-                  }}
+                  onClick={() => handleChoose(item)}
                   className={cn(
                     "w-full text-left px-3 py-2 rounded-lg transition flex items-center justify-between gap-2",
                     isSelected
@@ -138,14 +176,21 @@ export function SearchableSelect({
                   <div className="space-y-0.5 flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 truncate">
                       <span>{item.name}</span>
-                      <span className="font-mono text-[10px] text-blue-600 font-bold bg-blue-50 border border-blue-100 px-1 rounded shrink-0">
-                        {item.sku}
-                      </span>
+                      {item.sku && (
+                        <span className="font-mono text-[10px] text-blue-600 font-bold bg-blue-50 border border-blue-100 px-1 rounded shrink-0">
+                          {item.sku}
+                        </span>
+                      )}
                     </div>
                     {(item.quantity !== undefined || item.warehouse) && (
                       <div className="text-[10px] text-slate-400 flex items-center gap-2">
                         {item.quantity !== undefined && (
-                          <span>Доступно: <strong className="text-slate-700 font-mono">{item.quantity} {item.unit || "шт"}</strong></span>
+                          <span>
+                            Доступно:{" "}
+                            <strong className="text-slate-700 font-mono">
+                              {item.quantity} {item.unit || "шт"}
+                            </strong>
+                          </span>
                         )}
                         {item.warehouse && <span>| Склад: {item.warehouse}</span>}
                       </div>
