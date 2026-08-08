@@ -344,6 +344,50 @@ export default function WmsMainCatalogPage() {
     }
   };
 
+  // Direct Transfer Submit Handler
+  const handleTransferBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const itemsPayload = transferRows
+      .map((r) => {
+        const item = items.find((i) => i.id === r.itemId);
+        if (!item) return null;
+        return {
+          itemId: item.id,
+          type: "TRANSFER",
+          quantity: r.quantity,
+          fromLocation: transferHeader.fromWarehouse || item.warehouse,
+          toLocation: transferHeader.toWarehouse,
+          reason: transferHeader.reason,
+          performedBy: "Кладовщик"
+        };
+      })
+      .filter(Boolean);
+
+    if (itemsPayload.length === 0) {
+      alert("Выберите хотя бы одну позицию ТМЦ для перемещения");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/modules/wms/movements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: itemsPayload })
+      });
+
+      if (res.ok) {
+        setShowTransferModal(false);
+        setSelectedItemIds([]);
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Ошибка проведения перемещения ТМЦ");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Requisition Submit
   const handleCreateRequisition = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -828,6 +872,127 @@ export default function WmsMainCatalogPage() {
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
               >
                 Отправить запрос кладовщику
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* MODAL: DIRECT TRANSFER BETWEEN WAREHOUSES */}
+        <Modal open={showTransferModal} onClose={() => setShowTransferModal(false)} size="xl">
+          <ModalHeader
+            icon={<ArrowLeftRight size={16} />}
+            title="Перемещение ТМЦ между складами"
+            subtitle="Прямой трансфер товарно-материальных ценностей ответственным МОЛ"
+            onClose={() => setShowTransferModal(false)}
+          />
+          <form onSubmit={handleTransferBatchSubmit} className="space-y-4 p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Отправитель *</label>
+                <select
+                  value={transferHeader.fromWarehouse}
+                  onChange={(e) => setTransferHeader({ ...transferHeader, fromWarehouse: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  {warehousesList.map((w) => (
+                    <option key={w.id} value={w.name}>{w.name} (МОЛ: {w.responsibleUser})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Получатель *</label>
+                <select
+                  value={transferHeader.toWarehouse}
+                  onChange={(e) => setTransferHeader({ ...transferHeader, toWarehouse: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  {warehousesList.map((w) => (
+                    <option key={w.id} value={w.name}>{w.name} (МОЛ: {w.responsibleUser})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 pt-2">
+              <span className="text-xs font-semibold text-slate-700">Перемещаемые позиции ({transferRows.length}):</span>
+              <button
+                type="button"
+                onClick={addTransferRow}
+                className="flex items-center gap-1 rounded bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              >
+                <Plus size={13} /> Добавить позицию
+              </button>
+            </div>
+
+            <div className="space-y-3 p-1 overflow-visible">
+              {transferRows.map((row, idx) => (
+                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+                  <div className="col-span-8">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Выберите ТМЦ #{idx + 1} *</label>
+                    <SearchableSelect
+                      items={items}
+                      selectedId={row.itemId}
+                      onSelect={(selectedItem) => {
+                        setTransferRows(transferRows.map((r) => (r.id === row.id ? { ...r, itemId: selectedItem.id } : r)));
+                      }}
+                      placeholder="Поиск по названию или SKU..."
+                    />
+                  </div>
+
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Количество *</label>
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={row.quantity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setTransferRows(transferRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex justify-center pt-4">
+                    <button
+                      type="button"
+                      disabled={transferRows.length <= 1}
+                      onClick={() => removeTransferRow(row.id)}
+                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Обоснование / Примечание</label>
+              <input
+                type="text"
+                value={transferHeader.reason}
+                onChange={(e) => setTransferHeader({ ...transferHeader, reason: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                placeholder="Перемещение ТМЦ между складами"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
+              >
+                Провести Перемещение
               </button>
             </div>
           </form>
