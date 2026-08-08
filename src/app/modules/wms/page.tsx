@@ -20,7 +20,8 @@ import {
   CheckCircle,
   XCircle,
   Trash2,
-  BadgeCheck
+  BadgeCheck,
+  ChevronDown
 } from "lucide-react";
 import {
   PageHeader,
@@ -104,6 +105,7 @@ export default function WmsMainCatalogPage() {
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
   // Modals state
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [showCreateItemModal, setShowCreateItemModal] = useState(false);
   const [showWriteOffModal, setShowWriteOffModal] = useState(false);
   const [showRequisitionModal, setShowRequisitionModal] = useState(false);
@@ -385,12 +387,73 @@ export default function WmsMainCatalogPage() {
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
-              <button
-                onClick={openRequisitionModalWithSelected}
-                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-              >
-                <Send size={14} /> Запросить со склада
-              </button>
+              {/* Unified Action Dropdown Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setActionMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
+                >
+                  <Plus size={14} /> Оформить складскую операцию <ChevronDown size={13} className={actionMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+                </button>
+
+                {actionMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setActionMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl space-y-0.5">
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          setShowCreateItemModal(true);
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition"
+                      >
+                        <div className="rounded p-1 bg-blue-100 text-blue-600">
+                          <Plus size={14} />
+                        </div>
+                        <div>
+                          <div>Оформить Приход</div>
+                          <div className="text-[10px] font-normal text-slate-400">Поступление/Создание номенклатуры</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          openRequisitionModalWithSelected();
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                      >
+                        <div className="rounded p-1 bg-indigo-100 text-indigo-600">
+                          <Send size={14} />
+                        </div>
+                        <div>
+                          <div>Запросить со склада</div>
+                          <div className="text-[10px] font-normal text-slate-400">Запрос межскладского перемещения</div>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActionMenuOpen(false);
+                          setShowWriteOffModal(true);
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition"
+                      >
+                        <div className="rounded p-1 bg-rose-100 text-rose-600">
+                          <FileSpreadsheet size={14} />
+                        </div>
+                        <div>
+                          <div>Списать ТМЦ</div>
+                          <div className="text-[10px] font-normal text-slate-400">Акт списания на ремонт</div>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           }
         />
