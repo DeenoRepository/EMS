@@ -1154,19 +1154,6 @@ export default function WmsMainCatalogPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Учетная цена за ед. (₽)</label>
-                <input
-                  type="number"
-                  value={itemFormData.unitPrice}
-                  onChange={(e) => setItemFormData({ ...itemFormData, unitPrice: Number(e.target.value) })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none font-mono"
-                  placeholder="1500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Поставщик / Производитель</label>
                 <input
                   type="text"
@@ -1174,16 +1161,6 @@ export default function WmsMainCatalogPage() {
                   onChange={(e) => setItemFormData({ ...itemFormData, supplier: e.target.value })}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
                   placeholder="ООО Grundfos Россия / ООО Резиотех"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Партия (Batch №)</label>
-                <input
-                  type="text"
-                  value={itemFormData.batchNumber}
-                  onChange={(e) => setItemFormData({ ...itemFormData, batchNumber: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none"
-                  placeholder="BAT-2026-09"
                 />
               </div>
             </div>
