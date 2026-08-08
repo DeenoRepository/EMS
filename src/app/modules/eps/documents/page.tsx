@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import ShellLayout from "@/components/layout/shell-layout";
+import { useShell } from "@/components/layout/shell-context";
 import { DocumentItem } from "@/lib/modules/eps-advanced-store";
 import { EquipmentItem } from "@/lib/modules/eps-store";
 import {
@@ -70,7 +70,21 @@ const DOC_TYPE_CONFIG: Record<
   },
 };
 
+import ShellLayout from "@/components/layout/shell-layout";
+
 export default function DocumentsPage() {
+  return (
+    <ShellLayout>
+      <DocumentsPageContent />
+    </ShellLayout>
+  );
+}
+
+function DocumentsPageContent() {
+  const { currentUser } = useShell();
+  const userRoles = currentUser?.roles || [];
+  const canEdit = userRoles.includes("ADMIN") || userRoles.includes("EDITOR") || userRoles.includes("APPROVER");
+
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,8 +203,7 @@ export default function DocumentsPage() {
   };
 
   return (
-    <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+    <main className="w-full px-5 py-6 md:px-8 space-y-6">
         {/* Breadcrumbs & Title */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -216,12 +229,14 @@ export default function DocumentsPage() {
             >
               <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
             </button>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-            >
-              <Plus size={14} /> Загрузить документ
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
+              >
+                <Plus size={14} /> Загрузить документ
+              </button>
+            )}
           </div>
         </div>
 
@@ -726,7 +741,6 @@ export default function DocumentsPage() {
           </div>
         )}
       </main>
-    </ShellLayout>
   );
 }
 

@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
-import { getApprovalsStore } from "@/lib/modules/eps-advanced-store";
+import { prisma } from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET() {
-  // Динамический расчёт очереди согласований из хранилища заявок
-  const approvals = getApprovalsStore();
-  const pendingCount = approvals.filter((a) => a.status === "PENDING").length;
-  return NextResponse.json({ count: pendingCount, timestamp: Date.now() });
-}
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ count: 0, error: "Необходима авторизация" }, { status: 401 });
+    }
 
+    const pendingCount = await prisma.approvalRequest.count({
+      where: { status: "PENDING" }
+    });
+
+    return NextResponse.json({ count: pendingCount, timestamp: Date.now() });
+  } catch (error) {
+    console.error("[EPS Approval Queue Count] DB error:", error);
+    return NextResponse.json({ count: 0, error: "Ошибка получения очереди согласований" }, { status: 500 });
+  }
+}

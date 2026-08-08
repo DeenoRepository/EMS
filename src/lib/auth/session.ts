@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { UserSession } from "./rbac";
+import { isTokenRevoked } from "./token-blacklist";
 
 const secretKey = process.env.JWT_SECRET || (process.env.NODE_ENV === "test" ? "test-secret-key-for-unit-tests-only" : "");
 if (!secretKey) {
@@ -11,7 +12,8 @@ const JWT_SECRET = new TextEncoder().encode(secretKey);
 const SESSION_COOKIE_NAME = "ems_session";
 
 export async function createSessionToken(payload: UserSession): Promise<string> {
-  return new SignJWT({ ...payload })
+  const jti = `jti_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  return new SignJWT({ ...payload, jti })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("8h")
@@ -20,6 +22,9 @@ export async function createSessionToken(payload: UserSession): Promise<string> 
 
 export async function verifySessionToken(token: string): Promise<UserSession | null> {
   try {
+    if (isTokenRevoked(token)) {
+      return null;
+    }
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload as unknown as UserSession;
   } catch {

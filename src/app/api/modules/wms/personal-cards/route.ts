@@ -4,6 +4,11 @@ import { getSession } from "@/lib/auth/session";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const employee = searchParams.get("employee");
 
@@ -51,36 +56,31 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { itemId, employeeName, employeePosition, employeeNumber, department, quantity, notes } = body;
 
-    if (!itemId || !employeeName || !quantity || quantity <= 0) {
+    const parsedQty = Number(quantity);
+    if (!itemId || !employeeName || isNaN(parsedQty) || !Number.isInteger(parsedQty) || parsedQty <= 0) {
       return NextResponse.json(
-        { error: "Поля Позиция ТМЦ, ФИО сотрудника и Количество обязательны" },
+        { error: "Поля Позиция ТМЦ и ФИО обязательны, а количество должно быть целым положительным числом" },
         { status: 400 }
       );
-    }
-
-    const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
-    if (!item) {
-      return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
     }
 
     const responsibleWarehouses = await getUserResponsibleWarehouses();
-    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
-      return NextResponse.json(
-        { error: `Отказано в доступе. Вы не являетесь МОЛ склада "${item.warehouse}"` },
-        { status: 403 }
-      );
-    }
 
-    if (item.quantity < quantity) {
-      return NextResponse.json(
-        { error: `Недостаточно остатка на складе. Доступно: ${item.quantity} ${item.unit}` },
-        { status: 400 }
-      );
-    }
+    const result = await prisma.$transaction(async (tx) => {
+      const item = await tx.wmsItem.findUnique({ where: { id: itemId } });
+      if (!item) {
+        throw new Error("NOT_FOUND");
+      }
 
-    // Списание со склада и внесение в личную карточку сотрудника
-    const [card] = await prisma.$transaction([
-      prisma.wmsPersonalCard.create({
+      if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
+        throw new Error("FORBIDDEN");
+      }
+
+      if (item.quantity < parsedQty) {
+        throw new Error(`INSUFFICIENT_STOCK:${item.quantity}:${item.unit}`);
+      }
+
+      const card = await tx.wmsPersonalCard.create({
         data: {
           itemId: item.id,
           itemSku: item.sku,
@@ -89,32 +89,55 @@ export async function POST(request: Request) {
           employeePosition: employeePosition || null,
           employeeNumber: employeeNumber || null,
           department: department || null,
-          issuedQuantity: Number(quantity),
+          issuedQuantity: parsedQty,
           notes: notes || null,
           createdById: session.id,
         }
-      }),
-      prisma.wmsItem.update({
+      });
+
+      const updatedQty = item.quantity - parsedQty;
+      const newStatus = updatedQty <= 0 ? "OUT_OF_STOCK" : updatedQty <= item.minQuantity ? "LOW_STOCK" : "IN_STOCK";
+
+      await tx.wmsItem.update({
         where: { id: item.id },
-        data: { quantity: item.quantity - Number(quantity) }
-      }),
-      prisma.wmsMovement.create({
+        data: {
+          quantity: updatedQty,
+          status: newStatus,
+        }
+      });
+
+      await tx.wmsMovement.create({
         data: {
           itemId: item.id,
           itemSku: item.sku,
           itemName: item.name,
           type: "PERSONAL_CARD",
-          quantity: Number(quantity),
+          quantity: parsedQty,
           fromLocation: item.cell,
           toLocation: `Личная карточка: ${employeeName} (Таб. №${employeeNumber || "Б/Н"})`,
           performedBy: session.displayName || session.username,
           reason: `Выдача СИЗ/Инструмента сотруднику ${employeeName}`,
         }
-      })
-    ]);
+      });
 
-    return NextResponse.json({ card, success: true }, { status: 201 });
-  } catch (err) {
+      return card;
+    });
+
+    return NextResponse.json({ card: result, success: true }, { status: 201 });
+  } catch (err: any) {
+    if (err.message === "NOT_FOUND") {
+      return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
+    }
+    if (err.message === "FORBIDDEN") {
+      return NextResponse.json({ error: "Отказано в доступе. Вы не являетесь МОЛ данного склада" }, { status: 403 });
+    }
+    if (err.message?.startsWith("INSUFFICIENT_STOCK")) {
+      const [, avail, unit] = err.message.split(":");
+      return NextResponse.json(
+        { error: `Недостаточно остатка на складе. Доступно: ${avail} ${unit}` },
+        { status: 400 }
+      );
+    }
     console.error("WMS Personal card POST failed:", err);
     return NextResponse.json({ error: "Ошибка при выдаче ТМЦ в личную карточку" }, { status: 500 });
   }
@@ -154,39 +177,73 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Если состояние GOOD (исправно) — оприходовать обратно на склад, иначе списать
+    // Если состояние GOOD (исправно) — оприходовать обратно на склад, иначе записать списание
     const isGood = returnCondition === "GOOD";
+    const writeOffReason = returnCondition === "REPAIR" ? "EQUIPMENT_REPAIR" : "DAMAGE";
 
-    const [updatedCard] = await prisma.$transaction([
+    const txOps: any[] = [
       prisma.wmsPersonalCard.update({
         where: { id: cardId },
         data: {
           returnedAt: new Date(),
           returnCondition
         }
-      }),
-      ...(isGood
-        ? [
-            prisma.wmsItem.update({
-              where: { id: card.itemId },
-              data: { quantity: card.item.quantity + card.issuedQuantity }
-            })
-          ]
-        : []),
-      prisma.wmsMovement.create({
-        data: {
-          itemId: card.itemId,
-          itemSku: card.itemSku,
-          itemName: card.itemName,
-          type: "INCOMING",
-          quantity: card.issuedQuantity,
-          fromLocation: `Личная карточка: ${card.employeeName}`,
-          toLocation: card.item.cell,
-          performedBy: session.displayName || session.username,
-          reason: `Возврат из личной карточки (${employeeConditionLabel(returnCondition)})`,
-        }
       })
-    ]);
+    ];
+
+    if (isGood) {
+      txOps.push(
+        prisma.wmsItem.update({
+          where: { id: card.itemId },
+          data: {
+            quantity: card.item.quantity + card.issuedQuantity,
+            status: (card.item.quantity + card.issuedQuantity) <= card.item.minQuantity ? "LOW_STOCK" : "IN_STOCK"
+          }
+        }),
+        prisma.wmsMovement.create({
+          data: {
+            itemId: card.itemId,
+            itemSku: card.itemSku,
+            itemName: card.itemName,
+            type: "INCOMING",
+            quantity: card.issuedQuantity,
+            fromLocation: `Личная карточка: ${card.employeeName}`,
+            toLocation: card.item.cell,
+            performedBy: session.displayName || session.username,
+            reason: `Возврат из личной карточки (${employeeConditionLabel(returnCondition)})`,
+          }
+        })
+      );
+    } else {
+      txOps.push(
+        prisma.wmsWriteOff.create({
+          data: {
+            itemId: card.itemId,
+            itemSku: card.itemSku,
+            itemName: card.itemName,
+            quantity: card.issuedQuantity,
+            reason: writeOffReason,
+            performedBy: session.displayName || session.username,
+            comments: `Возврат из личной карточки ${card.employeeName} в непригодном состоянии (${employeeConditionLabel(returnCondition)})`
+          }
+        }),
+        prisma.wmsMovement.create({
+          data: {
+            itemId: card.itemId,
+            itemSku: card.itemSku,
+            itemName: card.itemName,
+            type: "OUTGOING",
+            quantity: card.issuedQuantity,
+            fromLocation: `Личная карточка: ${card.employeeName}`,
+            toLocation: "Утиль / Ремонт",
+            performedBy: session.displayName || session.username,
+            reason: `Списание при возврате из личной карточки (${employeeConditionLabel(returnCondition)})`,
+          }
+        })
+      );
+    }
+
+    const [updatedCard] = await prisma.$transaction(txOps);
 
     return NextResponse.json({ card: updatedCard, success: true });
   } catch (err) {

@@ -99,7 +99,21 @@ interface WmsRequisition {
   items: RequisitionItem[];
 }
 
+import { useShell } from "@/components/layout/shell-context";
+
 export default function WmsMainCatalogPage() {
+  return (
+    <ShellLayout>
+      <WmsMainCatalogPageContent />
+    </ShellLayout>
+  );
+}
+
+function WmsMainCatalogPageContent() {
+  const { currentUser } = useShell();
+  const userRoles = currentUser?.roles || [];
+  const canEdit = userRoles.includes("ADMIN") || userRoles.includes("STOREKEEPER");
+
   const [items, setItems] = useState<WmsItem[]>([]);
   const [warehousesList, setWarehousesList] = useState<Warehouse[]>([]);
   const [requisitions, setRequisitions] = useState<WmsRequisition[]>([]);
@@ -550,8 +564,7 @@ export default function WmsMainCatalogPage() {
   };
 
   return (
-    <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+    <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Реестр ТМЦ & Операции склада"
           description="Каталог складских запасов с функцией запроса позиций со сторонних складов и уведомлениями для ответственных МОЛ."
@@ -568,79 +581,83 @@ export default function WmsMainCatalogPage() {
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
-              <button
-                onClick={openRequisitionModalWithSelected}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
-              >
-                <Send size={14} /> Запросить перемещение со склада
-              </button>
-              {/* Unified Action Dropdown Button */}
-              <div className="relative">
-                <button
-                  onClick={() => setActionMenuOpen((prev) => !prev)}
-                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
-                >
-                  <Plus size={14} /> Оформить складскую операцию <ChevronDown size={13} className={actionMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
-                </button>
+              {canEdit && (
+                <>
+                  <button
+                    onClick={openRequisitionModalWithSelected}
+                    className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
+                  >
+                    <Send size={14} /> Запросить перемещение со склада
+                  </button>
+                  {/* Unified Action Dropdown Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setActionMenuOpen((prev) => !prev)}
+                      className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
+                    >
+                      <Plus size={14} /> Оформить складскую операцию <ChevronDown size={13} className={actionMenuOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+                    </button>
 
-                {actionMenuOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setActionMenuOpen(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-2 z-20 w-64 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-2xl space-y-1 ring-1 ring-slate-900/5">
-                      <button
-                        onClick={() => {
-                          setActionMenuOpen(false);
-                          setShowCreateItemModal(true);
-                        }}
-                        className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-blue-50/70"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
-                          <Plus size={16} />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700">Оформить Приход</div>
-                          <div className="text-[10px] text-slate-500 font-medium">Поступление / Создание ТМЦ</div>
-                        </div>
-                      </button>
+                    {actionMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setActionMenuOpen(false)}
+                        />
+                        <div className="absolute right-0 top-full mt-2 z-20 w-64 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-2xl space-y-1 ring-1 ring-slate-900/5">
+                          <button
+                            onClick={() => {
+                              setActionMenuOpen(false);
+                              setShowCreateItemModal(true);
+                            }}
+                            className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-blue-50/70"
+                          >
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-600 shadow-2xs group-hover:scale-105 transition-transform">
+                              <Plus size={16} />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-slate-800 group-hover:text-blue-700">Оформить Приход</div>
+                              <div className="text-[10px] text-slate-500 font-medium">Поступление / Создание ТМЦ</div>
+                            </div>
+                          </button>
 
-                      <button
-                        onClick={() => {
-                          setActionMenuOpen(false);
-                          openTransferModalWithSelected();
-                        }}
-                        className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-indigo-50/70"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 shadow-2xs group-hover:scale-105 transition-transform">
-                          <ArrowLeftRight size={16} />
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-800 group-hover:text-indigo-700">Перемещение ТМЦ</div>
-                          <div className="text-[10px] text-slate-500 font-medium">Трансфер между складами</div>
-                        </div>
-                      </button>
+                          <button
+                            onClick={() => {
+                              setActionMenuOpen(false);
+                              openTransferModalWithSelected();
+                            }}
+                            className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-indigo-50/70"
+                          >
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 shadow-2xs group-hover:scale-105 transition-transform">
+                              <ArrowLeftRight size={16} />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-slate-800 group-hover:text-indigo-700">Перемещение ТМЦ</div>
+                              <div className="text-[10px] text-slate-500 font-medium">Трансфер между складами</div>
+                            </div>
+                          </button>
 
-                      <button
-                        onClick={() => {
-                          setActionMenuOpen(false);
-                          setShowWriteOffModal(true);
-                        }}
-                        className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-rose-50/70"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600 shadow-2xs group-hover:scale-105 transition-transform">
-                          <FileSpreadsheet size={16} />
+                          <button
+                            onClick={() => {
+                              setActionMenuOpen(false);
+                              setShowWriteOffModal(true);
+                            }}
+                            className="group flex w-full items-center gap-3 rounded-xl p-2.5 text-left transition-all duration-150 hover:bg-rose-50/70"
+                          >
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600 shadow-2xs group-hover:scale-105 transition-transform">
+                              <FileSpreadsheet size={16} />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-slate-800 group-hover:text-rose-700">Списать ТМЦ</div>
+                              <div className="text-[10px] text-slate-500 font-medium">Акт списания / Ремонт оборудования</div>
+                            </div>
+                          </button>
                         </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-800 group-hover:text-rose-700">Списать ТМЦ</div>
-                          <div className="text-[10px] text-slate-500 font-medium">Акт списания / Ремонт оборудования</div>
-                        </div>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           }
         />
@@ -1861,6 +1878,5 @@ export default function WmsMainCatalogPage() {
           </Modal>
         )}
       </main>
-    </ShellLayout>
   );
 }

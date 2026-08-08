@@ -74,9 +74,10 @@ export async function POST(request: Request) {
       );
     }
 
-    if (Number(quantity) > item.quantity) {
+    const availableQuantity = item.quantity - item.reservedQuantity;
+    if (Number(quantity) > availableQuantity) {
       return NextResponse.json(
-        { error: `Нельзя списать больше, чем есть на складе. Текущий остаток: ${item.quantity} ${item.unit}` },
+        { error: `Нельзя списать больше доступного остатка (с учетом резерва). Доступно к списанию: ${availableQuantity} ${item.unit} (Всего: ${item.quantity}, Зарезервировано: ${item.reservedQuantity})` },
         { status: 400 }
       );
     }

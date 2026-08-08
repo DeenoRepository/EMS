@@ -5,6 +5,11 @@ import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query") || "";
   const status = searchParams.get("status");

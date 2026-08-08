@@ -153,6 +153,15 @@ export default function LoginPage() {
                 variant="outline"
                 size="sm"
                 className="text-xs justify-start"
+                onClick={() => quickLogin("storekeeper", "storekeeper123")}
+              >
+                <Badge className="bg-amber-500/10 text-amber-700 border-0 mr-1 text-[10px]">WMS</Badge>
+                storekeeper
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs justify-start"
                 onClick={() => quickLogin("viewer", "viewer123")}
               >
                 <Badge className="bg-emerald-500/10 text-emerald-600 border-0 mr-1 text-[10px]">VIEWER</Badge>

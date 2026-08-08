@@ -87,15 +87,25 @@ export async function POST(request: Request) {
         );
       }
 
-      // Атомарное уменьшение остатка и обновление статуса заявки
-      const [updated] = await prisma.$transaction([
+      // Проверка наличия такой же номенклатуры на складе-получателе
+      const targetItem = await prisma.wmsItem.findFirst({
+        where: {
+          sku: transferReq.itemSku,
+          warehouse: transferReq.toWarehouse
+        }
+      });
+
+      const txOps: any[] = [
         prisma.wmsTransferRequest.update({
           where: { id: requestId },
           data: { status: "APPROVED" }
         }),
         prisma.wmsItem.update({
           where: { id: transferReq.itemId },
-          data: { quantity: transferReq.item.quantity - transferReq.quantity }
+          data: {
+            quantity: transferReq.item.quantity - transferReq.quantity,
+            status: (transferReq.item.quantity - transferReq.quantity) <= 0 ? "OUT_OF_STOCK" : (transferReq.item.quantity - transferReq.quantity) <= transferReq.item.minQuantity ? "LOW_STOCK" : "IN_STOCK"
+          }
         }),
         prisma.wmsMovement.create({
           data: {
@@ -110,7 +120,48 @@ export async function POST(request: Request) {
             reason: `Межскладской трансфер (Заявка ${transferReq.id.slice(-6)})`,
           }
         })
-      ]);
+      ];
+
+      if (targetItem) {
+        // Увеличиваем остаток у существующей номенклатурной единицы на целевом складе
+        const newTargetQty = targetItem.quantity + transferReq.quantity;
+        txOps.push(
+          prisma.wmsItem.update({
+            where: { id: targetItem.id },
+            data: {
+              quantity: newTargetQty,
+              status: newTargetQty <= 0 ? "OUT_OF_STOCK" : newTargetQty <= targetItem.minQuantity ? "LOW_STOCK" : "IN_STOCK",
+              lastIncomingDate: new Date()
+            }
+          })
+        );
+      } else {
+        // Создаем новую номенклатурную позицию на целевом складе
+        txOps.push(
+          prisma.wmsItem.create({
+            data: {
+              sku: transferReq.item.sku,
+              name: transferReq.item.name,
+              category: transferReq.item.category,
+              type: transferReq.item.type,
+              unit: transferReq.item.unit,
+              warehouse: transferReq.toWarehouse,
+              cell: "Приёмка",
+              quantity: transferReq.quantity,
+              minQuantity: transferReq.item.minQuantity,
+              maxQuantity: transferReq.item.maxQuantity,
+              unitPrice: transferReq.item.unitPrice,
+              currency: transferReq.item.currency,
+              status: transferReq.quantity <= transferReq.item.minQuantity ? "LOW_STOCK" : "IN_STOCK",
+              supplier: transferReq.item.supplier,
+              description: transferReq.item.description,
+              lastIncomingDate: new Date()
+            }
+          })
+        );
+      }
+
+      const [updated] = await prisma.$transaction(txOps);
 
       return NextResponse.json({ request: updated, success: true });
     }

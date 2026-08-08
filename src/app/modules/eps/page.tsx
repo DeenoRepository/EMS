@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import EquipmentPassportForm from "@/components/eps/equipment-passport-form";
+import { useShell } from "@/components/layout/shell-context";
 import {
   PageHeader,
   KpiGrid,
@@ -47,6 +48,18 @@ const DEFAULT_COLUMNS: ColumnVisibility = {
 };
 
 export default function EpsEquipmentPage() {
+  return (
+    <ShellLayout>
+      <EpsEquipmentPageContent />
+    </ShellLayout>
+  );
+}
+
+function EpsEquipmentPageContent() {
+  const { currentUser } = useShell();
+  const userRoles = currentUser?.roles || [];
+  const canEdit = userRoles.includes("ADMIN") || userRoles.includes("EDITOR") || userRoles.includes("APPROVER");
+
   const [items, setItems] = useState<EquipmentItem[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -105,6 +118,8 @@ export default function EpsEquipmentPage() {
       isSubscribed = false;
     };
   }, [query]);
+
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchItems = () => {
     setLoading(true);
@@ -266,8 +281,7 @@ export default function EpsEquipmentPage() {
   }, [columns]);
 
   return (
-    <ShellLayout>
-      <main className="w-full px-5 py-6 md:px-8 space-y-6">
+    <main className="w-full px-5 py-6 md:px-8 space-y-6">
         {/* Page Header */}
         <PageHeader
           title="Реестр оборудования EPS"
@@ -292,12 +306,14 @@ export default function EpsEquipmentPage() {
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-              >
-                <Plus size={14} /> Создать паспорт
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
+                >
+                  <Plus size={14} /> Создать паспорт
+                </button>
+              )}
             </>
           }
         />
@@ -450,6 +466,5 @@ export default function EpsEquipmentPage() {
           emptyText="Оборудование по заданным критериям фильтрации не найдено."
         />
       </main>
-    </ShellLayout>
   );
 }
