@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { WmsMovementType } from "@prisma/client";
+import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,9 +9,21 @@ export async function GET(request: Request) {
   const type = searchParams.get("type");
 
   try {
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
     const where: any = {};
+
     if (itemId) where.itemId = itemId;
     if (type) where.type = type as WmsMovementType;
+
+    // Ограничение движений по складам МОЛ
+    if (responsibleWarehouses !== null) {
+      if (responsibleWarehouses.length === 0) {
+        return NextResponse.json({ movements: [], total: 0 });
+      }
+      where.item = {
+        warehouse: { in: responsibleWarehouses }
+      };
+    }
 
     const movements = await prisma.wmsMovement.findMany({
       where,
@@ -45,6 +58,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
     }
 
+    // Проверка, является ли оператор МОЛ за склад данной позиции
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
+    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
+      return NextResponse.json(
+        { error: `Отказано в доступе. Вы не являетесь ответственным за склад "${item.warehouse}"` },
+        { status: 403 }
+      );
+    }
+
     let newQuantity = item.quantity;
     if (type === "INCOMING") {
       newQuantity += Number(quantity);
@@ -62,7 +84,6 @@ export async function POST(request: Request) {
 
     const newStatus = newQuantity <= 0 ? "OUT_OF_STOCK" : newQuantity <= item.minQuantity ? "LOW_STOCK" : "IN_STOCK";
 
-    // Create movement and update item stock atomically
     const [movement] = await prisma.$transaction([
       prisma.wmsMovement.create({
         data: {

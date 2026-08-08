@@ -1,20 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query") || "";
 
   try {
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
+    const where: any = {};
+
+    if (query) {
+      where.OR = [
+        { name: { contains: query, mode: "insensitive" } },
+        { responsibleUser: { contains: query, mode: "insensitive" } }
+      ];
+    }
+
+    if (responsibleWarehouses !== null) {
+      if (responsibleWarehouses.length === 0) {
+        return NextResponse.json({ warehouses: [], total: 0 });
+      }
+      where.name = { in: responsibleWarehouses };
+    }
+
     const warehouses = await prisma.warehouse.findMany({
-      where: query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { responsibleUser: { contains: query, mode: "insensitive" } }
-            ]
-          }
-        : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       include: {
         storageCells: true
       },
