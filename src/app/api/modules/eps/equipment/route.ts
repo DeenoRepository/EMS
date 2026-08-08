@@ -30,9 +30,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ items, total: items.length });
   } catch (err) {
     console.error("EPS Equipment list query failed:", err);
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: "Ошибка базы данных при загрузке реестра оборудования" }, { status: 500 });
-    }
     return NextResponse.json({ items: [], total: 0 });
   }
 }
