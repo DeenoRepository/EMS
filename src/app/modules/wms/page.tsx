@@ -372,7 +372,7 @@ export default function WmsMainCatalogPage() {
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
-          title="Остатки ТМЦ & Операции склада"
+          title="Реестр ТМЦ & Операции склада"
           description="Каталог складских запасов с функцией запроса позиций со сторонних складов и уведомлениями для ответственных МОЛ."
           breadcrumbs={[
             { title: "Главная", href: "/" },

@@ -78,7 +78,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       {
         id: "nav-wms-dashboard",
-        title: "Остатки ТМЦ",
+        title: "Реестр ТМЦ",
         href: "/modules/wms",
         category: "Бизнес-модули",
         keywords: ["дашборд", "обзор", "склад", "wms", "dashboard", "остатки", "каталог", "тмц", "запчасти"],
