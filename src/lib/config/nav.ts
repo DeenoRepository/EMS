@@ -78,34 +78,18 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       {
         id: "nav-wms-dashboard",
-        title: "Дашборд & Каталог ТМЦ",
+        title: "Дашборд & Остатки ТМЦ",
         href: "/modules/wms",
         category: "Бизнес-модули",
         keywords: ["дашборд", "обзор", "склад", "wms", "dashboard", "остатки", "каталог", "тмц", "запчасти"],
         iconName: "LayoutDashboard"
       },
       {
-        id: "nav-wms-transfers",
-        title: "Перемещения МОЛ",
-        href: "/modules/wms/transfers",
-        category: "Бизнес-модули",
-        keywords: ["перемещения", "мол", "трансфер", "согласование"],
-        iconName: "ArrowRightLeft"
-      },
-      {
-        id: "nav-wms-personal-cards",
-        title: "Личные карточки СИЗ",
-        href: "/modules/wms/personal-cards",
-        category: "Бизнес-модули",
-        keywords: ["карточки", "сиз", "выдача", "инструмент", "возврат"],
-        iconName: "UserCheck"
-      },
-      {
         id: "nav-wms-movements",
-        title: "Движения & Списание",
+        title: "Операции & Движения",
         href: "/modules/wms/movements",
         category: "Бизнес-модули",
-        keywords: ["приход", "расход", "перемещение", "списание", "оборудование"],
+        keywords: ["приход", "расход", "перемещение", "списание", "оборудование", "мол", "сиз", "карточки"],
         iconName: "History"
       }
     ]
