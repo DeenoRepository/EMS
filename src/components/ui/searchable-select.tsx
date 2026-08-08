@@ -1,0 +1,163 @@
+"use client";
+
+import * as React from "react";
+import { Search, ChevronDown, Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export interface SearchableSelectItem {
+  id: string;
+  name: string;
+  sku: string;
+  quantity?: number;
+  unit?: string;
+  warehouse?: string;
+}
+
+export interface SearchableSelectProps {
+  items: SearchableSelectItem[];
+  selectedId: string;
+  onSelect: (item: SearchableSelectItem) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+export function SearchableSelect({
+  items,
+  selectedId,
+  onSelect,
+  placeholder = "Введите для поиска ТМЦ (название, SKU)...",
+  className
+}: SearchableSelectProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  const selectedItem = React.useMemo(() => {
+    return items.find((i) => i.id === selectedId);
+  }, [items, selectedId]);
+
+  // Sync input value with selectedItem when closed
+  React.useEffect(() => {
+    if (!isOpen) {
+      if (selectedItem) {
+        setSearchQuery(`${selectedItem.name} (${selectedItem.sku})`);
+      } else {
+        setSearchQuery("");
+      }
+    }
+  }, [selectedItem, isOpen]);
+
+  const filteredItems = React.useMemo(() => {
+    if (!searchQuery.trim() || (selectedItem && searchQuery === `${selectedItem.name} (${selectedItem.sku})`)) {
+      return items;
+    }
+    const q = searchQuery.toLowerCase().trim();
+    return items.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.sku.toLowerCase().includes(q) ||
+        (item.warehouse && item.warehouse.toLowerCase().includes(q))
+    );
+  }, [items, searchQuery, selectedItem]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className={cn("relative w-full", className)} ref={containerRef}>
+      <div className="relative flex items-center">
+        <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          onFocus={() => {
+            setIsOpen(true);
+            if (selectedItem && searchQuery === `${selectedItem.name} (${selectedItem.sku})`) {
+              // Option to clear search on focus or keep text selected
+              inputRef.current?.select();
+            }
+          }}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-slate-300 bg-white pl-8 pr-8 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-2xs font-medium"
+        />
+        {searchQuery ? (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setIsOpen(true);
+              inputRef.current?.focus();
+            }}
+            className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+          >
+            <X size={13} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-3 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-1 text-xs">
+          {filteredItems.length === 0 ? (
+            <div className="px-3 py-2 text-slate-400 text-center text-[11px]">
+              Номенклатура не найдена
+            </div>
+          ) : (
+            filteredItems.map((item) => {
+              const isSelected = item.id === selectedId;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(item);
+                    setSearchQuery(`${item.name} (${item.sku})`);
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-lg transition flex items-center justify-between gap-2",
+                    isSelected
+                      ? "bg-blue-50 text-blue-900 font-semibold"
+                      : "hover:bg-slate-100 text-slate-700"
+                  )}
+                >
+                  <div className="space-y-0.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 truncate">
+                      <span>{item.name}</span>
+                      <span className="font-mono text-[10px] text-blue-600 font-bold bg-blue-50 border border-blue-100 px-1 rounded shrink-0">
+                        {item.sku}
+                      </span>
+                    </div>
+                    {(item.quantity !== undefined || item.warehouse) && (
+                      <div className="text-[10px] text-slate-400 flex items-center gap-2">
+                        {item.quantity !== undefined && (
+                          <span>Доступно: <strong className="text-slate-700 font-mono">{item.quantity} {item.unit || "шт"}</strong></span>
+                        )}
+                        {item.warehouse && <span>| Склад: {item.warehouse}</span>}
+                      </div>
+                    )}
+                  </div>
+                  {isSelected && <Check size={14} className="text-blue-600 shrink-0" />}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -34,3 +34,5 @@ export * from "./donut-chart";
 export * from "./step-chart";
 export * from "./stepper-timeline";
 export * from "./bar-chart";
+export * from "./searchable-select";
+

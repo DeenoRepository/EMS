@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { ArrowLeftRight, Plus, RefreshCw, Send, CheckCircle, Clock, Bell, CheckCircle2, XCircle, Trash2 } from "lucide-react";
-import { PageHeader, DataTable, StatusBadge, Modal, ModalHeader } from "@/components/ui";
+import { PageHeader, DataTable, StatusBadge, Modal, ModalHeader, SearchableSelect } from "@/components/ui";
 import { useShell } from "@/components/layout/shell-context";
 
 interface WmsItem {
@@ -398,20 +398,14 @@ function WmsRequisitionsPageContent() {
                 <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                   <div className="col-span-8">
                     <label className="block text-[10px] font-semibold text-slate-500 mb-1">Выберите ТМЦ #{idx + 1} *</label>
-                    <select
-                      value={row.selectedItemId}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setReqItemsRows(reqItemsRows.map((r) => (r.id === row.id ? { ...r, selectedItemId: val } : r)));
+                    <SearchableSelect
+                      items={items}
+                      selectedId={row.selectedItemId}
+                      onSelect={(selectedItem) => {
+                        setReqItemsRows(reqItemsRows.map((r) => (r.id === row.id ? { ...r, selectedItemId: selectedItem.id } : r)));
                       }}
-                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                    >
-                      {items.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.name} ({it.sku}) — Доступный остаток: {it.quantity} {it.unit}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Поиск по названию или SKU..."
+                    />
                   </div>
 
                   <div className="col-span-3">
