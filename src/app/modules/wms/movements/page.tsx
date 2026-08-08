@@ -452,21 +452,9 @@ export default function ConsolidatedWmsOperationsPage() {
           }
         />
 
-        {/* TabNav Header Controls */}
-        <TabNav
-          items={[
-            { id: "movements", label: "История движений & Списание EPS", icon: <History size={14} /> },
-            { id: "transfers", label: "Межскладские перемещения МОЛ", icon: <ArrowRightLeft size={14} />, badge: transfers.filter(t => t.status === "PENDING").length || undefined },
-            { id: "cards", label: "Личные карточки СИЗ", icon: <UserCheck size={14} /> },
-          ]}
-          activeId={activeTab}
-          onChange={(id) => setActiveTab(id)}
-        />
-
-        {/* TAB 1: MOVEMENTS */}
-        {activeTab === "movements" && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <DataTable
+        {/* MOVEMENTS TABLE */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <DataTable
               keyExtractor={(row) => row.id}
               data={movements}
               columns={[
@@ -521,7 +509,6 @@ export default function ConsolidatedWmsOperationsPage() {
               ]}
             />
           </div>
-        )}
 
         {/* TAB 2: MOL TRANSFERS */}
         {activeTab === "transfers" && (
