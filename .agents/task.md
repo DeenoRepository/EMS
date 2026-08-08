@@ -1,22 +1,20 @@
-# WMS Pages & Navigation Optimization Tasks
+# Task Decomposition & Subagent Delegation: WMS Employee Directory Roster
 
-## 1. Frontend Architecture (`nextjs-frontend-architect`)
-- [x] Consolidate `/modules/wms/movements/page.tsx` with `TabNav` component into 3 tabs: Movements History, MOL Transfers, Personal Cards.
-- [x] Update `src/lib/config/nav.ts` and `AppSidebar` to only render 2 WMS entries.
-- [x] Delete obsolete page directories (`items/`, `warehouses/`, `transfers/`, `personal-cards/`).
+## 1. Database & ORM Agent (`postgres-prisma-engineer`)
+- [x] Add `WmsEmployee` model in `prisma/schema.prisma` (`id`, `name`, `employeeNumber`, `position`, `department`, `warehouse`, `isActive`).
+- [x] Run `npx prisma generate` to rebuild Prisma Client types.
 
-## 2. Quality Assurance & Verification (`qa-code-reviewer`)
-- [x] Run `npx tsc --noEmit` type checking (PASS: 0 errors).
-- [x] Run `npx next build` production build verification (PASS: 48/48 routes built).
+## 2. Backend & Business Logic Agent (`backend-api-architect`)
+- [x] Create API route handler `src/app/api/modules/wms/employees/route.ts`:
+  - `GET /api/modules/wms/employees`: Fetch employee directory roster.
+  - `POST /api/modules/wms/employees`: Register/update employee in warehouse roster.
 
+## 3. Frontend Architect Agent (`nextjs-frontend-architect`)
+- [x] Update `src/app/modules/wms/personal-cards/page.tsx`:
+  - Added **«Справочник сотрудников»** modal and roster management.
+  - Integrated employee selection dropdown in **«Выдать сотруднику»** modal with auto-filling (ФИО, Табельный номер, Должность, Подразделение).
+  - Added checkbox **«Сохранить/Обновить сотрудника в Справочнике склада»**.
 
-
-
-
-
-
-
-
-
-
-
+## 4. Code Review & QA Agent (`qa-code-reviewer`)
+- [x] Run `npx tsc --noEmit` (PASS: 0 errors).
+- [x] Run `npm run build` (PASS: All 57/57 static & dynamic routes compiled successfully).

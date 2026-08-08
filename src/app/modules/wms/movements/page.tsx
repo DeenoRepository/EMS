@@ -14,7 +14,8 @@ import {
   RotateCcw,
   CheckCircle2,
   XCircle,
-  QrCode
+  QrCode,
+  FileSpreadsheet
 } from "lucide-react";
 import {
   PageHeader,
@@ -100,6 +101,7 @@ export default function ConsolidatedWmsOperationsPage() {
   const [loading, setLoading] = useState(true);
 
   // Modals state
+  const [showInboundModal, setShowInboundModal] = useState(false);
   const [showMovModal, setShowMovModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showCardModal, setShowCardModal] = useState(false);
@@ -112,6 +114,20 @@ export default function ConsolidatedWmsOperationsPage() {
   const [printItemData, setPrintItemData] = useState<{ sku: string; name: string; location?: string; category?: string } | null>(null);
 
   // Forms data
+  const [inboundFormData, setInboundFormData] = useState({
+    name: "",
+    sku: "",
+    category: "Запчасти & Механика",
+    type: "ZIP",
+    warehouse: "",
+    cell: "Яч-01",
+    quantity: 10,
+    minQuantity: 2,
+    unit: "шт",
+    unitPrice: 1500,
+    batchNumber: "",
+    serialNumber: ""
+  });
   const [movFormData, setMovFormData] = useState({
     itemId: "",
     type: "OUTGOING",
@@ -182,6 +198,32 @@ export default function ConsolidatedWmsOperationsPage() {
   const availableTargetWarehouses = warehouses.filter((w) => w.name !== selectedTransferItem?.warehouse);
 
   // Submit Handlers
+  const handleInboundSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/modules/wms/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...inboundFormData,
+          warehouse: inboundFormData.warehouse || warehouses[0]?.name || "Главный склад"
+        })
+      });
+      if (res.ok) {
+        setShowInboundModal(false);
+        fetchData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Ошибка при оформлении прихода");
+      }
+    } catch (err) {
+      console.error("Inbound submit error:", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleMovementSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -304,46 +346,46 @@ export default function ConsolidatedWmsOperationsPage() {
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
-          title="Операции & Складские Движения WMS"
-          description="Единый центр управления журналами движений, межскладскими акцептами МОЛ и личными карточками СИЗ"
+          title="Движения ТМЦ"
+          description="Единый центр управления журналами движений, акцептами МОЛ и личными карточками выдачи СИЗ"
           breadcrumbs={[
             { title: "Главная", href: "/" },
             { title: "WMS Складской учет", href: "/modules/wms" },
-            { title: "Операции & Движения" },
+            { title: "Движения ТМЦ" },
           ]}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={fetchData}
                 disabled={loading}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
-              {activeTab === "movements" && (
-                <button
-                  onClick={() => setShowMovModal(true)}
-                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-                >
-                  <Plus size={14} /> Списать / Оформить движение
-                </button>
-              )}
-              {activeTab === "transfers" && (
-                <button
-                  onClick={() => setShowTransferModal(true)}
-                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-                >
-                  <Plus size={14} /> Передать другому МОЛ
-                </button>
-              )}
-              {activeTab === "cards" && (
-                <button
-                  onClick={() => setShowCardModal(true)}
-                  className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-                >
-                  <Plus size={14} /> Выдать СИЗ сотруднику
-                </button>
-              )}
+              <button
+                onClick={() => setShowInboundModal(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-[#2565c8]"
+              >
+                <Plus size={14} /> Оформить Приход
+              </button>
+              <button
+                onClick={() => setShowCardModal(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-emerald-700"
+              >
+                <UserCheck size={14} /> Выдать сотруднику
+              </button>
+              <button
+                onClick={() => setShowTransferModal(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700"
+              >
+                <ArrowRightLeft size={14} /> Переместить ТМЦ
+              </button>
+              <button
+                onClick={() => setShowMovModal(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-rose-700"
+              >
+                <FileSpreadsheet size={14} /> Списать ТМЦ
+              </button>
             </div>
           }
         />
@@ -909,6 +951,92 @@ export default function ConsolidatedWmsOperationsPage() {
                 className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
               >
                 {submitting ? "Сохранение..." : "Подтвердить возврат"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Modal 5: Inbound Receiving */}
+        <Modal open={showInboundModal} onClose={() => setShowInboundModal(false)} size="lg">
+          <ModalHeader
+            icon={<Plus size={16} />}
+            title="Оформление Прихода товара"
+            subtitle="Поступление новой партии или позиций ТМЦ на склад"
+            onClose={() => setShowInboundModal(false)}
+          />
+          <form onSubmit={handleInboundSubmit} className="space-y-4 p-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Наименование ТМЦ *</label>
+                <input
+                  required
+                  value={inboundFormData.name}
+                  onChange={(e) => setInboundFormData({ ...inboundFormData, name: e.target.value })}
+                  placeholder="Манжета гидравлическая 50х70"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Артикул (SKU) *</label>
+                <input
+                  required
+                  value={inboundFormData.sku}
+                  onChange={(e) => setInboundFormData({ ...inboundFormData, sku: e.target.value })}
+                  placeholder="ZIP-HYD-0099"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Склад *</label>
+                <select
+                  value={inboundFormData.warehouse}
+                  onChange={(e) => setInboundFormData({ ...inboundFormData, warehouse: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                >
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.name}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Ячейка</label>
+                <input
+                  value={inboundFormData.cell}
+                  onChange={(e) => setInboundFormData({ ...inboundFormData, cell: e.target.value })}
+                  placeholder="Яч-01-A"
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-700">Количество *</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={inboundFormData.quantity}
+                  onChange={(e) => setInboundFormData({ ...inboundFormData, quantity: Number(e.target.value) })}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowInboundModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
+              >
+                {submitting ? "Сохранение..." : "Сохранить Приход"}
               </button>
             </div>
           </form>

@@ -9,7 +9,12 @@ export async function GET(request: Request) {
   try {
     const where: any = {};
     if (employee) {
-      where.employeeName = { contains: employee, mode: "insensitive" };
+      where.OR = [
+        { employeeName: { contains: employee, mode: "insensitive" } },
+        { employeeNumber: { contains: employee, mode: "insensitive" } },
+        { employeePosition: { contains: employee, mode: "insensitive" } },
+        { department: { contains: employee, mode: "insensitive" } },
+      ];
     }
 
     const cards = await prisma.wmsPersonalCard.findMany({
@@ -33,7 +38,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { itemId, employeeName, employeePosition, department, quantity, notes } = body;
+    const { itemId, employeeName, employeePosition, employeeNumber, department, quantity, notes } = body;
 
     if (!itemId || !employeeName || !quantity || quantity <= 0) {
       return NextResponse.json(
@@ -63,6 +68,7 @@ export async function POST(request: Request) {
           itemName: item.name,
           employeeName,
           employeePosition: employeePosition || null,
+          employeeNumber: employeeNumber || null,
           department: department || null,
           issuedQuantity: Number(quantity),
           notes: notes || null,
@@ -81,7 +87,7 @@ export async function POST(request: Request) {
           type: "PERSONAL_CARD",
           quantity: Number(quantity),
           fromLocation: item.cell,
-          toLocation: `Личная карточка: ${employeeName}`,
+          toLocation: `Личная карточка: ${employeeName} (Таб. №${employeeNumber || "Б/Н"})`,
           performedBy: session.displayName || session.username,
           reason: `Выдача СИЗ/Инструмента сотруднику ${employeeName}`,
         }

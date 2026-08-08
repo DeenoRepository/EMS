@@ -345,25 +345,65 @@ enum WmsTransferStatus {
   CANCELLED
 }
 
+enum WmsRequisitionStatus {
+  DRAFT
+  REQUESTED
+  APPROVED
+  IN_TRANSIT
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum WmsWriteOffReason {
+  EQUIPMENT_REPAIR
+  SCRAP
+  NON_LIQUID
+  EXPIRED
+  DAMAGE
+  OTHER
+}
+
 model Warehouse {
   id                  String   @id @default(cuid())
   name                String   @unique
+  code                String?
+  location            String?
   responsibleUser     String
   responsibleUsername String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  zones               WmsZone[]
   storageCells        StorageCell[]
+}
+
+model WmsZone {
+  id          String   @id @default(cuid())
+  warehouseId String
+  code        String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  cells     StorageCell[]
+
+  @@unique([warehouseId, code])
 }
 
 model StorageCell {
   id          String    @id @default(cuid())
   warehouseId String
+  zoneId      String?
   code        String
   description String?
+  capacity    Int?      @default(100)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone      WmsZone?  @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 
   @@unique([warehouseId, code])
 }
@@ -376,7 +416,10 @@ model WmsItem {
   type                WmsItemType   @default(ZIP)
   unit                String        @default("pcs")
   warehouse           String
-  cell                String
+  cell                String?
+  zone                String?
+  batchNumber         String?
+  serialNumber        String?
   quantity            Int           @default(0)
   minQuantity         Int           @default(0)
   maxQuantity         Int           @default(100)
@@ -384,8 +427,10 @@ model WmsItem {
   unitPrice           Float         @default(0)
   currency            String        @default("RUB")
   status              WmsItemStatus @default(IN_STOCK)
+  isEps               Boolean       @default(false)
   supplier            String?
   compatibleEquipment Json?
+  equipmentId         String?
   lastIncomingDate    DateTime?
   lastOutgoingDate    DateTime?
   responsibleUser     String?
@@ -397,11 +442,16 @@ model WmsItem {
   movements           WmsMovement[]
   transferRequests    WmsTransferRequest[]
   personalCards       WmsPersonalCard[]
+  requisitions        WmsRequisitionItem[]
+  reservations        WmsReservation[]
+  writeOffs           WmsWriteOff[]
 
   @@index([name])
   @@index([category])
   @@index([warehouse])
   @@index([status])
+  @@index([batchNumber])
+  @@index([serialNumber])
 }
 
 model WmsMovement {
@@ -451,6 +501,72 @@ model WmsTransferRequest {
   @@index([fromWarehouse, toWarehouse])
 }
 
+model WmsRequisition {
+  id                  String               @id @default(cuid())
+  requisitionNumber   String               @unique
+  fromWarehouse       String
+  toWarehouse         String
+  requestedBy         String
+  status              WmsRequisitionStatus @default(REQUESTED)
+  note                String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  items               WmsRequisitionItem[]
+
+  @@index([status])
+  @@index([fromWarehouse, toWarehouse])
+}
+
+model WmsRequisitionItem {
+  id            String   @id @default(cuid())
+  requisitionId String
+  itemId        String
+  itemSku       String
+  itemName      String
+  quantity      Int
+
+  requisition WmsRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  item        WmsItem        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+}
+
+model WmsReservation {
+  id                  String    @id @default(cuid())
+  itemId              String
+  equipmentId         String?
+  equipmentName       String?
+  maintenancePlanDate DateTime?
+  reservedQuantity    Int
+  reservedBy          String
+  reason              String?
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  item WmsItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([equipmentId])
+}
+
+model WmsWriteOff {
+  id             String            @id @default(cuid())
+  itemId         String
+  itemSku        String
+  itemName       String
+  quantity       Int
+  reason         WmsWriteOffReason @default(EQUIPMENT_REPAIR)
+  equipmentId    String?
+  equipmentName  String?
+  performedBy    String
+  comments       String?
+  createdAt      DateTime          @default(now())
+
+  item WmsItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([reason])
+}
+
 model WmsPersonalCard {
   id               String    @id @default(cuid())
   itemId           String
@@ -458,6 +574,7 @@ model WmsPersonalCard {
   itemName         String
   employeeName     String
   employeePosition String?
+  employeeNumber   String?   // Табельный номер
   department       String?
   issuedQuantity   Int
   issuedAt         DateTime  @default(now())
@@ -470,6 +587,23 @@ model WmsPersonalCard {
 
   @@index([itemId])
   @@index([employeeName])
+  @@index([employeeNumber])
+}
+
+model WmsEmployee {
+  id             String   @id @default(cuid())
+  name           String
+  employeeNumber String   @unique // Табельный номер
+  position       String?
+  department     String?
+  warehouse      String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([name])
+  @@index([employeeNumber])
+  @@index([department])
 }
 
 model EnterpriseFacility {

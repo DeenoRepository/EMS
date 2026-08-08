@@ -78,7 +78,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       {
         id: "nav-wms-dashboard",
-        title: "Дашборд & Остатки ТМЦ",
+        title: "Остатки ТМЦ",
         href: "/modules/wms",
         category: "Бизнес-модули",
         keywords: ["дашборд", "обзор", "склад", "wms", "dashboard", "остатки", "каталог", "тмц", "запчасти"],
@@ -86,11 +86,43 @@ export const NAV_ITEMS: NavItem[] = [
       },
       {
         id: "nav-wms-movements",
-        title: "Операции & Движения",
+        title: "Движения ТМЦ",
         href: "/modules/wms/movements",
         category: "Бизнес-модули",
         keywords: ["приход", "расход", "перемещение", "списание", "оборудование", "мол", "сиз", "карточки"],
         iconName: "History"
+      },
+      {
+        id: "nav-wms-personal-cards",
+        title: "Личные карточки",
+        href: "/modules/wms/personal-cards",
+        category: "Бизнес-модули",
+        keywords: ["личные карточки", "сиз", "выдача", "сотрудник", "возврат", "персональные карточки"],
+        iconName: "UserCheck"
+      },
+      {
+        id: "nav-wms-topology",
+        title: "Адресный учет",
+        href: "/modules/wms/topology",
+        category: "Бизнес-модули",
+        keywords: ["адресное хранение", "ячейки", "стеллажи", "зоны", "topology", "bins", "warehouse"],
+        iconName: "MapPin"
+      },
+      {
+        id: "nav-wms-requisitions",
+        title: "Запросы со складов",
+        href: "/modules/wms/requisitions",
+        category: "Бизнес-модули",
+        keywords: ["запросы", "перемещение", "заявки", "межскладской", "requisitions", "transfers"],
+        iconName: "ArrowLeftRight"
+      },
+      {
+        id: "nav-wms-toir",
+        title: "Резервы & ЗИП",
+        href: "/modules/wms/toir-eps",
+        category: "Бизнес-модули",
+        keywords: ["неснижаемый остаток", "eps", "тоир", "ппр", "резерв", "зип"],
+        iconName: "Wrench"
       }
     ]
   },

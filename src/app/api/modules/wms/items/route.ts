@@ -27,6 +27,9 @@ export async function GET(request: Request) {
         { name: { contains: query, mode: "insensitive" } },
         { sku: { contains: query, mode: "insensitive" } },
         { cell: { contains: query, mode: "insensitive" } },
+        { zone: { contains: query, mode: "insensitive" } },
+        { batchNumber: { contains: query, mode: "insensitive" } },
+        { serialNumber: { contains: query, mode: "insensitive" } },
         { barcode: { contains: query, mode: "insensitive" } },
       ];
     }
@@ -58,9 +61,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.name || !body.sku || !body.warehouse || !body.cell) {
+    if (!body.name || !body.sku || !body.warehouse) {
       return NextResponse.json(
-        { error: "Поля Наименование, Артикул, Склад и Ячейка обязательны" },
+        { error: "Поля Наименование, Артикул и Склад обязательны" },
         { status: 400 }
       );
     }
@@ -82,13 +85,18 @@ export async function POST(request: Request) {
         type: (body.type as WmsItemType) || "ZIP",
         unit: body.unit || "pcs",
         warehouse: body.warehouse,
-        cell: body.cell,
+        zone: body.zone || null,
+        cell: body.cell || "Обустройство",
+        batchNumber: body.batchNumber || null,
+        serialNumber: body.serialNumber || null,
+        isEps: Boolean(body.isEps),
+        equipmentId: body.equipmentId || null,
         quantity: Number(body.quantity) || 0,
         minQuantity: Number(body.minQuantity) || 0,
         maxQuantity: Number(body.maxQuantity) || 100,
         unitPrice: Number(body.unitPrice) || 0,
         currency: body.currency || "RUB",
-        status: body.quantity <= body.minQuantity ? "LOW_STOCK" : "IN_STOCK",
+        status: body.quantity <= (Number(body.minQuantity) || 0) ? "LOW_STOCK" : "IN_STOCK",
         supplier: body.supplier || null,
         description: body.description || null,
         barcode: body.barcode || null,
