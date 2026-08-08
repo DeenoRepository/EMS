@@ -1208,14 +1208,14 @@ export default function WmsMainCatalogPage() {
           <Modal open={showCardModal} onClose={() => setShowCardModal(false)} size="lg">
             <ModalHeader
               icon={<Box size={18} className="text-blue-600" />}
-              title={`Паспорт номенклатуры: ${selectedCardItem.name}`}
-              subtitle={`Единый реестр ТМЦ WMS • SKU: ${selectedCardItem.sku}`}
+              title="Паспорт номенклатуры ТМЦ"
+              subtitle={`Артикул / SKU: ${selectedCardItem.sku}`}
               onClose={() => setShowCardModal(false)}
             />
             <div className="p-6 space-y-5 text-xs">
               {/* Top Summary Banner */}
-              <div className="rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 p-4 text-white shadow-md flex items-center justify-between">
-                <div className="space-y-1">
+              <div className="rounded-xl bg-slate-900 p-4 text-white shadow-md flex items-center justify-between">
+                <div className="space-y-1.5 flex-1 pr-4">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/60">
                       {selectedCardItem.sku}
@@ -1226,7 +1226,7 @@ export default function WmsMainCatalogPage() {
                       </span>
                     )}
                   </div>
-                  <h3 className="text-sm font-bold text-slate-100">{selectedCardItem.name}</h3>
+                  <h3 className="text-base font-bold text-white tracking-wide">{selectedCardItem.name}</h3>
                   <p className="text-[11px] text-slate-400">Категория: {selectedCardItem.category} • Тип: {selectedCardItem.type || "Запасные части"}</p>
                 </div>
                 <div className="text-right border-l border-slate-700/80 pl-5">
