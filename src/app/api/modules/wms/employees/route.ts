@@ -42,6 +42,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
     }
 
+    if (!session.roles.includes("ADMIN") && !session.roles.includes("EDITOR")) {
+      return NextResponse.json(
+        { error: "Отказано в доступе. Регистрация сотрудников доступна только редакторам и администраторам." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { name, employeeNumber, position, department, warehouse } = body;
 

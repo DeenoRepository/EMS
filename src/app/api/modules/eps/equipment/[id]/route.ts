@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { MOCK_EQUIPMENT_DATA } from "@/lib/modules/eps-store";
+import { getSession } from "@/lib/auth/session";
+import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
   const { id } = await params;
   
   try {
@@ -36,11 +43,28 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
+  const permissions = await getUserEpsPermissions();
+  if (!permissions.canEdit) {
+    return NextResponse.json(
+      { error: "Отказано в доступе. Редактирование паспорта оборудования доступно только редакторам и администраторам." },
+      { status: 403 }
+    );
+  }
+
   const { id } = await params;
-  
+  let body: any = {};
   try {
-    const body = await request.json();
-    
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Неверный формат JSON тела запроса" }, { status: 400 });
+  }
+
+  try {
     const existing = await prisma.equipment.findFirst({
       where: {
         OR: [{ id: id }, { equipmentCode: id }]
@@ -78,11 +102,10 @@ export async function PUT(
       });
       return NextResponse.json({ success: true, item: updated });
     }
-    return NextResponse.json({ error: "Оборудование не найдено" }, { status: 404 });
   } catch (err) {
     console.error("EPS Equipment update failed:", err);
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ error: " Ошибка базы данных при обновлении паспорта" }, { status: 500 });
+      return NextResponse.json({ error: "Ошибка базы данных при обновлении паспорта" }, { status: 500 });
     }
   }
 
@@ -93,7 +116,6 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json();
     const updated = {
       ...MOCK_EQUIPMENT_DATA[index],
       ...body,

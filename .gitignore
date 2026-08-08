@@ -53,5 +53,6 @@ Thumbs.db
 # External parent/cache folders
 /Cache/
 /DAS/
-/moodle-ai-assistant-1/
+# Playwright MCP session snapshots
+.playwright-mcp/
 

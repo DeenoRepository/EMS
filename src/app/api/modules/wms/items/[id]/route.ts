@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { WmsItemType, WmsItemStatus } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
+import { getSession } from "@/lib/auth/session";
 
 export async function PUT(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -110,7 +116,7 @@ export async function PUT(
             quantity: newQuantity - existingItem.quantity,
             fromLocation: locationFrom,
             toLocation: locationTo,
-            performedBy: "Кладовщик",
+            performedBy: session.displayName || session.username,
             reason: `Корректировка позиции ТМЦ / Ячейки хранения (${locationFrom} -> ${locationTo})`
           }
         })

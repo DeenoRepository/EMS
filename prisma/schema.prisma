@@ -139,6 +139,10 @@ model Equipment {
   commissioningDate DateTime?
   warrantyExpiration DateTime?
   serviceDueDate DateTime?
+  criticality    String?
+  countryOfOrigin String?
+  isImported     Boolean?          @default(false)
+  isUnique       Boolean?          @default(false)
   notes          String?
   customAttributes Json?
   status         EquipmentStatus   @default(DRAFT)
@@ -410,7 +414,7 @@ model StorageCell {
 
 model WmsItem {
   id                  String        @id @default(cuid())
-  sku                 String        @unique
+  sku                 String
   name                String
   category            String
   type                WmsItemType   @default(ZIP)
@@ -446,6 +450,7 @@ model WmsItem {
   reservations        WmsReservation[]
   writeOffs           WmsWriteOff[]
 
+  @@unique([sku, warehouse])
   @@index([name])
   @@index([category])
   @@index([warehouse])

@@ -4,6 +4,10 @@ import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 
 export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
   return NextResponse.json({ items: getApprovalsStore() });
 }
 

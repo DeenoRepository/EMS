@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
+import { hasRole } from "@/lib/auth/rbac";
 
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session || !hasRole(session, ["ADMIN"])) {
+      return NextResponse.json({ error: "Отказано в доступе. Требуются права администратора." }, { status: 403 });
+    }
+
     const facilities = await prisma.enterpriseFacility.findMany({
       orderBy: { name: "asc" }
     });
@@ -15,6 +22,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || !hasRole(session, ["ADMIN"])) {
+      return NextResponse.json({ error: "Отказано в доступе. Требуются права администратора." }, { status: 403 });
+    }
+
     const body = await request.json();
     if (!body.name || !body.code) {
       return NextResponse.json({ error: "Поля name и code обязательны" }, { status: 400 });

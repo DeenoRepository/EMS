@@ -5,6 +5,11 @@ import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const itemId = searchParams.get("itemId");
   const type = searchParams.get("type");
@@ -121,11 +126,17 @@ export async function POST(request: Request) {
         })
       );
 
+      let newReservedQuantity = item.reservedQuantity;
+      if (type === "OUTGOING" && item.reservedQuantity > 0) {
+        newReservedQuantity = Math.max(0, item.reservedQuantity - Number(quantity));
+      }
+
       txOps.push(
         prisma.wmsItem.update({
           where: { id: item.id },
           data: {
             quantity: newQuantity,
+            reservedQuantity: newReservedQuantity,
             status: newStatus
           }
         })

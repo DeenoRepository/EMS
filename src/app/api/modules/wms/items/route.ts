@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { WmsItemType } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -60,6 +61,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     if (!body.name || !body.sku || !body.warehouse) {
@@ -88,6 +94,8 @@ export async function POST(request: Request) {
       }
     });
 
+    const sessionUser = session.displayName || session.username;
+
     if (existingNomenclature) {
       // 2. Номенклатурная единица уже присутствует -> Обновление остатков и подгруженных параметров
       const updatedQty = existingNomenclature.quantity + incomingQty;
@@ -113,7 +121,7 @@ export async function POST(request: Request) {
             quantity: incomingQty,
             fromLocation: "Поставщик / Приход",
             toLocation: body.cell || existingNomenclature.cell || "Склад",
-            performedBy: "Кладовщик",
+            performedBy: sessionUser,
             reason: `Приход номенклатурной единицы (${incomingQty} ${existingNomenclature.unit})`,
           }
         })
@@ -123,44 +131,43 @@ export async function POST(request: Request) {
     }
 
     // 3. Номенклатурной единицы нет -> Создание новой в общесистемном каталоге
-    const [createdItem] = await prisma.$transaction([
-      prisma.wmsItem.create({
-        data: {
-          sku: body.sku,
-          name: body.name,
-          category: body.category || "Запчасти & Механика",
-          type: (body.type as WmsItemType) || "ZIP",
-          unit: body.unit || "шт",
-          warehouse: body.warehouse,
-          cell: body.cell || "Яч-01",
-          batchNumber: body.batchNumber || null,
-          serialNumber: body.serialNumber || null,
-          quantity: incomingQty,
-          minQuantity: Number(body.minQuantity) || 2,
-          maxQuantity: Number(body.maxQuantity) || 100,
-          unitPrice: Number(body.unitPrice) || 1500,
-          currency: body.currency || "RUB",
-          status: incomingQty <= (Number(body.minQuantity) || 2) ? "LOW_STOCK" : "IN_STOCK",
-          supplier: body.supplier || "Поставщик",
-          description: body.description || null,
-        }
-      }),
-      prisma.wmsMovement.create({
-        data: {
-          itemId: body.sku,
-          itemSku: body.sku,
-          itemName: body.name,
-          type: "INCOMING",
-          quantity: incomingQty,
-          fromLocation: "Поставщик / Новая номенклатура",
-          toLocation: body.cell || "Яч-01",
-          performedBy: "Кладовщик",
-          reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit || "шт"})`,
-        }
-      })
-    ]);
+    const newItem = await prisma.wmsItem.create({
+      data: {
+        sku: body.sku,
+        name: body.name,
+        category: body.category || "Запчасти & Механика",
+        type: (body.type as WmsItemType) || "ZIP",
+        unit: body.unit || "шт",
+        warehouse: body.warehouse,
+        cell: body.cell || "Яч-01",
+        batchNumber: body.batchNumber || null,
+        serialNumber: body.serialNumber || null,
+        quantity: incomingQty,
+        minQuantity: Number(body.minQuantity) || 2,
+        maxQuantity: Number(body.maxQuantity) || 100,
+        unitPrice: Number(body.unitPrice) || 1500,
+        currency: body.currency || "RUB",
+        status: incomingQty <= (Number(body.minQuantity) || 2) ? "LOW_STOCK" : "IN_STOCK",
+        supplier: body.supplier || "Поставщик",
+        description: body.description || null,
+      }
+    });
 
-    return NextResponse.json({ item: createdItem, isExisting: false, success: true }, { status: 201 });
+    await prisma.wmsMovement.create({
+      data: {
+        itemId: newItem.id,
+        itemSku: newItem.sku,
+        itemName: newItem.name,
+        type: "INCOMING",
+        quantity: incomingQty,
+        fromLocation: "Поставщик / Новая номенклатура",
+        toLocation: body.cell || "Яч-01",
+        performedBy: sessionUser,
+        reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit || "шт"})`,
+      }
+    });
+
+    return NextResponse.json({ item: newItem, isExisting: false, success: true }, { status: 201 });
   } catch (err: any) {
     console.error("Failed to process WMS item receiving:", err);
     return NextResponse.json(

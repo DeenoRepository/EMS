@@ -49,7 +49,7 @@ export async function POST(request: Request) {
           console.warn("Set session cookie warning:", cErr);
         }
 
-        const response = NextResponse.json({ success: true, user: sessionPayload, provider: "DATABASE" });
+        const response = NextResponse.json({ success: true, user: sessionPayload });
         response.cookies.set("ems_session", token, {
           httpOnly: true,
           secure: (process.env.NODE_ENV as string) === "production",
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       console.warn("Set session cookie warning:", cErr);
     }
 
-    const response = NextResponse.json({ success: true, user: sessionPayload, provider: "MOCK" });
+    const response = NextResponse.json({ success: true, user: sessionPayload });
     response.cookies.set("ems_session", token, {
       httpOnly: true,
       secure: (process.env.NODE_ENV as string) === "production",
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("Login route error:", err);
     return NextResponse.json(
-      { error: "Внутренняя ошибка авторизации: " + (err instanceof Error ? err.message : String(err)) },
+      { error: "Внутренняя ошибка авторизации" },
       { status: 500 }
     );
   }

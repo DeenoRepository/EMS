@@ -1,9 +1,25 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { Prisma, EquipmentStatus, Equipment } from "@prisma/client";
+import { Prisma, EquipmentStatus } from "@prisma/client";
 import { EquipmentItem } from "@/lib/modules/eps-store";
+import { getSession } from "@/lib/auth/session";
+import { logEvent } from "@/lib/telemetry/logger";
 
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
+  logEvent({
+    level: "audit",
+    module: "EPS",
+    action: "EXPORT_EQUIPMENT",
+    userId: session.id,
+    userEmail: session.email,
+    details: { url: request.url }
+  });
+
   const { searchParams } = new URL(request.url);
   const selectedFieldsParam = searchParams.get("fields");
   const departmentFilter = searchParams.get("department");
