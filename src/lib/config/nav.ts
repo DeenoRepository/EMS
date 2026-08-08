@@ -77,56 +77,6 @@ export const NAV_ITEMS: NavItem[] = [
     iconName: "Zap"
   },
   {
-    id: "nav-mro",
-    title: "ТОиР и Ремонты (MRO)",
-    href: "/modules/mro",
-    category: "Бизнес-модули",
-    keywords: ["mro", "тоир", "ремонты", "обслуживание", "maintenance", "repair"],
-    iconName: "Wrench"
-  },
-  {
-    id: "nav-srm",
-    title: "Закупки и Поставщики (SRM)",
-    href: "/modules/srm",
-    category: "Бизнес-модули",
-    keywords: ["srm", "закупки", "заявки", "поставщики", "снабжение", "procurement", "suppliers"],
-    iconName: "PackageCheck"
-  },
-  {
-    id: "nav-wms",
-    title: "Складской учёт (WMS)",
-    href: "/modules/wms",
-    category: "Бизнес-модули",
-    keywords: ["wms", "склад", "зип", "остатки", "хранение", "warehouse", "inventory"],
-    iconName: "Database",
-    children: [
-      {
-        id: "nav-wms-registry",
-        title: "Реестр ТМЦ и ЗИП",
-        href: "/modules/wms",
-        category: "Бизнес-модули",
-        keywords: ["реестр", "тмц", "зип", "склад", "остатки"],
-        iconName: "Box"
-      },
-      {
-        id: "nav-wms-movements",
-        title: "Движение ТМЦ",
-        href: "/modules/wms/movements",
-        category: "Бизнес-модули",
-        keywords: ["движение", "приход", "расход", "перемещение", "аудит"],
-        iconName: "History"
-      },
-      {
-        id: "nav-wms-reports",
-        title: "Отчёты",
-        href: "/modules/wms/reports",
-        category: "Бизнес-модули",
-        keywords: ["отчёты", "ведомость", "дефицит", "abc-анализ"],
-        iconName: "PieChart"
-      }
-    ]
-  },
-  {
     id: "nav-settings-root",
     title: "Настройки",
     href: "/admin/settings",
@@ -157,14 +107,6 @@ export const NAV_ITEMS: NavItem[] = [
         category: "Настройки EPS",
         keywords: ["нси", "справочники", "атрибуты", "типы", "references", "attributes"],
         iconName: "Database"
-      },
-      {
-        id: "nav-admin-wms-warehouses",
-        title: "Склады & МОЛ WMS",
-        href: "/admin/settings/wms",
-        category: "Настройки WMS",
-        keywords: ["wms", "склады", "мол", "заведующий", "ответственный", "настройки склада"],
-        iconName: "Building2"
       },
       {
         id: "nav-admin-audit",

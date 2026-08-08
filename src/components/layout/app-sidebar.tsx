@@ -40,24 +40,18 @@ function SidebarContent() {
     setSidebarCollapsed,
     toggleSidebar: onToggle,
     pendingApprovals,
-    pendingWmsTransfers,
   } = useShell();
 
   const pathname = usePathname();
 
   const isEpsActive = pathname.startsWith("/modules/eps");
-  const isWmsActive = pathname.startsWith("/modules/wms");
   const isSettingsActive = pathname.startsWith("/admin");
 
   const [epsOpen, setEpsOpen] = useState<boolean>(isEpsActive);
-  const [wmsOpen, setWmsOpen] = useState<boolean>(isWmsActive);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(isSettingsActive);
 
   const [moduleHealth, setModuleHealth] = useState<Record<string, "online" | "dev" | "offline">>({
     eps: MODULES_CONFIG.eps.status,
-    mro: MODULES_CONFIG.mro.status,
-    srm: MODULES_CONFIG.srm.status,
-    wms: MODULES_CONFIG.wms.status,
   });
 
   // Sync state with localStorage after client mount to prevent Hydration mismatch
@@ -65,11 +59,6 @@ function SidebarContent() {
     const savedEps = localStorage.getItem("ems_shell_sidebar_eps_open");
     if (savedEps !== null) {
       setEpsOpen(savedEps === "true");
-    }
-
-    const savedWms = localStorage.getItem("ems_shell_sidebar_wms_open");
-    if (savedWms !== null) {
-      setWmsOpen(savedWms === "true");
     }
 
     const savedSettings = localStorage.getItem("ems_shell_sidebar_settings_open");
@@ -93,19 +82,6 @@ function SidebarContent() {
         updated.eps = "offline";
       }
 
-      // Check MRO, SRM, WMS endpoint availability
-      for (const modId of ["mro", "srm", "wms"] as const) {
-        try {
-          const res = await fetch(MODULES_CONFIG[modId].href, { method: "HEAD", cache: "no-store" });
-          if (!res.ok && res.status >= 500) {
-            updated[modId] = "offline";
-          }
-        } catch {
-          // If network fetch fails completely
-          updated[modId] = "offline";
-        }
-      }
-
       setModuleHealth(updated);
     };
 
@@ -120,14 +96,6 @@ function SidebarContent() {
     setEpsOpen((prev) => {
       const next = !prev;
       localStorage.setItem("ems_shell_sidebar_eps_open", String(next));
-      return next;
-    });
-  };
-
-  const toggleWms = () => {
-    setWmsOpen((prev) => {
-      const next = !prev;
-      localStorage.setItem("ems_shell_sidebar_wms_open", String(next));
       return next;
     });
   };
@@ -147,16 +115,6 @@ function SidebarContent() {
       localStorage.setItem("ems_shell_sidebar_eps_open", "true");
     } else {
       toggleEps();
-    }
-  };
-
-  const handleWmsClick = () => {
-    if (collapsed) {
-      setSidebarCollapsed(false);
-      setWmsOpen(true);
-      localStorage.setItem("ems_shell_sidebar_wms_open", "true");
-    } else {
-      toggleWms();
     }
   };
 
@@ -180,26 +138,18 @@ function SidebarContent() {
     if (item.children && item.children.some(itemMatchesQuery)) return true;
     return false;
   };
-
   const navDashboard = NAV_ITEMS.find((i) => i.id === "nav-dashboard");
   const epsNav = NAV_ITEMS.find((i) => i.id === "nav-eps-root");
-  const mroNav = NAV_ITEMS.find((i) => i.id === "nav-mro");
-  const srmNav = NAV_ITEMS.find((i) => i.id === "nav-srm");
-  const wmsNav = NAV_ITEMS.find((i) => i.id === "nav-wms");
   const settingsNav = NAV_ITEMS.find((i) => i.id === "nav-settings-root");
 
   const epsSubItems = epsNav?.children ?? [];
-  const wmsSubItems = wmsNav?.children ?? [];
   const settingsSubItems = settingsNav?.children ?? [];
 
   const showDashboard = navDashboard ? itemMatchesQuery(navDashboard) : false;
   const showEpsRoot = epsNav ? itemMatchesQuery(epsNav) : false;
-  const showMro = mroNav ? itemMatchesQuery(mroNav) : false;
-  const showSrm = srmNav ? itemMatchesQuery(srmNav) : false;
-  const showWms = wmsNav ? itemMatchesQuery(wmsNav) : false;
   const showSettingsRoot = settingsNav ? itemMatchesQuery(settingsNav) : false;
 
-  const showBusinessModulesSection = showEpsRoot || showMro || showSrm || showWms;
+  const showBusinessModulesSection = showEpsRoot;
 
   const renderModuleBadge = (modId: string) => {
     const status = moduleHealth[modId] || MODULES_CONFIG[modId]?.status || "online";
@@ -388,102 +338,6 @@ function SidebarContent() {
                 )}
               </>
             )}
-
-            {/* Other Modules */}
-            {showMro && (
-              <Link
-                href={MODULES_CONFIG.mro.href}
-                title={MODULES_CONFIG.mro.name}
-                className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] text-slate-300 transition hover:bg-white/5 ${
-                  collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
-                } ${pathname.startsWith(MODULES_CONFIG.mro.href) ? "bg-[#1b2945] text-[#55a5ff]" : ""}`}
-              >
-                <Wrench size={14} className="text-slate-400" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1">{MODULES_CONFIG.mro.name}</span>
-                    {renderModuleBadge("mro")}
-                  </>
-                )}
-              </Link>
-            )}
-
-            {showSrm && (
-              <Link
-                href={MODULES_CONFIG.srm.href}
-                title={MODULES_CONFIG.srm.name}
-                className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] text-slate-300 transition hover:bg-white/5 ${
-                  collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
-                } ${pathname.startsWith(MODULES_CONFIG.srm.href) ? "bg-[#1b2945] text-[#55a5ff]" : ""}`}
-              >
-                <PackageCheck size={14} className="text-slate-400" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1">{MODULES_CONFIG.srm.name}</span>
-                    {renderModuleBadge("srm")}
-                  </>
-                )}
-              </Link>
-            )}
-
-            {/* WMS Module Expandable */}
-            {showWms && (
-              <>
-                <button
-                  title={MODULES_CONFIG.wms.name}
-                  onClick={handleWmsClick}
-                  aria-expanded={wmsOpen}
-                  aria-label={`${MODULES_CONFIG.wms.name} подменю`}
-                  className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] font-medium transition ${
-                    collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
-                  } ${
-                    isWmsActive ? "bg-[#1b2945] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
-                  }`}
-                >
-                  <Database size={14} className={isWmsActive ? "text-[#55a5ff]" : "text-slate-400"} />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1 truncate">{MODULES_CONFIG.wms.name}</span>
-                      {renderModuleBadge("wms")}
-                      {wmsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                    </>
-                  )}
-                </button>
-
-                {/* WMS Submenu */}
-                {!collapsed && (wmsOpen || query.length > 0) && (
-                  <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5">
-                    {wmsSubItems.map((sub) => {
-                      if (!itemMatchesQuery(sub)) return null;
-                      const isSubActive = sub.href === "/modules/wms"
-                        ? pathname === "/modules/wms"
-                        : pathname.startsWith(sub.href);
-
-                      return (
-                        <Link
-                          key={sub.id}
-                          href={sub.href}
-                          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
-                            isSubActive ? "bg-white/10 text-white font-semibold" : "hover:bg-white/5 hover:text-white"
-                          }`}
-                        >
-                          {sub.id === "nav-wms-registry" && <Box size={12} />}
-                          {sub.id === "nav-wms-movements" && <History size={12} />}
-                          {sub.id === "nav-wms-warehouses" && <Building2 size={12} />}
-                          {sub.id === "nav-wms-reports" && <PieChart size={12} />}
-                          <span className="flex-1">{sub.title}</span>
-                          {sub.id === "nav-wms-movements" && pendingWmsTransfers > 0 && (
-                            <span className="rounded bg-[#2366c6]/40 px-1.5 py-0.5 text-[8px] font-bold text-[#55a5ff] font-mono">
-                              {pendingWmsTransfers}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
           </>
         )}
 
@@ -535,7 +389,6 @@ function SidebarContent() {
                       {sub.id === "nav-admin-settings" && <SlidersHorizontal size={12} />}
                       {sub.id === "nav-admin-rbac" && <ShieldCheck size={12} />}
                       {sub.id === "nav-admin-eps-nsi" && <Database size={12} />}
-                      {sub.id === "nav-admin-wms-warehouses" && <Building2 size={12} />}
                       {sub.id === "nav-admin-audit" && <Gauge size={12} />}
                       <span>{sub.title}</span>
                     </Link>
@@ -547,78 +400,15 @@ function SidebarContent() {
         )}
       </nav>
 
-      {/* Sidebar Footer System Info & Dynamic Module Health Status */}
-      <div className="border-t border-white/10 px-4 py-3 space-y-1.5 text-slate-400">
+      {/* Sidebar Footer System Info */}
+      <div className="border-t border-white/10 px-4 py-3 text-slate-400">
         {!collapsed ? (
-          <>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-medium text-slate-300">{BRAND_CONFIG.name}</span>
-              <span className="text-[10px] text-slate-500 font-mono">v{APP_VERSION}</span>
-            </div>
-            <div className="flex items-center justify-between text-[9px] font-mono border-t border-white/5 pt-1.5">
-              <span className="text-slate-500">Статус:</span>
-              <div className="flex items-center gap-2">
-                {Object.values(MODULES_CONFIG).map((mod) => {
-                  const status = moduleHealth[mod.id] || mod.status;
-                  return (
-                    <span
-                      key={mod.id}
-                      className={`flex items-center gap-1 ${
-                        status === "online"
-                          ? "text-emerald-400"
-                          : status === "dev"
-                          ? "text-slate-400"
-                          : "text-rose-400 font-bold animate-pulse"
-                      }`}
-                      title={`${mod.name}: ${
-                        status === "online"
-                          ? "Онлайн"
-                          : status === "dev"
-                          ? "В разработке"
-                          : "Недоступен (Offline)"
-                      }`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          status === "online"
-                            ? "bg-emerald-400"
-                            : status === "dev"
-                            ? "bg-slate-400"
-                            : "bg-rose-500 ring-2 ring-rose-500/40"
-                        }`}
-                      />
-                      <span>{mod.id.toUpperCase()}</span>
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          </>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-medium text-slate-300">{BRAND_CONFIG.name}</span>
+            <span className="text-[10px] text-slate-500 font-mono">v{APP_VERSION}</span>
+          </div>
         ) : (
-          <div
-            className="flex flex-col items-center gap-1.5 py-0.5"
-            title={Object.values(MODULES_CONFIG)
-              .map((m) => `${m.id.toUpperCase()}: ${moduleHealth[m.id] || m.status}`)
-              .join(" | ")}
-          >
-            <div className="flex gap-1">
-              {Object.values(MODULES_CONFIG).map((mod) => {
-                const status = moduleHealth[mod.id] || mod.status;
-                return (
-                  <span
-                    key={mod.id}
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      status === "online"
-                        ? "bg-emerald-400"
-                        : status === "dev"
-                        ? "bg-slate-400"
-                        : "bg-rose-500 ring-2 ring-rose-500/40 animate-pulse"
-                    }`}
-                    title={`${mod.id.toUpperCase()}: ${status === "offline" ? "Недоступен" : status}`}
-                  />
-                );
-              })}
-            </div>
+          <div className="flex justify-center">
             <span className="text-[9px] text-slate-500 font-mono">v{APP_VERSION}</span>
           </div>
         )}

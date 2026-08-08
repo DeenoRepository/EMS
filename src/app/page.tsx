@@ -52,16 +52,6 @@ const platforms = [
     href: "/modules/srm",
     icon: Box,
   },
-  {
-    code: "WMS",
-    name: "WMS Склад",
-    owner: "Складское Хозяйство",
-    status: "В разработке",
-    version: "v0.1.2-dev",
-    action: "Скоро",
-    href: "/modules/wms",
-    icon: Database,
-  },
 ];
 
 function MetricCard({

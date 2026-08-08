@@ -21,39 +21,6 @@ export const REGISTERED_MODULES: ModuleManifest[] = [
     requiredRoles: ["VIEWER", "EDITOR", "APPROVER", "ADMIN"],
     healthCheckUrl: "/api/modules/eps/health",
     status: "active"
-  },
-  {
-    code: "MRO",
-    name: "MRO (ТОИР)",
-    description: "Техническое обслуживание и ремонты",
-    version: "0.9.0-dev",
-    entryPoint: "/modules/mro",
-    iconName: "Wrench",
-    requiredRoles: ["EDITOR", "ADMIN"],
-    healthCheckUrl: "/api/modules/mro/health",
-    status: "degraded"
-  },
-  {
-    code: "SRM",
-    name: "SRM Заявки",
-    description: "Управление сервисными заявками",
-    version: "1.0.0",
-    entryPoint: "/modules/srm",
-    iconName: "FileCheck",
-    requiredRoles: ["EDITOR", "ADMIN"],
-    healthCheckUrl: "/api/modules/srm/health",
-    status: "active"
-  },
-  {
-    code: "WMS",
-    name: "WMS Склад",
-    description: "Учет материалов и складские запасы",
-    version: "1.0.0",
-    entryPoint: "/modules/wms",
-    iconName: "Warehouse",
-    requiredRoles: ["ADMIN"],
-    healthCheckUrl: "/api/modules/wms/health",
-    status: "active"
   }
 ];
 
