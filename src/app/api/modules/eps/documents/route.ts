@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const equipmentCode = searchParams.get("equipmentCode");
 
   try {
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (equipmentCode) {
       where.equipment = { equipmentCode };
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, EquipmentStatus, Equipment } from "@prisma/client";
 import { EquipmentItem } from "@/lib/modules/eps-store";
 
 export async function GET(request: Request) {
@@ -18,10 +18,10 @@ export async function GET(request: Request) {
     where.category = categoryFilter;
   }
   if (statusFilter && statusFilter !== "ALL") {
-    where.status = statusFilter as any;
+    where.status = statusFilter as EquipmentStatus;
   }
 
-  let items: Prisma.EquipmentGetPayload<{}>[] = [];
+  let items: Prisma.EquipmentGetPayload<object>[] = [];
   try {
     items = await prisma.equipment.findMany({ where });
   } catch (err) {
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
   const headers = selectedFields.map((f) => f.label);
   const rows = items.map((item) =>
     selectedFields.map((field) => {
-      const val = field.extract(item as any);
+      const val = field.extract(item as unknown as EquipmentItem);
       return `"${val.replace(/"/g, '""')}"`;
     })
   );

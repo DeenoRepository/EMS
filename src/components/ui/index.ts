@@ -29,3 +29,8 @@ export * from "./timeline";
 export * from "./pagination";
 export * from "./metric-progress-card";
 export * from "./user-chip";
+export * from "./area-chart";
+export * from "./donut-chart";
+export * from "./step-chart";
+export * from "./stepper-timeline";
+export * from "./bar-chart";

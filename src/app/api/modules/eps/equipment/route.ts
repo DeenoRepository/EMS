@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         techSpecs: body.techSpecs,
         lifecycleStage: body.lifecycleStage || "IN_OPERATION",
         currentVersion: 1
-      } as any
+      } as unknown as Prisma.EquipmentCreateInput
     });
 
     return NextResponse.json({ success: true, item: created }, { status: 201 });

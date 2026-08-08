@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database for EMS Shell & Modules
   postgres:
@@ -7,11 +5,11 @@ services:
     container_name: ems-postgres
     restart: always
     environment:
-      POSTGRES_DB: ems_db
-      POSTGRES_USER: ems_user
-      POSTGRES_PASSWORD: ems_password
+      POSTGRES_DB: ${POSTGRES_DB:-ems_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ems_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ems_password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

@@ -12,13 +12,13 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" }
     });
 
-    const items: TimelineEvent[] = dbEvents.map((evt: any) => ({
+    const items: TimelineEvent[] = dbEvents.map((evt) => ({
       id: evt.id,
       equipmentId: evt.equipmentId,
       eventType: evt.eventType as TimelineEvent["eventType"],
       title: evt.title,
       description: evt.description || "",
-      actor: evt.actor || "system@ems.local",
+      actor: evt.actorId || "system@ems.local",
       createdAt: evt.createdAt.toISOString()
     }));
 

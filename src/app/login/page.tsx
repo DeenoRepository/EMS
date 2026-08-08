@@ -33,8 +33,8 @@ export default function LoginPage() {
 
       router.push("/");
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message || "Ошибка сети при попытке авторизации");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Ошибка сети при попытке авторизации");
     } finally {
       setLoading(false);
     }

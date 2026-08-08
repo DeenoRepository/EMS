@@ -2,7 +2,14 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { UserSession } from "./rbac";
 
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  throw new Error("CRITICAL SECURITY ERROR: JWT_SECRET environment variable is mandatory in production!");
+}
+
 const secretKey = process.env.JWT_SECRET || "ems-corporate-platform-secret-key-2026-secure-jwt";
+if (!process.env.JWT_SECRET) {
+  console.warn("SECURITY WARNING: Using default development JWT_SECRET. Set JWT_SECRET in .env.local!");
+}
 const JWT_SECRET = new TextEncoder().encode(secretKey);
 
 const SESSION_COOKIE_NAME = "ems_session";

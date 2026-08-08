@@ -1,20 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import ShellLayout from "@/components/layout/shell-layout";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import {
-  ShieldCheck,
-  UserPlus,
-  Search,
-  Check,
-  X,
-  SlidersHorizontal,
-  ChevronRight,
-  Database,
-  Gauge,
-} from "lucide-react";
+  PageHeader,
+  Button,
+  Modal,
+  ModalHeader,
+  ModalFooter,
+  FormField,
+  Input,
+  SearchInput,
+  Select,
+} from "@/components/ui";
+import { ShieldCheck, UserPlus, SlidersHorizontal } from "lucide-react";
 
 interface RoleUser {
   id: string;
@@ -105,136 +105,91 @@ export default function RbacPage() {
         )}
 
         {/* Page Header */}
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <div>
-            <h1 className="text-[25px] font-bold tracking-[-.03em] text-[#17243a]">
-              Управление Доступом (RBAC) & Ролями
-            </h1>
-            <p className="mt-1 text-[12px] text-slate-500">
-              Настройка корпоративных ролей (Администратор, Редактор, Согласующий, Наблюдатель) и матрица прав.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsAddUserOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition"
-          >
-            <UserPlus size={14} /> Добавить пользователя
-          </button>
-        </div>
+        <PageHeader
+          title="Управление Доступом (RBAC) & Ролями"
+          description="Настройка корпоративных ролей (Администратор, Редактор, Согласующий, Наблюдатель) и матрица прав."
+          actions={
+            <Button onClick={() => setIsAddUserOpen(true)}>
+              <UserPlus size={14} /> Добавить пользователя
+            </Button>
+          }
+        />
 
         {/* Add User Modal */}
-        {isAddUserOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
-            onClick={() => setIsAddUserOpen(false)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#eef5ff] text-[#3473d4]">
-                    <ShieldCheck size={16} />
-                  </div>
-                  <h3 className="text-sm font-bold text-[#17243a]">Регистрация нового пользователя</h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAddUserOpen(false)}
-                  className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                >
-                  <X size={16} />
-                </button>
+        <Modal open={isAddUserOpen} onClose={() => setIsAddUserOpen(false)} size="sm">
+          <ModalHeader
+            title="Регистрация нового пользователя"
+            subtitle="Заполните ФИО, e-mail и назначьте первичные роли."
+            icon={<ShieldCheck size={16} className="text-[#3473d4]" />}
+            onClose={() => setIsAddUserOpen(false)}
+          />
+          <form onSubmit={handleAddUser} className="space-y-4 p-4 text-xs">
+            <FormField label="ФИО пользователя" required>
+              <Input
+                type="text"
+                required
+                placeholder="Сидоров Алексей Петрович"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </FormField>
+
+            <FormField label="Корпоративный Email" required>
+              <Input
+                type="email"
+                required
+                placeholder="user@ems.local"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+            </FormField>
+
+            <div className="space-y-2">
+              <label className="font-semibold text-slate-600">Начальные роли в системе</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { code: "ADMIN", name: "ADMIN (Полный)" },
+                  { code: "EDITOR", name: "EDITOR (Редактор)" },
+                  { code: "APPROVER", name: "APPROVER (Согласующий)" },
+                  { code: "VIEWER", name: "VIEWER (Чтение)" },
+                ].map((role) => {
+                  const active = selectedRoles.includes(role.code);
+                  return (
+                    <div
+                      key={role.code}
+                      onClick={() => toggleFormRole(role.code)}
+                      className={`cursor-pointer rounded-lg border px-3 py-2 text-[10px] font-semibold transition ${
+                        active
+                          ? "border-[#3473d4] bg-[#eef5ff] text-[#3473d4]"
+                          : "border-slate-200 bg-[#f8fafc] text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {role.name}
+                    </div>
+                  );
+                })}
               </div>
-
-              <form onSubmit={handleAddUser} className="space-y-4 text-xs">
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-600">ФИО пользователя *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Сидоров Алексей Петрович"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-[#f8fafc] px-3 py-1.5 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-600">Корпоративный Email *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="user@ems.local"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-[#f8fafc] px-3 py-1.5 text-[11px] outline-none focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="font-semibold text-slate-600">Начальные роли в системе</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { code: "ADMIN", name: "ADMIN (Полный)" },
-                      { code: "EDITOR", name: "EDITOR (Редактор)" },
-                      { code: "APPROVER", name: "APPROVER (Согласующий)" },
-                      { code: "VIEWER", name: "VIEWER (Чтение)" },
-                    ].map((role) => {
-                      const active = selectedRoles.includes(role.code);
-                      return (
-                        <div
-                          key={role.code}
-                          onClick={() => toggleFormRole(role.code)}
-                          className={`cursor-pointer rounded-lg border px-3 py-2 text-[10px] font-semibold transition ${
-                            active
-                              ? "border-[#3473d4] bg-[#eef5ff] text-[#3473d4]"
-                              : "border-slate-200 bg-[#f8fafc] text-slate-600 hover:bg-slate-100"
-                          }`}
-                        >
-                          {role.name}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddUserOpen(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex items-center gap-1.5 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
-                  >
-                    <UserPlus size={13} /> Зарегистрировать
-                  </button>
-                </div>
-              </form>
             </div>
-          </div>
-        )}
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setIsAddUserOpen(false)}>
+                Отмена
+              </Button>
+              <Button type="submit">
+                <UserPlus size={13} /> Зарегистрировать
+              </Button>
+            </ModalFooter>
+          </form>
+        </Modal>
 
         {/* Filter Toolbar */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
           <div className="flex items-center gap-2 flex-1 min-w-[280px] max-w-md">
-            <div className="relative w-full">
-              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Поиск пользователя по имени или e-mail…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 w-full rounded-lg border border-slate-200 bg-[#f8fafc] pl-9 pr-3 text-[11px] outline-none placeholder:text-slate-400 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Поиск пользователя по имени или e-mail…"
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -242,17 +197,17 @@ export default function RbacPage() {
               <SlidersHorizontal size={13} />
               <span className="font-semibold text-[11px]">Фильтр по роли:</span>
             </div>
-            <select
+            <Select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="h-8 rounded-lg border border-slate-200 bg-[#f8fafc] px-2.5 text-[10px] text-slate-600 outline-none focus:border-[#3c82ed]"
+              className="h-8"
             >
               <option value="ALL">Все роли</option>
               <option value="ADMIN">ADMIN</option>
               <option value="EDITOR">EDITOR</option>
               <option value="APPROVER">APPROVER</option>
               <option value="VIEWER">VIEWER</option>
-            </select>
+            </Select>
           </div>
         </div>
 

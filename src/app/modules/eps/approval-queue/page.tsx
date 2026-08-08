@@ -63,19 +63,26 @@ export default function ApprovalsPage() {
 
   // Column visibility state with localStorage persistence
   const [columns, setColumns] = useState<ApprovalColumnVisibility>(DEFAULT_COLUMNS);
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("eps_approvals_columns");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setColumns({ ...DEFAULT_COLUMNS, ...parsed });
+    let isSubscribed = true;
+    Promise.resolve().then(() => {
+      if (!isSubscribed) return;
+      try {
+        const saved = localStorage.getItem("eps_approvals_columns");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setColumns({ ...DEFAULT_COLUMNS, ...parsed });
+        }
+      } catch {
+        // Игнорируем ошибки чтения localStorage
       }
-    } catch {
-      // Игнорируем ошибки чтения localStorage
-    }
+    });
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   const toggleColumn = (key: keyof ApprovalColumnVisibility) => {
     setColumns((prev) => {
@@ -118,7 +125,9 @@ export default function ApprovalsPage() {
   }, []);
 
   useEffect(() => {
-    fetchApprovals();
+    void (async () => {
+      await fetchApprovals();
+    })();
   }, [fetchApprovals]);
 
   const handleAction = async (id: string, actionStatus: "APPROVED" | "REJECTED") => {
@@ -478,7 +487,7 @@ export default function ApprovalsPage() {
 
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Поиск: "{searchQuery}"
+                  Поиск: &quot;{searchQuery}&quot;
                   <button onClick={() => setSearchQuery("")} className="hover:text-blue-800">
                     <X size={11} />
                   </button>

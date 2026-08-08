@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Home, Building } from "lucide-react";
+import { ChevronRight, Building } from "lucide-react";
 import { useShell } from "./shell-context";
 
 export interface BreadcrumbItem {

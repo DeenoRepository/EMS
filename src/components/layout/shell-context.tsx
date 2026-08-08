@@ -59,7 +59,7 @@ const ShellContext = createContext<ShellContextType | undefined>(undefined);
 
 export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [facilities] = useState<EnterpriseFacility[]>(DEFAULT_FACILITIES);
   const [currentFacility, setCurrentFacility] = useState<EnterpriseFacility>(DEFAULT_FACILITIES[0]);
@@ -67,9 +67,61 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<NavBookmark[]>([]);
   const [recentPages, setRecentPages] = useState<RecentPage[]>([]);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
-
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    Promise.resolve().then(() => {
+      if (!isSubscribed) return;
+
+      // Restore sidebarCollapsed
+      const savedCollapsed = localStorage.getItem("ems_shell_sidebar_collapsed");
+      if (savedCollapsed !== null) setSidebarCollapsedState(savedCollapsed === "true");
+
+      // Restore facility
+      const savedFacilityId = localStorage.getItem("ems_shell_facility_id");
+      if (savedFacilityId) {
+        const found = DEFAULT_FACILITIES.find((f) => f.id === savedFacilityId);
+        if (found) setCurrentFacility(found);
+      }
+
+      // Restore theme
+      const savedTheme = localStorage.getItem("ems_shell_theme") as ThemeMode | null;
+      if (savedTheme) setThemeState(savedTheme);
+
+      // Restore favorites
+      const savedFavs = localStorage.getItem("ems_shell_favorites");
+      if (savedFavs) {
+        try {
+          const parsed = JSON.parse(savedFavs);
+          if (Array.isArray(parsed)) setFavorites(parsed);
+        } catch {}
+      }
+
+      // Restore recents
+      const savedRecents = localStorage.getItem("ems_shell_recents");
+      if (savedRecents) {
+        try {
+          const parsed = JSON.parse(savedRecents);
+          if (Array.isArray(parsed)) setRecentPages(parsed);
+        } catch {}
+      }
+
+      // Restore notifications
+      const savedNotes = localStorage.getItem("ems_shell_notifications");
+      if (savedNotes) {
+        try {
+          const parsed = JSON.parse(savedNotes);
+          if (Array.isArray(parsed)) setNotifications(parsed);
+        } catch {}
+      }
+    });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
 
   const refreshPendingApprovals = useCallback(async () => {
     try {
@@ -118,56 +170,20 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    refreshPendingApprovals();
+    // Асинхронное получение первичной очереди согласований
+    void (async () => {
+      await refreshPendingApprovals();
+    })();
 
     // Автоматическое периодическое обновление очереди согласований каждые 60 секунд
     const intervalId = setInterval(() => {
-      refreshPendingApprovals();
+      void refreshPendingApprovals();
     }, 60000);
 
-    const savedCollapsed = localStorage.getItem("ems_shell_sidebar_collapsed");
-    if (savedCollapsed !== null) {
-      setSidebarCollapsedState(savedCollapsed === "true");
-    }
-
-    const savedFacilityId = localStorage.getItem("ems_shell_facility_id");
-    if (savedFacilityId) {
-      const found = DEFAULT_FACILITIES.find((f) => f.id === savedFacilityId);
-      if (found) setCurrentFacility(found);
-    }
-
-    const savedTheme = (localStorage.getItem("ems_shell_theme") as ThemeMode | null) || "light";
-    if (savedTheme) {
-      setThemeState(savedTheme);
-      applyTheme(savedTheme);
-    }
-
-    const savedFavs = localStorage.getItem("ems_shell_favorites");
-    if (savedFavs) {
-      try {
-        const parsed = JSON.parse(savedFavs);
-        if (Array.isArray(parsed)) setFavorites(parsed);
-      } catch {}
-    }
-
-    const savedRecent = localStorage.getItem("ems_shell_recent_pages");
-    if (savedRecent) {
-      try {
-        const parsed = JSON.parse(savedRecent);
-        if (Array.isArray(parsed)) setRecentPages(parsed);
-      } catch {}
-    }
-
-    const savedNotifs = localStorage.getItem("ems_shell_notifications");
-    if (savedNotifs) {
-      try {
-        const parsed = JSON.parse(savedNotifs);
-        if (Array.isArray(parsed)) setNotifications(parsed);
-      } catch {}
-    }
+    applyTheme(theme);
 
     return () => clearInterval(intervalId);
-  }, [applyTheme, refreshPendingApprovals]);
+  }, [refreshPendingApprovals, applyTheme, theme]);
 
   const logout = async () => {
     try {

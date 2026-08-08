@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
 import { MOCK_EQUIPMENT_DATA } from "@/lib/modules/eps-store";
 
 export async function GET(
@@ -73,7 +74,7 @@ export async function PUT(
           notes: body.notes ?? existing.notes,
           techSpecs: body.techSpecs ?? (existing as Record<string, unknown>).techSpecs,
           currentVersion: existing.currentVersion + 1,
-        } as any
+        } as unknown as Prisma.EquipmentUpdateInput
       });
       return NextResponse.json({ success: true, item: updated });
     }

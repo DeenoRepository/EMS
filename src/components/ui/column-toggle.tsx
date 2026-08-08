@@ -39,15 +39,15 @@ export function ColumnToggle<K extends string = string>({
   }, [open]);
 
   return (
-    <div className={cn("relative", className)} ref={containerRef}>
+    <div className={cn("relative shrink-0 whitespace-nowrap", className)} ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+        className="flex h-8 shrink-0 min-w-max items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold text-slate-600 dark:text-slate-300 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition whitespace-nowrap"
         title="Настройка видимости колонок таблицы"
       >
-        <Columns3 size={13} className="text-[#3473d4] dark:text-blue-400" />
-        <span>Колонки</span>
+        <Columns3 size={13} className="text-[#3473d4] dark:text-blue-400 shrink-0" />
+        <span className="shrink-0 whitespace-nowrap">Колонки</span>
       </button>
 
       {open && (

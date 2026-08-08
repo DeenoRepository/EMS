@@ -42,17 +42,25 @@ export default function ChangeHistoryPage() {
   const [viewMode, setViewMode] = useState<"TIMELINE" | "TABLE">("TIMELINE");
 
   // Column visibility state with localStorage persistence
-  const [columns, setColumns] = useState<EventColumnVisibility>(() => {
-    try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("eps_events_columns") : null;
-      if (saved) {
-        return { ...DEFAULT_COLUMNS, ...JSON.parse(saved) };
+  const [columns, setColumns] = useState<EventColumnVisibility>(DEFAULT_COLUMNS);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    Promise.resolve().then(() => {
+      if (!isSubscribed) return;
+      try {
+        const saved = localStorage.getItem("eps_events_columns");
+        if (saved) {
+          setColumns({ ...DEFAULT_COLUMNS, ...JSON.parse(saved) });
+        }
+      } catch {
+        // Игнорируем
       }
-    } catch {
-      // Игнорируем
-    }
-    return DEFAULT_COLUMNS;
-  });
+    });
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
 
   const toggleColumn = (key: keyof EventColumnVisibility) => {
     setColumns((prev) => {

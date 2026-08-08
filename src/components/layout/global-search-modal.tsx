@@ -17,7 +17,7 @@ interface FlatSearchItem {
   icon: React.ReactNode;
 }
 
-function getIconForName(name?: string, category?: string): React.ReactNode {
+function getIconForName(name?: string): React.ReactNode {
   switch (name) {
     case "LayoutDashboard":
       return <Zap className="h-3.5 w-3.5 text-sky-500" />;
@@ -61,7 +61,7 @@ function buildSearchItems(): FlatSearchItem[] {
       category: item.category,
       href: item.href,
       keywords: item.keywords,
-      icon: getIconForName(item.iconName, item.category),
+      icon: getIconForName(item.iconName),
     });
 
     if (item.children) {
@@ -91,10 +91,6 @@ export function GlobalSearchModal() {
         );
       })
     : ALL_SEARCH_ITEMS;
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -148,7 +144,10 @@ export function GlobalSearchModal() {
                 placeholder="Поиск маршрутов, команд и параметров (стрелки ↑↓ для выбора)…"
                 aria-label="Поисковый запрос"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSelectedIndex(0);
+                }}
                 className="w-full bg-transparent text-sm focus:outline-none text-foreground placeholder:text-muted-foreground"
               />
               <button

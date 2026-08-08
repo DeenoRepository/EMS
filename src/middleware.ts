@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/auth/session";
+import { hasRole } from "@/lib/auth/rbac";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
@@ -22,6 +23,12 @@ export async function middleware(request: NextRequest) {
   if (!session) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // RBAC protection for admin routes
+  if (pathname.startsWith("/admin") && !hasRole(session, ["ADMIN"])) {
+    const modulesUrl = new URL("/modules", request.url);
+    return NextResponse.redirect(modulesUrl);
   }
 
   return NextResponse.next();

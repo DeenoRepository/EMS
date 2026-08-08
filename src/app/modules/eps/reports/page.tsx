@@ -198,21 +198,27 @@ export default function ReportsPage() {
 
   const [generating, setGenerating] = useState(false);
 
-  // Column visibility state with localStorage persistence
   const [columns, setColumns] = useState<ReportColumnVisibility>(DEFAULT_COLUMNS);
-  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("eps_reports_columns");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setColumns({ ...DEFAULT_COLUMNS, ...parsed });
+    let isSubscribed = true;
+    Promise.resolve().then(() => {
+      if (!isSubscribed) return;
+      try {
+        const saved = localStorage.getItem("eps_reports_columns");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setColumns({ ...DEFAULT_COLUMNS, ...parsed });
+        }
+      } catch {
+        // Игнорируем
       }
-    } catch {
-      // Игнорируем
-    }
+    });
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
   const toggleColumn = (key: keyof ReportColumnVisibility) => {
     setColumns((prev) => {
@@ -577,7 +583,7 @@ export default function ReportsPage() {
 
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Поиск: "{searchQuery}"
+                  Поиск: &quot;{searchQuery}&quot;
                   <button onClick={() => setSearchQuery("")} className="hover:text-blue-800">
                     <X size={11} />
                   </button>
@@ -972,16 +978,17 @@ export default function ReportsPage() {
                         {builderPreviewData.map((item) => (
                           <tr key={item.id} className="hover:bg-slate-50/60">
                             {selectedFields.map((fKey) => {
-                              let val = (item as any)[fKey];
+                              let val = (item as unknown as Record<string, unknown>)[fKey];
                               if (fKey === "techSpecs" && item.techSpecs) {
                                 val = Object.entries(item.techSpecs)
                                   .map(([k, v]) => `${k}: ${v}`)
                                   .join("; ");
                               }
                               if (typeof val === "boolean") val = val ? "Да" : "Нет";
+                              const displayVal = typeof val === "string" || typeof val === "number" ? String(val) : "—";
                               return (
                                 <td key={fKey} className="px-3 py-2 text-slate-700 whitespace-nowrap max-w-[200px] truncate">
-                                  {val || "—"}
+                                  {displayVal}
                                 </td>
                               );
                             })}

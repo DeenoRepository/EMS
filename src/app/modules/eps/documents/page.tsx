@@ -119,7 +119,9 @@ export default function DocumentsPage() {
   }, []);
 
   useEffect(() => {
-    fetchDocs();
+    void (async () => {
+      await fetchDocs();
+    })();
   }, [fetchDocs]);
 
   // Statistics
@@ -364,7 +366,7 @@ export default function DocumentsPage() {
 
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-[#3473d4] border border-blue-100">
-                  Поиск: "{searchQuery}"
+                  Поиск: &quot;{searchQuery}&quot;
                   <button onClick={() => setSearchQuery("")} className="hover:text-blue-800">
                     <X size={11} />
                   </button>

@@ -50,21 +50,25 @@ function SidebarContent() {
   const [epsOpen, setEpsOpen] = useState<boolean>(isEpsActive);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(isSettingsActive);
 
+  useEffect(() => {
+    let isSubscribed = true;
+    Promise.resolve().then(() => {
+      if (!isSubscribed) return;
+      const savedEps = localStorage.getItem("ems_shell_sidebar_eps_open");
+      if (savedEps !== null) setEpsOpen(savedEps === "true");
+      const savedSettings = localStorage.getItem("ems_shell_sidebar_settings_open");
+      if (savedSettings !== null) setSettingsOpen(savedSettings === "true");
+    });
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
   const [moduleHealth, setModuleHealth] = useState<Record<string, "online" | "dev" | "offline">>({
     eps: MODULES_CONFIG.eps.status,
   });
 
-  // Sync state with localStorage after client mount to prevent Hydration mismatch
   useEffect(() => {
-    const savedEps = localStorage.getItem("ems_shell_sidebar_eps_open");
-    if (savedEps !== null) {
-      setEpsOpen(savedEps === "true");
-    }
-
-    const savedSettings = localStorage.getItem("ems_shell_sidebar_settings_open");
-    if (savedSettings !== null) {
-      setSettingsOpen(savedSettings === "true");
-    }
 
     // Ping health endpoints to detect offline status dynamically
     const checkHealth = async () => {

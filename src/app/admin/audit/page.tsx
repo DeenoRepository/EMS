@@ -1,18 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import ShellLayout from "@/components/layout/shell-layout";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { LogEntry } from "@/lib/telemetry/logger";
-import {
-  Gauge,
-  RefreshCw,
-  ChevronRight,
-  ShieldCheck,
-  SlidersHorizontal,
-  Database,
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 export default function AuditPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -34,7 +26,9 @@ export default function AuditPage() {
   }, []);
 
   useEffect(() => {
-    fetchLogs();
+    void (async () => {
+      await fetchLogs();
+    })();
   }, [fetchLogs]);
 
   return (
