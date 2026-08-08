@@ -1212,9 +1212,9 @@ export default function WmsMainCatalogPage() {
               subtitle={`Артикул / SKU: ${selectedCardItem.sku}`}
               onClose={() => setShowCardModal(false)}
             />
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-4 space-y-3 text-xs">
               {/* Top Item Summary Card */}
-              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 flex items-start justify-between">
+              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 flex items-start justify-between">
                 <div className="space-y-1.5 flex-1 pr-4">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[11px] font-bold text-[#2f74df] bg-white px-2 py-0.5 rounded border border-blue-200">
