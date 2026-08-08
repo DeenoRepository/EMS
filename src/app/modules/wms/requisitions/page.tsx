@@ -393,7 +393,7 @@ function WmsRequisitionsPageContent() {
               </button>
             </div>
 
-            <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+            <div className="space-y-3 p-1 overflow-visible">
               {reqItemsRows.map((row, idx) => (
                 <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                   <div className="col-span-8">
