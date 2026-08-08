@@ -58,35 +58,49 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
-    const created = await prisma.equipment.create({
-      data: {
-        equipmentCode: body.equipmentCode || `EQ-${Date.now()}`,
-        name: body.name,
-        type: body.type || "Промышленное оборудование",
-        category: body.category || "Общее",
-        model: body.model || "Стандарт",
-        serialNumber: body.serialNumber || "-",
-        inventoryNumber: body.inventoryNumber || `INV-${Date.now()}`,
-        department: body.department || "Главный цех",
-        location: body.location || "Участок 1",
-        status: body.status || "ACTIVE",
-        criticality: body.criticality || "A",
-        manufacturer: body.manufacturer,
-        supplier: body.supplier,
-        countryOfOrigin: body.countryOfOrigin,
-        isImported: body.isImported ?? false,
-        isUnique: body.isUnique ?? false,
-        productionDate: body.productionDate,
-        deliveryDate: body.deliveryDate,
-        commissioningDate: body.commissioningDate,
-        warrantyExpiration: body.warrantyExpiration,
-        serviceDueDate: body.serviceDueDate,
-        notes: body.notes,
-        responsibleUserId: body.responsibleUserId || session.id,
-        techSpecs: body.techSpecs,
-        lifecycleStage: body.lifecycleStage || "IN_OPERATION",
-        currentVersion: 1
-      } as unknown as Prisma.EquipmentCreateInput
+    const created = await prisma.$transaction(async (tx) => {
+      const eq = await tx.equipment.create({
+        data: {
+          equipmentCode: body.equipmentCode || `EQ-${Date.now()}`,
+          name: body.name,
+          type: body.type || "Промышленное оборудование",
+          category: body.category || "Общее",
+          model: body.model || "Стандарт",
+          serialNumber: body.serialNumber || "-",
+          inventoryNumber: body.inventoryNumber || `INV-${Date.now()}`,
+          department: body.department || "Главный цех",
+          location: body.location || "Участок 1",
+          status: body.status || "ACTIVE",
+          criticality: body.criticality || "A",
+          manufacturer: body.manufacturer,
+          supplier: body.supplier,
+          countryOfOrigin: body.countryOfOrigin,
+          isImported: body.isImported ?? false,
+          isUnique: body.isUnique ?? false,
+          productionDate: body.productionDate,
+          deliveryDate: body.deliveryDate,
+          commissioningDate: body.commissioningDate,
+          warrantyExpiration: body.warrantyExpiration,
+          serviceDueDate: body.serviceDueDate,
+          notes: body.notes,
+          responsibleUserId: body.responsibleUserId || session.id,
+          techSpecs: body.techSpecs,
+          lifecycleStage: body.lifecycleStage || "IN_OPERATION",
+          currentVersion: 1
+        } as unknown as Prisma.EquipmentCreateInput
+      });
+
+      await tx.equipmentVersion.create({
+        data: {
+          equipmentId: eq.id,
+          versionNumber: 1,
+          changeSummary: "Первичная паспортизация единицы оборудования",
+          snapshot: JSON.parse(JSON.stringify(eq)),
+          createdById: session.id
+        }
+      });
+
+      return eq;
     });
 
     return NextResponse.json({ success: true, item: created }, { status: 201 });

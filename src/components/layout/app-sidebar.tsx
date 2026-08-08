@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import * as Icons from "lucide-react";
 import { useShell } from "./shell-context";
 import { MODULES_CONFIG, ModuleManifest } from "@/lib/config/modules";
-import { getAdminSettingsNavItems, NavItem } from "@/lib/config/nav";
+import { getAdminSettingsNavItems } from "@/lib/config/nav";
 import { APP_VERSION } from "@/lib/version";
 import { BRAND_CONFIG } from "@/lib/config/brand";
 
@@ -31,10 +31,9 @@ function SidebarContent() {
 
   const isSettingsActive = pathname.startsWith("/admin");
 
-  // State for expanded accordions (indexed by module id or 'settings')
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {
-      settings: isSettingsActive
+      settings: isSettingsActive,
     };
     modulesList.forEach((mod) => {
       initial[mod.id] = pathname.startsWith(mod.href);
@@ -151,55 +150,60 @@ function SidebarContent() {
   return (
     <aside
       aria-label="Основная навигация"
-      className={`flex h-full flex-col bg-[#111a2e] text-white shadow-[8px_0_24px_rgba(15,23,42,.08)] transition-all duration-200 ${
+      className={`flex h-full flex-col bg-[#111a2e] text-white shadow-[8px_0_24px_rgba(15,23,42,.08)] transition-[width] duration-300 ease-in-out select-none overflow-hidden ${
         collapsed ? "w-[72px]" : "w-[248px]"
       }`}
     >
       {/* Brand Header */}
-      <div
-        className={`flex h-[68px] items-center border-b border-white/10 ${
-          collapsed ? "justify-center px-2" : "px-4"
-        }`}
-      >
+      <div className="flex h-[68px] shrink-0 items-center border-b border-white/10 px-3.5 relative overflow-hidden transition-all duration-300 ease-in-out">
         {collapsed ? (
-          <button
-            onClick={onToggle}
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-slate-300 transition hover:bg-white/10 hover:text-white"
-            aria-label="Развернуть меню"
-            title="Развернуть меню"
-          >
-            <Icons.Menu size={18} />
-          </button>
+          <div className="flex w-full items-center justify-center">
+            <button
+              onClick={onToggle}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-slate-300 transition-all duration-300 hover:bg-white/10 hover:text-white hover:scale-105"
+              aria-label="Развернуть меню"
+              title="Развернуть меню"
+            >
+              <Icons.Menu size={18} />
+            </button>
+          </div>
         ) : (
-          <>
-            <Link href="/" className="flex items-center">
+          <div className="flex w-full items-center justify-between min-w-0">
+            <Link
+              href="/"
+              className="flex items-center min-w-0 group"
+              title={BRAND_CONFIG.name}
+            >
               <img
                 src={BRAND_CONFIG.logoUrl}
                 alt="EMS Logo"
-                className="h-8 w-8 shrink-0 rounded-md object-cover ring-1 ring-white/10"
+                className="h-8 w-8 shrink-0 rounded-md object-cover ring-1 ring-white/10 transition-all duration-300 group-hover:scale-105"
               />
-              <div className="ml-2.5 leading-none">
-                <div className="text-[13px] font-bold tracking-tight">{BRAND_CONFIG.name}</div>
-                <div className="mt-1 text-[8px] font-semibold uppercase tracking-[.16em] text-slate-400">
+              <div className="ml-2.5 flex flex-col justify-center whitespace-nowrap overflow-hidden transition-all duration-300">
+                <div className="text-[13px] font-bold tracking-tight text-white leading-tight">
+                  {BRAND_CONFIG.name}
+                </div>
+                <div className="mt-0.5 text-[8px] font-semibold uppercase tracking-[.16em] text-slate-400 leading-tight">
                   {BRAND_CONFIG.subtitle}
                 </div>
               </div>
             </Link>
+
             <button
               onClick={onToggle}
-              className="ml-auto rounded-md p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              className="ml-auto shrink-0 rounded-lg p-1.5 text-slate-400 transition-all duration-300 hover:bg-white/10 hover:text-white"
               aria-label="Свернуть меню"
               title="Свернуть меню"
             >
-              <Icons.Menu size={15} />
+              <Icons.Menu size={16} className="transition-transform duration-300 hover:scale-110" />
             </button>
-          </>
+          </div>
         )}
       </div>
 
       {/* Quick Search */}
       {!collapsed && (
-        <div className="px-3 pt-4">
+        <div className="px-3 pt-4 shrink-0 transition-opacity duration-200">
           <div className="relative">
             <Icons.Search size={12} className="absolute left-3 top-2.5 text-slate-500" />
             <input
@@ -228,7 +232,7 @@ function SidebarContent() {
         {itemMatchesQuery("Обзор Платформы", ["главная", "обзор", "дашборд"]) && (
           <>
             {!collapsed && (
-              <div className="mb-2 px-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="mb-2 px-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                 Главная
               </div>
             )}
@@ -241,8 +245,8 @@ function SidebarContent() {
                 pathname === "/" ? "bg-[#243a62] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
               }`}
             >
-              <Icons.LayoutDashboard size={14} />
-              {!collapsed && <span>Обзор Платформы</span>}
+              <Icons.LayoutDashboard size={14} className="shrink-0" />
+              {!collapsed && <span className="truncate whitespace-nowrap">Обзор Платформы</span>}
             </Link>
           </>
         )}
@@ -251,7 +255,7 @@ function SidebarContent() {
         {modulesList.length > 0 && (
           <>
             {!collapsed && (
-              <div className="mb-2 mt-5 px-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="mb-2 mt-5 px-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                 Бизнес-модули
               </div>
             )}
@@ -274,32 +278,29 @@ function SidebarContent() {
                       isModuleActive ? "bg-[#1b2945] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
                     }`}
                   >
-                    <DynamicIcon name={mod.iconName} size={14} className={isModuleActive ? "text-[#55a5ff]" : "text-slate-400"} />
+                    <DynamicIcon name={mod.iconName} size={14} className={`shrink-0 ${isModuleActive ? "text-[#55a5ff]" : "text-slate-400"}`} />
                     {!collapsed && (
                       <>
-                        <span className="flex-1 truncate">{mod.name}</span>
-                        {healthStatus === "offline" ? (
-                          <span className="text-[9px] font-semibold text-rose-400 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse">
+                        <span className="flex-1 truncate whitespace-nowrap">{mod.name}</span>
+                        {healthStatus === "offline" && (
+                          <span className="text-[9px] font-semibold text-rose-400 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse shrink-0">
                             <span className="h-1 w-1 rounded-full bg-rose-400 shrink-0" />
                             Offline
                           </span>
-                        ) : (
-                          <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9px] text-emerald-400 font-mono">
-                            {mod.version}
-                          </span>
                         )}
-                        {isOpen ? <Icons.ChevronDown size={12} /> : <Icons.ChevronRight size={12} />}
+                        <span className="shrink-0">
+                          {isOpen ? <Icons.ChevronDown size={12} /> : <Icons.ChevronRight size={12} />}
+                        </span>
                       </>
                     )}
                   </button>
 
                   {/* Submenu */}
                   {!collapsed && (isOpen || query.length > 0) && (
-                    <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5">
+                    <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5 transition-all duration-200">
                       {mod.navItems.map((sub) => {
                         if (!itemMatchesQuery(sub.title, sub.keywords)) return null;
 
-                        // RBAC checks for specific items
                         if (sub.id === "nav-eps-approvals" && !isApprover) return null;
                         if (sub.id === "nav-eps-reports" && !isApprover) return null;
                         if (sub.id === "nav-eps-history" && !canEditEps) return null;
@@ -315,15 +316,15 @@ function SidebarContent() {
                               isSubActive ? "bg-white/10 text-white font-semibold" : "hover:bg-white/5 hover:text-white"
                             }`}
                           >
-                            <DynamicIcon name={sub.iconName} size={12} />
-                            <span className="flex-1">{sub.title}</span>
+                            <DynamicIcon name={sub.iconName} size={12} className="shrink-0" />
+                            <span className="flex-1 truncate whitespace-nowrap">{sub.title}</span>
                             {sub.id === "nav-eps-approvals" && pendingApprovals > 0 && (
-                              <span className="rounded bg-[#2366c6]/40 px-1 py-0.5 text-[8px] font-bold text-[#55a5ff] font-mono">
+                              <span className="rounded bg-[#2366c6]/40 px-1 py-0.5 text-[8px] font-bold text-[#55a5ff] font-mono shrink-0">
                                 {pendingApprovals}
                               </span>
                             )}
                             {sub.id === "nav-wms-requisitions" && pendingWmsRequisitions > 0 && (
-                              <span className="rounded bg-amber-500/25 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono animate-pulse border border-amber-500/30">
+                              <span className="rounded bg-amber-500/25 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono animate-pulse border border-amber-500/30 shrink-0">
                                 {pendingWmsRequisitions}
                               </span>
                             )}
@@ -342,12 +343,11 @@ function SidebarContent() {
         {isAdmin && (
           <>
             {!collapsed && (
-              <div className="mb-2 mt-5 px-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">
+              <div className="mb-2 mt-5 px-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500 whitespace-nowrap">
                 Настройки & Администрирование
               </div>
             )}
 
-            {/* Expandable Settings Group */}
             <button
               title="Настройки"
               onClick={handleSettingsClick}
@@ -359,18 +359,19 @@ function SidebarContent() {
                 isSettingsActive ? "bg-[#1b2945] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
               }`}
             >
-              <Icons.Settings2 size={14} className={isSettingsActive ? "text-[#55a5ff]" : "text-slate-400"} />
+              <Icons.Settings2 size={14} className={`shrink-0 ${isSettingsActive ? "text-[#55a5ff]" : "text-slate-400"}`} />
               {!collapsed && (
                 <>
-                  <span className="flex-1 truncate">Настройки</span>
-                  {openSections.settings ? <Icons.ChevronDown size={12} /> : <Icons.ChevronRight size={12} />}
+                  <span className="flex-1 truncate whitespace-nowrap">Настройки</span>
+                  <span className="shrink-0">
+                    {openSections.settings ? <Icons.ChevronDown size={12} /> : <Icons.ChevronRight size={12} />}
+                  </span>
                 </>
               )}
             </button>
 
-            {/* Settings Submenu */}
             {!collapsed && (openSections.settings || query.length > 0) && (
-              <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5">
+              <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5 transition-all duration-200">
                 {settingsSubItems.map((sub) => {
                   if (!itemMatchesQuery(sub.title, sub.keywords)) return null;
                   const isSubActive = pathname === sub.href || (sub.href !== "/admin/settings" && pathname.startsWith(sub.href));
@@ -383,8 +384,8 @@ function SidebarContent() {
                         isSubActive ? "bg-white/10 text-white font-semibold" : "hover:bg-white/5 hover:text-white"
                       }`}
                     >
-                      <DynamicIcon name={sub.iconName} size={12} />
-                      <span>{sub.title}</span>
+                      <DynamicIcon name={sub.iconName} size={12} className="shrink-0" />
+                      <span className="truncate whitespace-nowrap">{sub.title}</span>
                     </Link>
                   );
                 })}
@@ -395,11 +396,11 @@ function SidebarContent() {
       </nav>
 
       {/* Sidebar Footer System Info */}
-      <div className="border-t border-white/10 px-4 py-3 text-slate-400">
+      <div className="border-t border-white/10 px-4 py-3 text-slate-400 shrink-0">
         {!collapsed ? (
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="font-medium text-slate-300">{BRAND_CONFIG.name}</span>
-            <span className="text-[10px] text-slate-500 font-mono">v{APP_VERSION}</span>
+          <div className="flex items-center justify-between text-[11px] whitespace-nowrap">
+            <span className="font-medium text-slate-300 truncate">{BRAND_CONFIG.name}</span>
+            <span className="text-[10px] text-slate-500 font-mono shrink-0 ml-2">v{APP_VERSION}</span>
           </div>
         ) : (
           <div className="flex justify-center">

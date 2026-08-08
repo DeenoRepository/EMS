@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const typeValue = searchParams.get("type") || undefined;
 
@@ -15,12 +21,9 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(items);
-  } catch {
-    return NextResponse.json([
-      { id: "1", typeValue: "Обрабатывающий центр", key: "spindle_speed_rpm", label: "Частота вращения шпинделя (об/мин)", dataType: "NUMBER", required: true, isActive: true, sortOrder: 1 },
-      { id: "2", typeValue: "Обрабатывающий центр", key: "cnc_controller_type", label: "Тип стойки ЧПУ", dataType: "TEXT", required: true, isActive: true, sortOrder: 2 },
-      { id: "3", typeValue: "Прессовое оборудование", key: "nominal_force_tons", label: "Номинальное усилие пресса (тонн)", dataType: "NUMBER", required: true, isActive: true, sortOrder: 1 }
-    ]);
+  } catch (err) {
+    console.error("GET /api/equipment-type-attributes failed:", err);
+    return NextResponse.json([], { status: 200 });
   }
 }
 

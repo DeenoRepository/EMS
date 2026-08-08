@@ -7,10 +7,10 @@ function InnerShell({ children }: { children: React.ReactNode }) {
   const { sidebarCollapsed } = useShell();
 
   return (
-    <div className="min-h-screen bg-[#f6f8fb] text-[#17243a]">
+    <div className="min-h-screen bg-[#f6f8fb] text-[#17243a] dark:bg-slate-950 dark:text-slate-100">
       <AppSidebar />
       <div
-        className={`transition-all duration-200 ml-0 ${
+        className={`transition-[margin-left] duration-300 ease-in-out ml-0 ${
           sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[248px]"
         }`}
       >

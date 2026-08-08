@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { hasRole } from "@/lib/auth/rbac";
+import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 import { prisma } from "@/lib/db/prisma";
 import { uploadDocumentFile } from "@/lib/storage/s3";
 
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    if (!session || !hasRole(session, ["EDITOR", "APPROVER", "ADMIN"])) {
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
+    const permissions = await getUserEpsPermissions();
+    if (!permissions.canEdit) {
       return NextResponse.json(
-        { error: "Доступ запрещен: недостаточно прав для загрузки документов" },
+        { error: "Отказано в доступе. Загрузка документов доступна только редакторам и администраторам." },
         { status: 403 }
       );
     }
@@ -39,42 +44,45 @@ export async function POST(request: Request) {
       folder: `equipment/${equipmentId}`
     });
 
-    // Находим документ или создаем новый
-    let document = await prisma.document.findFirst({
-      where: { equipmentId, title }
-    });
+    // Атомарное создание/поиск документа и добавление версии в одной транзакции
+    const { document, newVersion } = await prisma.$transaction(async (tx) => {
+      let doc = await tx.document.findFirst({
+        where: { equipmentId, title }
+      });
 
-    if (!document) {
-      document = await prisma.document.create({
+      if (!doc) {
+        doc = await tx.document.create({
+          data: {
+            equipmentId,
+            title,
+            docType: docType as any,
+            status: "DRAFT"
+          }
+        });
+      }
+
+      const versionCount = await tx.documentVersion.count({
+        where: { documentId: doc.id }
+      });
+
+      const ver = await tx.documentVersion.create({
         data: {
-          equipmentId,
-          title,
-          docType: docType as any,
-          status: "DRAFT"
+          documentId: doc.id,
+          versionNumber: versionCount + 1,
+          fileName: file.name,
+          storagePath: uploadResult.storagePath,
+          checksum: uploadResult.checksum,
+          notes: notes || undefined,
+          metadata: {
+            fileSize: uploadResult.fileSize,
+            mimeType: file.type,
+            uploadedBy: session.username
+          },
+          createdById: session.id
         }
       });
-    }
 
-    // Получаем текущее количество версий
-    const versionCount = await prisma.documentVersion.count({
-      where: { documentId: document.id }
-    });
-
-    const newVersion = await prisma.documentVersion.create({
-      data: {
-        documentId: document.id,
-        versionNumber: versionCount + 1,
-        fileName: file.name,
-        storagePath: uploadResult.storagePath,
-        checksum: uploadResult.checksum,
-        notes: notes || undefined,
-        metadata: {
-          fileSize: uploadResult.fileSize,
-          mimeType: file.type,
-          uploadedBy: session.username
-        },
-        createdById: session.id
-      }
+      return { document: doc, newVersion: ver };
     });
 
     return NextResponse.json({
