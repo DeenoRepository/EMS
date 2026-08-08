@@ -234,19 +234,33 @@ export default function WmsMainCatalogPage() {
     setTransferRows((prev) => prev.filter((r) => r.id !== id));
   };
 
+  interface EquipmentOption {
+    id: string;
+    equipmentCode: string;
+    name: string;
+  }
+  const [equipments, setEquipments] = useState<EquipmentOption[]>([]);
+
   const fetchData = () => {
     setLoading(true);
     Promise.all([
       fetch(`/api/modules/wms/items?query=${encodeURIComponent(query)}`).then((r) => (r.ok ? r.json() : { items: [] })),
       fetch("/api/modules/wms/warehouses").then((r) => (r.ok ? r.json() : { warehouses: [] })),
-      fetch("/api/modules/wms/requisitions").then((r) => (r.ok ? r.json() : { requisitions: [] }))
+      fetch("/api/modules/wms/requisitions").then((r) => (r.ok ? r.json() : { requisitions: [] })),
+      fetch("/api/modules/eps/equipment").then((r) => (r.ok ? r.json() : { equipment: [] }))
     ])
-      .then(([itemsData, whData, reqsData]) => {
+      .then(([itemsData, whData, reqsData, eqData]) => {
         const loadedItems = itemsData.items || [];
         setItems(loadedItems);
         const whs = whData.warehouses || [];
         setWarehousesList(whs);
         setRequisitions(reqsData.requisitions || []);
+        const eqList = (eqData.equipment || []).map((e: any) => ({
+          id: e.id,
+          equipmentCode: e.equipmentCode,
+          name: e.name
+        }));
+        setEquipments(eqList);
 
         if (whs.length > 0) {
           setItemFormData((prev) => ({ ...prev, warehouse: prev.warehouse || whs[0].name }));
@@ -1004,6 +1018,40 @@ export default function WmsMainCatalogPage() {
             onClose={() => setShowCreateItemModal(false)}
           />
           <form onSubmit={handleCreateItem} className="p-6 space-y-4">
+            {/* Auto-fill from Equipment Card banner */}
+            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench size={16} className="text-blue-600" />
+                <div>
+                  <div className="text-xs font-bold text-slate-800">Заполнить на основании оборудования (EPS)</div>
+                  <div className="text-[10px] text-slate-500">Автоматически подтянуть наименование ЗИП, SKU и категорию из паспорта узла</div>
+                </div>
+              </div>
+              <select
+                onChange={(e) => {
+                  const selectedEq = equipments.find((eq) => eq.id === e.target.value);
+                  if (selectedEq) {
+                    setItemFormData({
+                      ...itemFormData,
+                      name: `Ремкомплект / ЗИП для ${selectedEq.name}`,
+                      sku: `ZIP-${selectedEq.equipmentCode}-${Math.floor(100 + Math.random() * 900)}`,
+                      category: "Запчасти & Механика",
+                      description: `Запасная часть для обслуживания оборудования: ${selectedEq.name} (Код: ${selectedEq.equipmentCode})`,
+                      isEps: true
+                    });
+                  }
+                }}
+                className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs text-slate-700 font-medium focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">-- Выберите оборудование --</option>
+                {equipments.map((eq) => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.name} ({eq.equipmentCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Наименование ТМЦ *</label>
@@ -1083,6 +1131,56 @@ export default function WmsMainCatalogPage() {
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Категория ТМЦ *</label>
+                <select
+                  value={itemFormData.category}
+                  onChange={(e) => setItemFormData({ ...itemFormData, category: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="Запчасти & Механика">Запчасти & Механика</option>
+                  <option value="Электрооборудование">Электрооборудование</option>
+                  <option value="Гидравлика & Пневматика">Гидравлика & Пневматика</option>
+                  <option value="Расходные материалы">Расходные материалы</option>
+                  <option value="Критический ЗИП">Критический ЗИП</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Ед. измерения *</label>
+                <input
+                  type="text"
+                  value={itemFormData.unit}
+                  onChange={(e) => setItemFormData({ ...itemFormData, unit: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                  placeholder="шт / компл / м"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Учетная цена за ед. (₽)</label>
+                <input
+                  type="number"
+                  value={itemFormData.unitPrice}
+                  onChange={(e) => setItemFormData({ ...itemFormData, unitPrice: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none font-mono"
+                  placeholder="1500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Поставщик / Производитель</label>
+                <input
+                  type="text"
+                  value={itemFormData.supplier}
+                  onChange={(e) => setItemFormData({ ...itemFormData, supplier: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                  placeholder="ООО Grundfos Россия / ООО Резиотех"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Партия (Batch №)</label>
                 <input
@@ -1095,7 +1193,18 @@ export default function WmsMainCatalogPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Описание / Привязка к оборудованию</label>
+              <textarea
+                rows={2}
+                value={itemFormData.description}
+                onChange={(e) => setItemFormData({ ...itemFormData, description: e.target.value })}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                placeholder="Предназначен для ремонта насосных агрегатов Grundfos CR32. Подходит для блоков уплотнений НПС."
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
               <input
                 type="checkbox"
                 id="isEpsCheckCatalog"
@@ -1104,7 +1213,7 @@ export default function WmsMainCatalogPage() {
                 className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="isEpsCheckCatalog" className="text-xs font-semibold text-slate-800">
-                Входит в минимальный перечень ЗИП (EPS Safety Stock)
+                Входит в минимальный перечень аварийного ЗИП (EPS Safety Stock)
               </label>
             </div>
 
