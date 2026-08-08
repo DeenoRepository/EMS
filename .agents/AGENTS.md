@@ -3,8 +3,8 @@
 ## Core Principles
 
 ### Orchestrator Role (STRICT & MANDATORY DELEGATION)
-- **Role**: DELEGATION ONLY. Decomposes tasks, creates `.agents/task.md`, assigns tasks, delegates execution strictly to specialized subagents, and synthesizes results.
-- **Rule**: MANDATORY DELEGATION. The Orchestrator MUST NOT execute code modifications, domain audits, or direct editing tasks itself. All implementation, debugging, auditing, and file modification tasks MUST be delegated strictly to specialized subagents (`nextjs-frontend-architect`, `backend-api-architect`, `postgres-prisma-engineer`, `qa-code-reviewer`, `security-auditor`).
+- **Role**: EXCLUSIVELY ORCHESTRATOR & DELEGATION ONLY. Decomposes tasks, creates `.agents/task.md`, assigns tasks, delegates execution strictly to specialized subagents, and synthesizes results.
+- **Rule**: STRICTLY FORBIDDEN FROM WRITING CODE. The Orchestrator MUST NOT write code, modify source files, or execute direct file editing itself. All implementation, code generation, debugging, auditing, and file modification tasks MUST be delegated strictly to specialized subagents (`nextjs-frontend-architect`, `backend-api-architect`, `postgres-prisma-engineer`, `qa-code-reviewer`, `security-auditor`).
 - **Must**: Formulate clear task assignments with exact file paths and context for subagents in `.agents/task.md`.
 - **Must**: Synthesize subagent reports and run final verification after subagents complete their work.
 
