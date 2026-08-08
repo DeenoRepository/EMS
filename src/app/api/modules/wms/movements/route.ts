@@ -41,78 +41,113 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { itemId, type, quantity, fromLocation, toLocation, performedBy, reason, relatedOrderOrEq } = body;
 
-    if (!itemId || !type || !quantity || quantity <= 0) {
-      return NextResponse.json(
-        { error: "Некорректные параметры движения ТМЦ" },
-        { status: 400 }
-      );
+    // Support batch items atomic array processing
+    const itemsList: Array<{
+      itemId: string;
+      type: WmsMovementType;
+      quantity: number;
+      fromLocation?: string;
+      toLocation?: string;
+      performedBy?: string;
+      reason?: string;
+      relatedOrderOrEq?: string;
+    }> = Array.isArray(body.items) ? body.items : [body];
+
+    if (itemsList.length === 0) {
+      return NextResponse.json({ error: "Список позиций для проведения пуст" }, { status: 400 });
     }
 
-    const item = await prisma.wmsItem.findUnique({
-      where: { id: itemId }
-    });
-
-    if (!item) {
-      return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
-    }
-
-    // Проверка, является ли оператор МОЛ за склад данной позиции
     const responsibleWarehouses = await getUserResponsibleWarehouses();
-    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
-      return NextResponse.json(
-        { error: `Отказано в доступе. Вы не являетесь ответственным за склад "${item.warehouse}"` },
-        { status: 403 }
-      );
-    }
+    const txOps: any[] = [];
+    const createdMovementsCount = itemsList.length;
 
-    let newQuantity = item.quantity;
-    if (type === "INCOMING") {
-      newQuantity += Number(quantity);
-    } else if (type === "OUTGOING" || type === "PERSONAL_CARD") {
-      if (item.quantity < quantity) {
+    for (const entry of itemsList) {
+      const { itemId, type, quantity, fromLocation, toLocation, performedBy, reason, relatedOrderOrEq } = entry;
+      if (!itemId || !type || !quantity || quantity <= 0) {
+        return NextResponse.json({ error: "Заполните позицию ТМЦ, тип и количество" }, { status: 400 });
+      }
+
+      const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
+      if (!item) {
+        return NextResponse.json({ error: `Позиция ID ${itemId} не найдена` }, { status: 404 });
+      }
+
+      if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
         return NextResponse.json(
-          { error: `Недостаточно остатка на складе. Доступно: ${item.quantity} ${item.unit}` },
-          { status: 400 }
+          { error: `Отказано в доступе. Вы не являетесь МОЛ за склад "${item.warehouse}"` },
+          { status: 403 }
         );
       }
-      newQuantity -= Number(quantity);
-    } else if (type === "ADJUSTMENT") {
-      newQuantity = Number(quantity);
+
+      let newQuantity = item.quantity;
+      if (type === "INCOMING") {
+        newQuantity += Number(quantity);
+      } else if (type === "OUTGOING" || type === "PERSONAL_CARD" || type === "TRANSFER") {
+        if (item.quantity < quantity) {
+          return NextResponse.json(
+            { error: `Недостаточно остатка по "${item.name}". Доступно: ${item.quantity} ${item.unit}` },
+            { status: 400 }
+          );
+        }
+        newQuantity -= Number(quantity);
+      } else if (type === "ADJUSTMENT") {
+        newQuantity = Number(quantity);
+      }
+
+      const newStatus = newQuantity <= 0 ? "OUT_OF_STOCK" : newQuantity <= item.minQuantity ? "LOW_STOCK" : "IN_STOCK";
+
+      txOps.push(
+        prisma.wmsMovement.create({
+          data: {
+            itemId: item.id,
+            itemSku: item.sku,
+            itemName: item.name,
+            type: type as WmsMovementType,
+            quantity: Number(quantity),
+            fromLocation: fromLocation || item.cell,
+            toLocation: toLocation || null,
+            performedBy: performedBy || "Кладовщик",
+            reason: reason || null,
+            relatedOrderOrEq: relatedOrderOrEq || null,
+          }
+        })
+      );
+
+      txOps.push(
+        prisma.wmsItem.update({
+          where: { id: item.id },
+          data: {
+            quantity: newQuantity,
+            status: newStatus
+          }
+        })
+      );
+
+      // If related to equipment scrap write-off, also record WmsWriteOff entry
+      if (type === "OUTGOING" && relatedOrderOrEq) {
+        txOps.push(
+          prisma.wmsWriteOff.create({
+            data: {
+              itemId: item.id,
+              itemSku: item.sku,
+              itemName: item.name,
+              equipmentId: relatedOrderOrEq,
+              quantity: Number(quantity),
+              reason: "EQUIPMENT_REPAIR",
+              comments: reason || "Списание на ремонт/обслуживание оборудования",
+              performedBy: performedBy || "Кладовщик"
+            }
+          })
+        );
+      }
     }
 
-    const newStatus = newQuantity <= 0 ? "OUT_OF_STOCK" : newQuantity <= item.minQuantity ? "LOW_STOCK" : "IN_STOCK";
+    await prisma.$transaction(txOps);
 
-    const [movement] = await prisma.$transaction([
-      prisma.wmsMovement.create({
-        data: {
-          itemId: item.id,
-          itemSku: item.sku,
-          itemName: item.name,
-          type: type as WmsMovementType,
-          quantity: Number(quantity),
-          fromLocation: fromLocation || item.cell,
-          toLocation: toLocation || null,
-          performedBy: performedBy || "Кладовщик",
-          reason: reason || null,
-          relatedOrderOrEq: relatedOrderOrEq || null,
-        }
-      }),
-      prisma.wmsItem.update({
-        where: { id: item.id },
-        data: {
-          quantity: newQuantity,
-          status: newStatus,
-          lastIncomingDate: type === "INCOMING" ? new Date() : item.lastIncomingDate,
-          lastOutgoingDate: type === "OUTGOING" ? new Date() : item.lastOutgoingDate,
-        }
-      })
-    ]);
-
-    return NextResponse.json({ movement, success: true }, { status: 201 });
+    return NextResponse.json({ success: true, count: createdMovementsCount }, { status: 201 });
   } catch (err) {
-    console.error("WMS Movement transaction failed:", err);
-    return NextResponse.json({ error: "Ошибка проведения складской операции" }, { status: 500 });
+    console.error("WMS Movements POST failed:", err);
+    return NextResponse.json({ error: "Ошибка при групповом проведении складской операции" }, { status: 500 });
   }
 }

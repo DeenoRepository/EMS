@@ -16,15 +16,18 @@ import {
   XCircle,
   QrCode,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  Trash2,
+  Layers,
+  Wrench,
+  Check
 } from "lucide-react";
 import {
   PageHeader,
   DataTable,
   StatusBadge,
   Modal,
-  ModalHeader,
-  TabNav
+  ModalHeader
 } from "@/components/ui";
 import { BarcodeLabelModal } from "@/components/wms/barcode-label-modal";
 
@@ -42,34 +45,6 @@ interface WmsMovement {
   createdAt: string;
 }
 
-interface WmsTransferRequest {
-  id: string;
-  itemSku: string;
-  itemName: string;
-  quantity: number;
-  fromWarehouse: string;
-  toWarehouse: string;
-  requestedBy: string;
-  targetMolUser: string;
-  reason: string | null;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
-  createdAt: string;
-}
-
-interface WmsPersonalCard {
-  id: string;
-  itemSku: string;
-  itemName: string;
-  employeeName: string;
-  employeePosition: string | null;
-  department: string | null;
-  issuedQuantity: number;
-  issuedAt: string;
-  returnedAt: string | null;
-  returnCondition: string | null;
-  notes: string | null;
-}
-
 interface Warehouse {
   id: string;
   name: string;
@@ -83,6 +58,7 @@ interface WmsItem {
   unit: string;
   quantity: number;
   warehouse: string;
+  cell?: string;
 }
 
 interface EquipmentOption {
@@ -91,103 +67,106 @@ interface EquipmentOption {
   name: string;
 }
 
+// Multi-item Row Types
+interface InboundItemRow {
+  id: string;
+  name: string;
+  sku: string;
+  warehouse: string;
+  cell: string;
+  quantity: number;
+}
+
+interface TransferItemRow {
+  id: string;
+  itemId: string;
+  quantity: number;
+}
+
+interface WriteOffItemRow {
+  id: string;
+  itemId: string;
+  quantity: number;
+}
+
 export default function ConsolidatedWmsOperationsPage() {
-  const [activeTab, setActiveTab] = useState<string>("movements");
   const [movements, setMovements] = useState<WmsMovement[]>([]);
-  const [transfers, setTransfers] = useState<WmsTransferRequest[]>([]);
-  const [cards, setCards] = useState<WmsPersonalCard[]>([]);
   const [items, setItems] = useState<WmsItem[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [equipments, setEquipments] = useState<EquipmentOption[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modals state
+  // Dropdown & Modals state
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [showInboundModal, setShowInboundModal] = useState(false);
-  const [showMovModal, setShowMovModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showCardModal, setShowCardModal] = useState(false);
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [selectedCard, setSelectedCard] = useState<WmsPersonalCard | null>(null);
+  const [showWriteOffModal, setShowWriteOffModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Label Printing state
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [printItemData, setPrintItemData] = useState<{ sku: string; name: string; location?: string; category?: string } | null>(null);
 
-  // Forms data
-  const [inboundFormData, setInboundFormData] = useState({
-    name: "",
-    sku: "",
-    category: "Запчасти & Механика",
-    type: "ZIP",
-    warehouse: "",
-    cell: "Яч-01",
-    quantity: 10,
-    minQuantity: 2,
-    unit: "шт",
-    unitPrice: 1500,
-    batchNumber: "",
-    serialNumber: ""
-  });
-  const [movFormData, setMovFormData] = useState({
-    itemId: "",
-    type: "OUTGOING",
-    quantity: 1,
-    reason: "Плановое обслуживание / ремонт",
-    relatedOrderOrEq: "",
-    performedBy: "Кладовщик",
-  });
+  // Multi-item Inbound Form State
+  const [inboundRows, setInboundRows] = useState<InboundItemRow[]>([
+    { id: "1", name: "", sku: "", warehouse: "", cell: "Яч-01", quantity: 1 }
+  ]);
 
-  const [transferFormData, setTransferFormData] = useState({
-    itemId: "",
-    quantity: 1,
+  // Multi-item Transfer Form State
+  const [transferHeader, setTransferHeader] = useState({
+    fromWarehouse: "",
     toWarehouse: "",
-    reason: "Производственная необходимость",
+    reason: "Перемещение ТМЦ между складами МОЛ"
   });
+  const [transferRows, setTransferRows] = useState<TransferItemRow[]>([
+    { id: "1", itemId: "", quantity: 1 }
+  ]);
 
-  const [cardFormData, setCardFormData] = useState({
-    itemId: "",
-    employeeName: "",
-    employeePosition: "Инженер-механик",
-    department: "Цех №1",
-    quantity: 1,
-    notes: "Выдача СИЗ/инструмента под расписку",
+  // Multi-item Write-Off Form State
+  const [writeOffHeader, setWriteOffHeader] = useState({
+    equipmentId: "",
+    reason: "Плановый ремонт / обслуживание оборудования"
   });
-
-  const [returnFormData, setReturnFormData] = useState({ returnCondition: "GOOD" });
+  const [writeOffRows, setWriteOffRows] = useState<WriteOffItemRow[]>([
+    { id: "1", itemId: "", quantity: 1 }
+  ]);
 
   const fetchData = () => {
     setLoading(true);
     Promise.all([
-      fetch("/api/modules/wms/movements").then((res) => (res.ok ? res.json() : { movements: [] })),
-      fetch("/api/modules/wms/transfers").then((res) => (res.ok ? res.json() : { requests: [] })),
-      fetch("/api/modules/wms/personal-cards").then((res) => (res.ok ? res.json() : { cards: [] })),
-      fetch("/api/modules/wms/items").then((res) => (res.ok ? res.json() : { items: [] })),
-      fetch("/api/modules/wms/warehouses").then((res) => (res.ok ? res.json() : { warehouses: [] })),
-      fetch("/api/modules/eps/equipment").then((res) => (res.ok ? res.json() : { items: [] }))
+      fetch("/api/modules/wms/movements").then((r) => (r.ok ? r.json() : { movements: [] })),
+      fetch("/api/modules/wms/items").then((r) => (r.ok ? r.json() : { items: [] })),
+      fetch("/api/modules/wms/warehouses").then((r) => (r.ok ? r.json() : { warehouses: [] })),
+      fetch("/api/modules/eps/equipment").then((r) => (r.ok ? r.json() : { equipment: [] }))
     ])
-      .then(([movData, transData, cardsData, itemsData, whData, eqData]) => {
+      .then(([movData, itemsData, whData, eqData]) => {
         setMovements(movData.movements || []);
-        setTransfers(transData.requests || []);
-        setCards(cardsData.cards || []);
-        const itemList = itemsData.items || [];
-        setItems(itemList);
-        const whList = whData.warehouses || [];
-        setWarehouses(whList);
-        setEquipments(eqData.items || []);
+        const loadedItems = itemsData.items || [];
+        setItems(loadedItems);
+        const whs = whData.warehouses || [];
+        setWarehouses(whs);
+        const eqList = (eqData.equipment || []).map((e: any) => ({
+          id: e.id,
+          equipmentCode: e.equipmentCode,
+          name: e.name
+        }));
+        setEquipments(eqList);
 
-        if (itemList.length > 0) {
-          setMovFormData((prev) => ({ ...prev, itemId: itemList[0].id }));
-          setCardFormData((prev) => ({ ...prev, itemId: itemList[0].id }));
-          setTransferFormData((prev) => ({
+        if (whs.length > 0) {
+          setInboundRows((prev) => prev.map((r) => ({ ...r, warehouse: r.warehouse || whs[0].name })));
+          setTransferHeader((prev) => ({
             ...prev,
-            itemId: itemList[0].id,
-            toWarehouse: whList.find((w: Warehouse) => w.name !== itemList[0].warehouse)?.name || whList[0]?.name || ""
+            fromWarehouse: prev.fromWarehouse || whs[0].name,
+            toWarehouse: prev.toWarehouse || (whs[1]?.name || whs[0].name)
           }));
         }
+
+        if (loadedItems.length > 0) {
+          setTransferRows((prev) => prev.map((r) => ({ ...r, itemId: r.itemId || loadedItems[0].id })));
+          setWriteOffRows((prev) => prev.map((r) => ({ ...r, itemId: r.itemId || loadedItems[0].id })));
+        }
       })
-      .catch((err) => console.error("Failed to load WMS operations data:", err))
+      .catch((err) => console.error("Movements fetch error:", err))
       .finally(() => setLoading(false));
   };
 
@@ -195,152 +174,149 @@ export default function ConsolidatedWmsOperationsPage() {
     fetchData();
   }, []);
 
-  const targetTransferWarehouseObj = warehouses.find((w) => w.name === transferFormData.toWarehouse);
-  const selectedTransferItem = items.find((i) => i.id === transferFormData.itemId);
-  const availableTargetWarehouses = warehouses.filter((w) => w.name !== selectedTransferItem?.warehouse);
+  // Filter items available for selected source warehouse
+  const sourceWarehouseItems = items.filter(
+    (i) => !transferHeader.fromWarehouse || i.warehouse === transferHeader.fromWarehouse
+  );
+
+  const availableTargetWarehouses = warehouses.filter((w) => w.name !== transferHeader.fromWarehouse);
+  const targetTransferWarehouseObj = warehouses.find((w) => w.name === transferHeader.toWarehouse);
+
+  // Row Adders & Removers
+  const addInboundRow = () => {
+    setInboundRows([
+      ...inboundRows,
+      { id: Date.now().toString(), name: "", sku: "", warehouse: warehouses[0]?.name || "", cell: "Яч-01", quantity: 1 }
+    ]);
+  };
+  const removeInboundRow = (id: string) => {
+    if (inboundRows.length > 1) setInboundRows(inboundRows.filter((r) => r.id !== id));
+  };
+
+  const addTransferRow = () => {
+    const defaultItemId = sourceWarehouseItems[0]?.id || items[0]?.id || "";
+    setTransferRows([...transferRows, { id: Date.now().toString(), itemId: defaultItemId, quantity: 1 }]);
+  };
+  const removeTransferRow = (id: string) => {
+    if (transferRows.length > 1) setTransferRows(transferRows.filter((r) => r.id !== id));
+  };
+
+  const addWriteOffRow = () => {
+    setWriteOffRows([...writeOffRows, { id: Date.now().toString(), itemId: items[0]?.id || "", quantity: 1 }]);
+  };
+  const removeWriteOffRow = (id: string) => {
+    if (writeOffRows.length > 1) setWriteOffRows(writeOffRows.filter((r) => r.id !== id));
+  };
 
   // Submit Handlers
-  const handleInboundSubmit = async (e: React.FormEvent) => {
+  // 1. Multi-item Inbound Submit
+  const handleInboundBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/modules/wms/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...inboundFormData,
-          warehouse: inboundFormData.warehouse || warehouses[0]?.name || "Главный склад"
-        })
-      });
-      if (res.ok) {
+      // First register items in /items API or batch movements
+      const createdItems = await Promise.all(
+        inboundRows.map((r) =>
+          fetch("/api/modules/wms/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: r.name,
+              sku: r.sku,
+              category: "Запчасти & Механика",
+              type: "ZIP",
+              warehouse: r.warehouse || warehouses[0]?.name || "Главный склад",
+              cell: r.cell || "Яч-01",
+              quantity: r.quantity,
+              unit: "шт"
+            })
+          }).then((res) => (res.ok ? res.json() : null))
+        )
+      );
+
+      if (createdItems.every(Boolean)) {
         setShowInboundModal(false);
+        setInboundRows([{ id: "1", name: "", sku: "", warehouse: warehouses[0]?.name || "", cell: "Яч-01", quantity: 1 }]);
         fetchData();
       } else {
-        const err = await res.json();
-        alert(err.error || "Ошибка при оформлении прихода");
+        alert("Часть позиций не прошла проверку. Проверьте артикулы и заполнение полей.");
       }
     } catch (err) {
-      console.error("Inbound submit error:", err);
+      console.error(err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleMovementSubmit = async (e: React.FormEvent) => {
+  // 2. Multi-item Transfer Submit
+  const handleTransferBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const itemsPayload = transferRows.map((r) => ({
+        itemId: r.itemId,
+        type: "TRANSFER",
+        quantity: r.quantity,
+        fromLocation: transferHeader.fromWarehouse,
+        toLocation: transferHeader.toWarehouse,
+        reason: transferHeader.reason,
+        performedBy: "Кладовщик"
+      }));
+
       const res = await fetch("/api/modules/wms/movements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(movFormData)
+        body: JSON.stringify({ items: itemsPayload })
       });
-      if (res.ok) {
-        setShowMovModal(false);
-        fetchData();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Ошибка проведения складской операции");
-      }
-    } catch (err) {
-      console.error("Movement submit error:", err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
-  const handleTransferSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/modules/wms/transfers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...transferFormData,
-          targetMolUser: targetTransferWarehouseObj?.responsibleUser || ""
-        })
-      });
       if (res.ok) {
         setShowTransferModal(false);
+        setTransferRows([{ id: "1", itemId: items[0]?.id || "", quantity: 1 }]);
         fetchData();
       } else {
         const err = await res.json();
-        alert(err.error || "Ошибка создания запроса на перемещение");
+        alert(err.error || "Ошибка проведения перемещения позиций");
       }
     } catch (err) {
-      console.error("Transfer submit error:", err);
+      console.error(err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCardSubmit = async (e: React.FormEvent) => {
+  // 3. Multi-item Write-Off Submit
+  const handleWriteOffBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await fetch("/api/modules/wms/personal-cards", {
+      const selectedEqObj = equipments.find((e) => e.id === writeOffHeader.equipmentId);
+      const itemsPayload = writeOffRows.map((r) => ({
+        itemId: r.itemId,
+        type: "OUTGOING",
+        quantity: r.quantity,
+        reason: writeOffHeader.reason,
+        relatedOrderOrEq: selectedEqObj ? `${selectedEqObj.equipmentCode} (${selectedEqObj.name})` : writeOffHeader.equipmentId,
+        performedBy: "Кладовщик"
+      }));
+
+      const res = await fetch("/api/modules/wms/movements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cardFormData)
+        body: JSON.stringify({ items: itemsPayload })
       });
+
       if (res.ok) {
-        setShowCardModal(false);
+        setShowWriteOffModal(false);
+        setWriteOffRows([{ id: "1", itemId: items[0]?.id || "", quantity: 1 }]);
         fetchData();
       } else {
         const err = await res.json();
-        alert(err.error || "Ошибка выдачи имущества");
+        alert(err.error || "Ошибка списания позиций");
       }
     } catch (err) {
-      console.error("Card submit error:", err);
+      console.error(err);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleReturnSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCard) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/modules/wms/personal-cards", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cardId: selectedCard.id,
-          returnCondition: returnFormData.returnCondition
-        })
-      });
-      if (res.ok) {
-        setShowReturnModal(false);
-        setSelectedCard(null);
-        fetchData();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Ошибка возврата");
-      }
-    } catch (err) {
-      console.error("Return submit error:", err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleTransferAction = async (requestId: string, action: "APPROVE" | "REJECT") => {
-    try {
-      const res = await fetch("/api/modules/wms/transfers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, requestId })
-      });
-      if (res.ok) {
-        fetchData();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Ошибка обработки заявки");
-      }
-    } catch (err) {
-      console.error("Transfer action error:", err);
     }
   };
 
@@ -349,7 +325,7 @@ export default function ConsolidatedWmsOperationsPage() {
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Движения ТМЦ"
-          description="Единый центр управления журналами движений, акцептами МОЛ и личными карточками выдачи СИЗ"
+          description="Единый центр проведения прихода, межскладских перемещений и списаний ТМЦ по оборудованию."
           breadcrumbs={[
             { title: "Главная", href: "/" },
             { title: "WMS Складской учет", href: "/modules/wms" },
@@ -393,7 +369,7 @@ export default function ConsolidatedWmsOperationsPage() {
                         </div>
                         <div>
                           <div>Оформить Приход</div>
-                          <div className="text-[10px] font-normal text-slate-400">Поступление новой партии</div>
+                          <div className="text-[10px] font-normal text-slate-400">Поступление партии позиций</div>
                         </div>
                       </button>
 
@@ -409,14 +385,14 @@ export default function ConsolidatedWmsOperationsPage() {
                         </div>
                         <div>
                           <div>Переместить ТМЦ</div>
-                          <div className="text-[10px] font-normal text-slate-400">Трансфер другому МОЛ</div>
+                          <div className="text-[10px] font-normal text-slate-400">Трансфер позиций МОЛ</div>
                         </div>
                       </button>
 
                       <button
                         onClick={() => {
                           setActionMenuOpen(false);
-                          setShowMovModal(true);
+                          setShowWriteOffModal(true);
                         }}
                         className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition"
                       >
@@ -425,7 +401,7 @@ export default function ConsolidatedWmsOperationsPage() {
                         </div>
                         <div>
                           <div>Списать ТМЦ</div>
-                          <div className="text-[10px] font-normal text-slate-400">Акт списания / Ремонт</div>
+                          <div className="text-[10px] font-normal text-slate-400">Акт списания на ремонт</div>
                         </div>
                       </button>
                     </div>
@@ -439,624 +415,164 @@ export default function ConsolidatedWmsOperationsPage() {
         {/* MOVEMENTS TABLE */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <DataTable
-              keyExtractor={(row) => row.id}
-              data={movements}
-              columns={[
-                {
-                  key: "createdAt",
-                  header: "Дата / Время",
-                  cell: (row) => <span className="text-[11px] text-slate-500">{new Date(row.createdAt).toLocaleString("ru-RU")}</span>,
+            keyExtractor={(row) => row.id}
+            data={movements}
+            columns={[
+              {
+                key: "createdAt",
+                header: "Дата / Время",
+                cell: (row) => <span className="text-[11px] text-slate-500">{new Date(row.createdAt).toLocaleString("ru-RU")}</span>,
+              },
+              {
+                key: "itemSku",
+                header: "Артикул / ТМЦ",
+                cell: (row) => (
+                  <div className="font-mono">
+                    <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
+                    <span className="block text-[10px] text-slate-400">SKU: {row.itemSku}</span>
+                  </div>
+                ),
+              },
+              {
+                key: "type",
+                header: "Тип операции",
+                cell: (row) => {
+                  if (row.type === "INCOMING") return <StatusBadge status="ACTIVE" label="Приход" />;
+                  if (row.type === "TRANSFER") return <StatusBadge status="PENDING" label="Перемещение" />;
+                  if (row.type === "PERSONAL_CARD") return <StatusBadge status="COMPLETED" label="Личная карточка" />;
+                  return <StatusBadge status="DECOMMISSIONED" label="Списание" />;
                 },
-                {
-                  key: "itemSku",
-                  header: "Артикул / ТМЦ",
-                  cell: (row) => (
-                    <div className="font-mono">
-                      <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
-                      <span className="block text-[10px] text-slate-400">SKU: {row.itemSku}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "type",
-                  header: "Тип операции",
-                  cell: (row) => {
-                    if (row.type === "INCOMING") return <StatusBadge status="ACTIVE" label="Приход (+)" />;
-                    if (row.type === "OUTGOING" || row.type === "PERSONAL_CARD") return <StatusBadge status="DECOMMISSIONED" label="Списание (-)" />;
-                    return <StatusBadge status="INACTIVE" label="Перемещение" />;
-                  },
-                },
-                {
-                  key: "quantity",
-                  header: "Количество",
-                  cell: (row) => <span className="text-[11px] font-bold text-slate-800">{row.quantity}</span>,
-                },
-                {
-                  key: "reason",
-                  header: "Причина / Оборудование (EPS)",
-                  cell: (row) => (
-                    <div>
-                      <div className="text-[11px] text-slate-700">{row.reason || "Запланированное движение"}</div>
-                      {row.relatedOrderOrEq && (
-                        <div className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-[#3473d4]">
-                          <Server size={10} /> {row.relatedOrderOrEq}
-                        </div>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  key: "performedBy",
-                  header: "Ответственный",
-                  cell: (row) => <span className="text-[11px] text-slate-500">{row.performedBy}</span>,
-                },
-              ]}
-            />
-          </div>
-
-        {/* TAB 2: MOL TRANSFERS */}
-        {activeTab === "transfers" && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <DataTable
-              keyExtractor={(row) => row.id}
-              data={transfers}
-              columns={[
-                {
-                  key: "itemSku",
-                  header: "Артикул / ТМЦ",
-                  cell: (row) => (
-                    <div className="font-mono">
-                      <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
-                      <span className="block text-[10px] text-slate-400">SKU: {row.itemSku}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "fromWarehouse",
-                  header: "Отправитель -> Получатель",
-                  cell: (row) => (
-                    <div className="text-[11px] text-slate-700 font-semibold flex items-center gap-1.5">
-                      <span>{row.fromWarehouse}</span>
-                      <ArrowRightLeft size={12} className="text-slate-400" />
-                      <span className="text-[#3473d4]">{row.toWarehouse}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "quantity",
-                  header: "Количество",
-                  cell: (row) => <span className="text-[11px] font-bold text-slate-800">{row.quantity}</span>,
-                },
-                {
-                  key: "targetMolUser",
-                  header: "Ответственные МОЛ",
-                  cell: (row) => (
-                    <div>
-                      <span className="block text-[11px] font-medium text-slate-700">Инициатор: {row.requestedBy}</span>
-                      <span className="block text-[10px] text-blue-600">Приемщик МОЛ: {row.targetMolUser}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "status",
-                  header: "Статус",
-                  cell: (row) => {
-                    if (row.status === "APPROVED") return <StatusBadge status="ACTIVE" label="Принято МОЛ" />;
-                    if (row.status === "REJECTED") return <StatusBadge status="REJECTED" label="Отклонено" />;
-                    return <StatusBadge status="DRAFT" label="Ожидает приемки" />;
-                  },
-                },
-                {
-                  key: "actions",
-                  header: "Действия МОЛ",
-                  className: "text-right",
-                  cell: (row) => (
-                    <div className="flex items-center justify-end gap-2">
-                      {row.status === "PENDING" && (
-                        <>
-                          <button
-                            onClick={() => handleTransferAction(row.id, "APPROVE")}
-                            className="flex items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-500"
-                          >
-                            <CheckCircle2 size={11} /> Принять на склад
-                          </button>
-                          <button
-                            onClick={() => handleTransferAction(row.id, "REJECT")}
-                            className="flex items-center gap-1 rounded bg-rose-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-rose-500"
-                          >
-                            <XCircle size={11} /> Отклонить
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ),
-                },
-              ]}
-            />
-          </div>
-        )}
-
-        {/* TAB 3: PERSONAL CARDS */}
-        {activeTab === "cards" && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <DataTable
-              keyExtractor={(row) => row.id}
-              data={cards}
-              columns={[
-                {
-                  key: "employeeName",
-                  header: "Сотрудник / Подразделение",
-                  cell: (row) => (
-                    <div>
-                      <span className="block text-[11px] font-bold text-[#17243a]">{row.employeeName}</span>
-                      <span className="block text-[10px] text-slate-400">{row.employeePosition} ({row.department || "Цех"})</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "itemSku",
-                  header: "Выданное имущество / Артикул",
-                  cell: (row) => (
-                    <div className="font-mono">
-                      <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
-                      <span className="block text-[10px] text-slate-400">SKU: {row.itemSku}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "issuedQuantity",
-                  header: "Выдано ед.",
-                  cell: (row) => <span className="text-[11px] font-bold text-slate-800">{row.issuedQuantity} ед.</span>,
-                },
-                {
-                  key: "issuedAt",
-                  header: "Дата выдачи",
-                  cell: (row) => <span className="text-[11px] text-slate-500">{new Date(row.issuedAt).toLocaleDateString("ru-RU")}</span>,
-                },
-                {
-                  key: "returnedAt",
-                  header: "Статус возврата",
-                  cell: (row) => {
-                    if (row.returnedAt) {
-                      if (row.returnCondition === "GOOD") return <StatusBadge status="ACTIVE" label="Возвращено (Исправно)" />;
-                      if (row.returnCondition === "REPAIR") return <StatusBadge status="DRAFT" label="На ремонте" />;
-                      return <StatusBadge status="DECOMMISSIONED" label="Списано в утиль" />;
-                    }
-                    return <StatusBadge status="INACTIVE" label="На руках у сотрудника" />;
-                  },
-                },
-                {
-                  key: "actions",
-                  header: "Действия",
-                  className: "text-right",
-                  cell: (row) => (
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setPrintItemData({
-                            sku: row.itemSku,
-                            name: row.itemName,
-                            category: "Личная карточка"
-                          });
-                          setPrintModalOpen(true);
-                        }}
-                        title="Печать этикетки / QR-кода"
-                        className="rounded bg-slate-100 p-1 text-slate-600 hover:bg-slate-200"
-                      >
-                        <QrCode size={13} />
-                      </button>
-
-                      {!row.returnedAt && (
-                        <button
-                          onClick={() => {
-                            setSelectedCard(row);
-                            setShowReturnModal(true);
-                          }}
-                          className="flex items-center gap-1 rounded bg-[#2f74df] px-2.5 py-1 text-[10px] font-bold text-white hover:bg-[#2565c8]"
-                        >
-                          <RotateCcw size={11} /> Оформить возврат
-                        </button>
-                      )}
-                    </div>
-                  ),
-                },
-              ]}
-            />
-          </div>
-        )}
-
-        {/* Modal 1: New Movement */}
-        <Modal open={showMovModal} onClose={() => setShowMovModal(false)} size="lg">
-          <ModalHeader
-            icon={<History size={16} />}
-            title="Регистрация движения / Списания ТМЦ"
-            subtitle="Выберите позицию ТМЦ и основание выполнения операции"
-            onClose={() => setShowMovModal(false)}
+              },
+              {
+                key: "quantity",
+                header: "Количество",
+                cell: (row) => (
+                  <span className={`text-[11px] font-bold ${row.type === "INCOMING" ? "text-emerald-600" : "text-slate-800"}`}>
+                    {row.type === "INCOMING" ? `+${row.quantity}` : `-${row.quantity}`}
+                  </span>
+                ),
+              },
+              {
+                key: "locations",
+                header: "Маршрут (Ячейка / Оборудование)",
+                cell: (row) => (
+                  <div className="text-[11px] text-slate-700 font-mono">
+                    {row.fromLocation && <span>Из: {row.fromLocation}</span>}
+                    {row.toLocation && <span className="block text-blue-600">В: {row.toLocation}</span>}
+                    {row.relatedOrderOrEq && <span className="block text-amber-600 font-semibold">Обор.: {row.relatedOrderOrEq}</span>}
+                  </div>
+                ),
+              },
+              {
+                key: "performedBy",
+                header: "Ответственный",
+                cell: (row) => <span className="text-[11px] text-slate-500">{row.performedBy}</span>,
+              },
+            ]}
           />
-          <form onSubmit={handleMovementSubmit} className="space-y-4 p-5">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Выберите позицию ТМЦ *</label>
-              <select
-                required
-                value={movFormData.itemId}
-                onChange={(e) => setMovFormData({ ...movFormData, itemId: e.target.value })}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              >
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name} (SKU: {i.sku}) — Склад: {i.warehouse} (Остаток: {i.quantity} {i.unit})
-                  </option>
-                ))}
-              </select>
-            </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Тип операции *</label>
-                <select
-                  value={movFormData.type}
-                  onChange={(e) => setMovFormData({ ...movFormData, type: e.target.value })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="INCOMING">Приход на склад (+)</option>
-                  <option value="OUTGOING">Списание со склада (-)</option>
-                  <option value="ADJUSTMENT">Корректировка остатка</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Количество *</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={movFormData.quantity}
-                  onChange={(e) => setMovFormData({ ...movFormData, quantity: Number(e.target.value) })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">
-                Привязать к оборудованию EPS (необязательно)
-              </label>
-              <select
-                value={movFormData.relatedOrderOrEq}
-                onChange={(e) => setMovFormData({ ...movFormData, relatedOrderOrEq: e.target.value })}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">-- Без привязки к оборудованию --</option>
-                {equipments.map((eq) => (
-                  <option key={eq.id} value={`${eq.name} (${eq.equipmentCode})`}>
-                    {eq.name} [{eq.equipmentCode}]
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Причина / Основание</label>
-              <input
-                value={movFormData.reason}
-                onChange={(e) => setMovFormData({ ...movFormData, reason: e.target.value })}
-                placeholder="Плановое обслуживание / Аварийная замена"
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowMovModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
-              >
-                {submitting ? "Проведение..." : "Провести операцию"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Modal 2: New Transfer Request */}
-        <Modal open={showTransferModal} onClose={() => setShowTransferModal(false)} size="lg">
-          <ModalHeader
-            icon={<ArrowRightLeft size={16} />}
-            title="Запрос на межскладское перемещение"
-            subtitle="Выберите позицию ТМЦ и целевой склад (МОЛ подтянется автоматически)"
-            onClose={() => setShowTransferModal(false)}
-          />
-          <form onSubmit={handleTransferSubmit} className="space-y-4 p-5">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Выберите позицию ТМЦ со своего склада *</label>
-              <select
-                required
-                value={transferFormData.itemId}
-                onChange={(e) => {
-                  const newId = e.target.value;
-                  const itemObj = items.find((i) => i.id === newId);
-                  const validTargetWh = warehouses.find((w) => w.name !== itemObj?.warehouse)?.name || "";
-                  setTransferFormData({ ...transferFormData, itemId: newId, toWarehouse: validTargetWh });
-                }}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              >
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name} (SKU: {i.sku}) — Исходный Склад: {i.warehouse} (Доступно: {i.quantity})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Количество для передачи *</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={transferFormData.quantity}
-                  onChange={(e) => setTransferFormData({ ...transferFormData, quantity: Number(e.target.value) })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Склад назначения (Получатель) *</label>
-                <select
-                  required
-                  value={transferFormData.toWarehouse}
-                  onChange={(e) => setTransferFormData({ ...transferFormData, toWarehouse: e.target.value })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                >
-                  {availableTargetWarehouses.map((w) => (
-                    <option key={w.id} value={w.name}>
-                      {w.name} (МОЛ: {w.responsibleUser})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {targetTransferWarehouseObj && (
-              <div className="rounded-lg bg-blue-50/60 p-2.5 border border-blue-100 text-xs text-blue-900">
-                <span>Автоматически определен МОЛ-приемщик: </span>
-                <strong className="text-blue-700">{targetTransferWarehouseObj.responsibleUser}</strong>
-              </div>
-            )}
-
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Причина / Основание передачи</label>
-              <input
-                value={transferFormData.reason}
-                onChange={(e) => setTransferFormData({ ...transferFormData, reason: e.target.value })}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowTransferModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
-              >
-                {submitting ? "Отправка..." : "Отправить запрос МОЛ"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Modal 3: Issue Personal Card */}
-        <Modal open={showCardModal} onClose={() => setShowCardModal(false)} size="lg">
-          <ModalHeader
-            icon={<UserCheck size={16} />}
-            title="Выдача ТМЦ / СИЗ в личную карточку"
-            subtitle="Укажите сотрудника и позицию ТМЦ"
-            onClose={() => setShowCardModal(false)}
-          />
-          <form onSubmit={handleCardSubmit} className="space-y-4 p-5">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">ФИО Сотрудника *</label>
-              <input
-                required
-                value={cardFormData.employeeName}
-                onChange={(e) => setCardFormData({ ...cardFormData, employeeName: e.target.value })}
-                placeholder="Петров Алексей Сергеевич"
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Должность</label>
-                <input
-                  value={cardFormData.employeePosition}
-                  onChange={(e) => setCardFormData({ ...cardFormData, employeePosition: e.target.value })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Цех / Подразделение</label>
-                <input
-                  value={cardFormData.department}
-                  onChange={(e) => setCardFormData({ ...cardFormData, department: e.target.value })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Выберите позицию ТМЦ / СИЗ *</label>
-                <select
-                  required
-                  value={cardFormData.itemId}
-                  onChange={(e) => setCardFormData({ ...cardFormData, itemId: e.target.value })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                >
-                  {items.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} (SKU: {i.sku}) — Склад: {i.warehouse} (Остаток: {i.quantity})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Количество ед. *</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={cardFormData.quantity}
-                  onChange={(e) => setCardFormData({ ...cardFormData, quantity: Number(e.target.value) })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowCardModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
-              >
-                {submitting ? "Выдача..." : "Оформить выдачу"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Modal 4: Return Asset */}
-        <Modal open={showReturnModal} onClose={() => setShowReturnModal(false)} size="md">
-          <ModalHeader
-            icon={<RotateCcw size={16} />}
-            title="Оформление возврата имущества"
-            subtitle={selectedCard ? `${selectedCard.itemName} от ${selectedCard.employeeName}` : ""}
-            onClose={() => setShowReturnModal(false)}
-          />
-          <form onSubmit={handleReturnSubmit} className="space-y-4 p-5">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Техническое состояние имущества при возврате *</label>
-              <select
-                value={returnFormData.returnCondition}
-                onChange={(e) => setReturnFormData({ returnCondition: e.target.value })}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="GOOD">Исправно — вернуть остаток на склад</option>
-                <option value="REPAIR">Требует ремонта — направить в ТОиР</option>
-                <option value="SCRAPPED">Списано в утиль / Непригодно</option>
-              </select>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowReturnModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
-              >
-                {submitting ? "Сохранение..." : "Подтвердить возврат"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Modal 5: Inbound Receiving */}
-        <Modal open={showInboundModal} onClose={() => setShowInboundModal(false)} size="lg">
+        {/* MODAL 1: MULTI-ITEM INBOUND RECEIVING */}
+        <Modal open={showInboundModal} onClose={() => setShowInboundModal(false)} size="xl">
           <ModalHeader
             icon={<Plus size={16} />}
-            title="Оформление Прихода товара"
-            subtitle="Поступление новой партии или позиций ТМЦ на склад"
+            title="Мульти-позиционное оформление Прихода ТМЦ"
+            subtitle="Заполнение составной накладной поступления позиций на склад"
             onClose={() => setShowInboundModal(false)}
           />
-          <form onSubmit={handleInboundSubmit} className="space-y-4 p-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Наименование ТМЦ *</label>
-                <input
-                  required
-                  value={inboundFormData.name}
-                  onChange={(e) => setInboundFormData({ ...inboundFormData, name: e.target.value })}
-                  placeholder="Манжета гидравлическая 50х70"
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Артикул (SKU) *</label>
-                <input
-                  required
-                  value={inboundFormData.sku}
-                  onChange={(e) => setInboundFormData({ ...inboundFormData, sku: e.target.value })}
-                  placeholder="ZIP-HYD-0099"
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
+          <form onSubmit={handleInboundBatchSubmit} className="space-y-4 p-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span className="text-xs font-semibold text-slate-700">
+                Позиций в накладной: <strong className="text-blue-600">{inboundRows.length}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={addInboundRow}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+              >
+                <Plus size={13} /> Добавить позицию
+              </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Склад *</label>
-                <select
-                  value={inboundFormData.warehouse}
-                  onChange={(e) => setInboundFormData({ ...inboundFormData, warehouse: e.target.value })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                >
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.name}>{w.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Ячейка</label>
-                <input
-                  value={inboundFormData.cell}
-                  onChange={(e) => setInboundFormData({ ...inboundFormData, cell: e.target.value })}
-                  placeholder="Яч-01-A"
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-slate-700">Количество *</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={inboundFormData.quantity}
-                  onChange={(e) => setInboundFormData({ ...inboundFormData, quantity: Number(e.target.value) })}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
+            <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
+              {inboundRows.map((row, idx) => (
+                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                  <div className="col-span-4">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Наименование ТМЦ #{idx + 1} *</label>
+                    <input
+                      required
+                      type="text"
+                      value={row.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, name: val } : r)));
+                      }}
+                      placeholder="Манжета гидравлическая 50х70"
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Артикул (SKU) *</label>
+                    <input
+                      required
+                      type="text"
+                      value={row.sku}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, sku: val } : r)));
+                      }}
+                      placeholder="HYD-5070-01"
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Склад</label>
+                    <select
+                      value={row.warehouse}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, warehouse: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    >
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.name}>{w.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Кол-во ед. *</label>
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={row.quantity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex justify-center pt-4">
+                    <button
+                      type="button"
+                      disabled={inboundRows.length <= 1}
+                      onClick={() => removeInboundRow(row.id)}
+                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
                 onClick={() => setShowInboundModal(false)}
@@ -1069,13 +585,254 @@ export default function ConsolidatedWmsOperationsPage() {
                 disabled={submitting}
                 className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
               >
-                {submitting ? "Сохранение..." : "Сохранить Приход"}
+                {submitting ? "Проведение..." : "Провести Приход накладной"}
               </button>
             </div>
           </form>
         </Modal>
 
-        {/* Barcode Label Modal Printer */}
+        {/* MODAL 2: MULTI-ITEM TRANSFER */}
+        <Modal open={showTransferModal} onClose={() => setShowTransferModal(false)} size="xl">
+          <ModalHeader
+            icon={<ArrowRightLeft size={16} />}
+            title="Мульти-позиционное Перемещение ТМЦ между складами"
+            subtitle="Групповая передача товарно-материальных ценностей ответственным МОЛ"
+            onClose={() => setShowTransferModal(false)}
+          />
+          <form onSubmit={handleTransferBatchSubmit} className="space-y-4 p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Отправитель *</label>
+                <select
+                  value={transferHeader.fromWarehouse}
+                  onChange={(e) => setTransferHeader({ ...transferHeader, fromWarehouse: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.name}>{w.name} (МОЛ: {w.responsibleUser})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Получатель *</label>
+                <select
+                  value={transferHeader.toWarehouse}
+                  onChange={(e) => setTransferHeader({ ...transferHeader, toWarehouse: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  {availableTargetWarehouses.map((w) => (
+                    <option key={w.id} value={w.name}>{w.name} (МОЛ: {w.responsibleUser})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {targetTransferWarehouseObj && (
+              <div className="rounded-lg bg-indigo-50/70 p-2.5 border border-indigo-100 text-xs text-indigo-900 flex items-center justify-between">
+                <span>Автоматически определен МОЛ-приемщик: <strong className="text-indigo-700">{targetTransferWarehouseObj.responsibleUser}</strong></span>
+                <span className="text-[10px] text-indigo-500">Запрос поступит на согласование</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 pt-2">
+              <span className="text-xs font-semibold text-slate-700">Перемещаемые позиции ({transferRows.length}):</span>
+              <button
+                type="button"
+                onClick={addTransferRow}
+                className="flex items-center gap-1 rounded bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+              >
+                <Plus size={13} /> Добавить позицию
+              </button>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1">
+              {transferRows.map((row, idx) => (
+                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+                  <div className="col-span-8">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Выберите ТМЦ со склада отправителя #{idx + 1} *</label>
+                    <select
+                      value={row.itemId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTransferRows(transferRows.map((r) => (r.id === row.id ? { ...r, itemId: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    >
+                      {sourceWarehouseItems.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name} (SKU: {i.sku}) — Доступно остаток: {i.quantity} {i.unit}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Количество *</label>
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={row.quantity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setTransferRows(transferRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex justify-center pt-4">
+                    <button
+                      type="button"
+                      disabled={transferRows.length <= 1}
+                      onClick={() => removeTransferRow(row.id)}
+                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {submitting ? "Отправка..." : "Отправить на перемещение"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* MODAL 3: MULTI-ITEM WRITE-OFF / SCRAP */}
+        <Modal open={showWriteOffModal} onClose={() => setShowWriteOffModal(false)} size="xl">
+          <ModalHeader
+            icon={<FileSpreadsheet size={16} />}
+            title="Мульти-позиционное Списание ТМЦ на оборудование / Утиль"
+            subtitle="Формирование акта списания позиций на техническое обслуживание и ремонт"
+            onClose={() => setShowWriteOffModal(false)}
+          />
+          <form onSubmit={handleWriteOffBatchSubmit} className="space-y-4 p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Закрепленное оборудование ТОИР</label>
+                <select
+                  value={writeOffHeader.equipmentId}
+                  onChange={(e) => setWriteOffHeader({ ...writeOffHeader, equipmentId: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">-- Общее списание / Без привязки к узлу --</option>
+                  {equipments.map((eq) => (
+                    <option key={eq.id} value={eq.id}>
+                      {eq.equipmentCode} — {eq.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Основание / Причина списания</label>
+                <input
+                  type="text"
+                  value={writeOffHeader.reason}
+                  onChange={(e) => setWriteOffHeader({ ...writeOffHeader, reason: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 pt-2">
+              <span className="text-xs font-semibold text-slate-700">Списываемые позиции ({writeOffRows.length}):</span>
+              <button
+                type="button"
+                onClick={addWriteOffRow}
+                className="flex items-center gap-1 rounded bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+              >
+                <Plus size={13} /> Добавить позицию
+              </button>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1">
+              {writeOffRows.map((row, idx) => (
+                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/50 p-2.5">
+                  <div className="col-span-8">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Позиция ТМЦ #{idx + 1} *</label>
+                    <select
+                      value={row.itemId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setWriteOffRows(writeOffRows.map((r) => (r.id === row.id ? { ...r, itemId: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    >
+                      {items.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name} (SKU: {i.sku}) — Склад: {i.warehouse} (Доступно: {i.quantity} {i.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Количество *</label>
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={row.quantity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setWriteOffRows(writeOffRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex justify-center pt-4">
+                    <button
+                      type="button"
+                      disabled={writeOffRows.length <= 1}
+                      onClick={() => removeWriteOffRow(row.id)}
+                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowWriteOffModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+              >
+                {submitting ? "Проведение..." : "Провести списание позиций"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* BARCODE PRINT MODAL */}
         {printItemData && (
           <BarcodeLabelModal
             open={printModalOpen}
