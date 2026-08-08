@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma, EquipmentStatus } from "@prisma/client";
+import { getSession } from "@/lib/auth/session";
+import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -36,6 +38,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
+    const permissions = await getUserEpsPermissions();
+    if (!permissions.canEdit) {
+      return NextResponse.json(
+        { error: "Отказано в доступе. Создание паспорта оборудования доступно только редакторам и администраторам." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     const created = await prisma.equipment.create({
@@ -62,7 +77,7 @@ export async function POST(request: Request) {
         warrantyExpiration: body.warrantyExpiration,
         serviceDueDate: body.serviceDueDate,
         notes: body.notes,
-        responsibleUser: body.responsibleUser,
+        responsibleUserId: body.responsibleUserId || session.id,
         techSpecs: body.techSpecs,
         lifecycleStage: body.lifecycleStage || "IN_OPERATION",
         currentVersion: 1

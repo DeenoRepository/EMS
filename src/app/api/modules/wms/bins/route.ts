@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
+import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -23,12 +25,35 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { action, warehouseId, code, name, zoneId, capacity, description } = body;
 
+    if (!warehouseId) {
+      return NextResponse.json({ error: "Не указан склад" }, { status: 400 });
+    }
+
+    // Check warehouse MOL / Admin authorization
+    const targetWh = await prisma.warehouse.findUnique({ where: { id: warehouseId } });
+    if (!targetWh) {
+      return NextResponse.json({ error: "Склад не найден" }, { status: 404 });
+    }
+
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
+    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(targetWh.name)) {
+      return NextResponse.json(
+        { error: `Отказано в доступе. Редактирование топологии склада "${targetWh.name}" разрешено только МОЛ данного склада.` },
+        { status: 403 }
+      );
+    }
+
     if (action === "create_zone") {
-      if (!warehouseId || !code || !name) {
-        return NextResponse.json({ error: "Поля Склад, Код зоны и Название зоны обязательны" }, { status: 400 });
+      if (!code || !name) {
+        return NextResponse.json({ error: "Поля Код зоны и Название зоны обязательны" }, { status: 400 });
       }
 
       const zone = await prisma.wmsZone.create({
@@ -44,8 +69,8 @@ export async function POST(request: Request) {
     }
 
     if (action === "create_cell") {
-      if (!warehouseId || !code) {
-        return NextResponse.json({ error: "Поля Склад и Код ячейки обязательны" }, { status: 400 });
+      if (!code) {
+        return NextResponse.json({ error: "Поль Код ячейки обязательно" }, { status: 400 });
       }
 
       const cell = await prisma.storageCell.create({

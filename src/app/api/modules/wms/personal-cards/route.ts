@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const employee = searchParams.get("employee");
 
   try {
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
     const where: any = {};
     if (employee) {
       where.OR = [
@@ -15,6 +17,15 @@ export async function GET(request: Request) {
         { employeePosition: { contains: employee, mode: "insensitive" } },
         { department: { contains: employee, mode: "insensitive" } },
       ];
+    }
+
+    if (responsibleWarehouses !== null) {
+      if (responsibleWarehouses.length === 0) {
+        return NextResponse.json({ cards: [], total: 0 });
+      }
+      where.item = {
+        warehouse: { in: responsibleWarehouses }
+      };
     }
 
     const cards = await prisma.wmsPersonalCard.findMany({
@@ -50,6 +61,14 @@ export async function POST(request: Request) {
     const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
     if (!item) {
       return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
+    }
+
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
+    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
+      return NextResponse.json(
+        { error: `Отказано в доступе. Вы не являетесь МОЛ склада "${item.warehouse}"` },
+        { status: 403 }
+      );
     }
 
     if (item.quantity < quantity) {
@@ -125,6 +144,14 @@ export async function PUT(request: Request) {
 
     if (!card) {
       return NextResponse.json({ error: "Запись в личной карточке не найдена" }, { status: 404 });
+    }
+
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
+    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(card.item.warehouse)) {
+      return NextResponse.json(
+        { error: `Отказано в доступе. Вы не являетесь МОЛ склада "${card.item.warehouse}"` },
+        { status: 403 }
+      );
     }
 
     // Если состояние GOOD (исправно) — оприходовать обратно на склад, иначе списать

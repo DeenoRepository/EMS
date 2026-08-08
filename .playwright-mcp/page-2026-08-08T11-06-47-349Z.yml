@@ -1,0 +1,32 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: EMS
+      - heading "Корпоративный Вход" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Единая авторизация внутреннего контура enterprise-системы
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - text: Имя пользователя (LDAP / Login)
+          - textbox "Имя пользователя (LDAP / Login)" [ref=e15]: admin
+        - generic [ref=e16]:
+          - text: Пароль
+          - textbox "Пароль" [ref=e21]: admin123
+        - button "Войти в платформу" [ref=e22] [cursor=pointer]
+      - generic [ref=e23]:
+        - paragraph [ref=e24]: "Быстрый вход (Mock профили):"
+        - generic [ref=e25]:
+          - button "ADMIN admin" [ref=e26] [cursor=pointer]:
+            - generic [ref=e27]: ADMIN
+            - text: admin
+          - button "EDITOR editor" [ref=e28] [cursor=pointer]:
+            - generic [ref=e29]: EDITOR
+            - text: editor
+          - button "APPROVER approver" [ref=e30] [cursor=pointer]:
+            - generic [ref=e31]: APPROVER
+            - text: approver
+          - button "VIEWER viewer" [ref=e32] [cursor=pointer]:
+            - generic [ref=e33]: VIEWER
+            - text: viewer
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]
+  - alert [ref=e43]

@@ -1,0 +1,234 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary "Основная навигация" [ref=e4]:
+      - generic [ref=e5]:
+        - link "EPS Logo EMS Enterprise Operational platform" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - img "EPS Logo" [ref=e7]
+          - generic [ref=e8]:
+            - generic [ref=e9]: EMS Enterprise
+            - generic [ref=e10]: Operational platform
+        - button "Свернуть меню" [ref=e11] [cursor=pointer]
+      - textbox "Поиск по меню" [ref=e18]:
+        - /placeholder: Поиск по меню...
+      - navigation [ref=e19]:
+        - generic [ref=e20]: Главная
+        - link "Обзор Платформы" [ref=e21] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e28]: Бизнес-модули
+        - button "EPS Паспортизация подменю" [expanded] [ref=e29] [cursor=pointer]:
+          - generic [ref=e33]: EPS Паспортизация
+          - generic [ref=e34]: v2.3.6
+        - generic [ref=e37]:
+          - link "Реестр оборудования" [ref=e38] [cursor=pointer]:
+            - /url: /modules/eps
+          - link "Документы" [ref=e43] [cursor=pointer]:
+            - /url: /modules/eps/documents
+          - link "Отчёты" [ref=e48] [cursor=pointer]:
+            - /url: /modules/eps/reports
+          - link "Очередь согласований 1" [ref=e214] [cursor=pointer]:
+            - /url: /modules/eps/approval-queue
+            - generic [ref=e57]: Очередь согласований
+            - generic [ref=e58]: "1"
+          - link "История изменений" [ref=e59] [cursor=pointer]:
+            - /url: /modules/eps/change-history
+        - button "WMS Складской учет подменю" [ref=e63] [cursor=pointer]:
+          - generic [ref=e67]: WMS Складской учет
+          - generic [ref=e68]: v2.3.6
+        - generic [ref=e71]: Настройки & Администрирование
+        - button "Настройки и администрирование подменю" [ref=e72] [cursor=pointer]:
+          - generic [ref=e76]: Настройки
+      - generic [ref=e80]:
+        - generic [ref=e81]: EMS Enterprise
+        - generic [ref=e82]: v2.3.6
+    - generic [ref=e83]:
+      - banner "Верхняя панель" [ref=e84]:
+        - button "Команды и поиск по Shell... Ctrl K" [ref=e86] [cursor=pointer]:
+          - generic [ref=e90]: Команды и поиск по Shell...
+          - generic [ref=e91]: Ctrl K
+        - generic [ref=e92]:
+          - button "Уведомления" [ref=e94] [cursor=pointer]
+          - generic [ref=e100] [cursor=pointer]:
+            - generic [ref=e101]: АE
+            - generic [ref=e102]:
+              - generic [ref=e103]: Администратор EMS
+              - generic [ref=e104]: admin@ems.local
+      - main [ref=e107]:
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110]:
+              - link "Главная" [ref=e111] [cursor=pointer]:
+                - /url: /
+              - generic [ref=e114]: EPS Паспортизация
+            - heading "Реестр оборудования EPS" [level=1] [ref=e115]
+            - paragraph [ref=e116]: Централизованный корпоративный учет единиц производственного оборудования (найдено 5 из 5 ед.).
+          - generic [ref=e117]:
+            - link "Экспорт CSV" [ref=e118] [cursor=pointer]:
+              - /url: /api/modules/eps/equipment/export
+            - button "Обновить" [ref=e122] [cursor=pointer]
+            - button "Создать паспорт" [ref=e128] [cursor=pointer]
+        - generic [ref=e130]:
+          - generic [ref=e131]:
+            - generic [ref=e132]: Всего единиц
+            - generic [ref=e139]: "5"
+            - generic [ref=e140]: Паспортизировано в системе
+          - generic [ref=e141]:
+            - generic [ref=e142]: В эксплуатации
+            - generic [ref=e148]: "3"
+            - generic [ref=e149]: 60% от общего парка
+          - generic [ref=e150]:
+            - generic [ref=e151]: В резерве / Черновик
+            - generic [ref=e156]: "2"
+            - generic [ref=e157]: Готовится к вводу
+          - generic [ref=e158]:
+            - generic [ref=e159]: Списано / Выведено
+            - generic [ref=e165]: "0"
+            - generic [ref=e166]: В архиве
+        - generic [ref=e168]:
+          - textbox "Поиск по названию, коду или инвентарному номеру…" [ref=e174]
+          - generic [ref=e175]:
+            - generic [ref=e176]: "Фильтры:"
+            - combobox [ref=e179]:
+              - option "Все статусы" [selected]
+              - option "ACTIVE (В эксплуатации)"
+              - option "INACTIVE (В резерве)"
+              - option "DRAFT (Черновик)"
+              - option "DECOMMISSIONED (Списано)"
+            - combobox [ref=e180]:
+              - option "Все цеха" [selected]
+              - option "Цех №1"
+              - option "ОГМ"
+              - option "Цех №2"
+              - option "Цех №3"
+            - combobox [ref=e181]:
+              - option "Все категории" [selected]
+              - option "Дробильное"
+              - option "Вентиляция"
+              - option "Пневматика"
+              - option "Трансформаторы"
+              - option "Гидравлика"
+            - combobox [ref=e182]:
+              - option "Все типы техники" [selected]
+              - option "Технологическое оборудование"
+              - option "Вентиляционное оборудование"
+              - option "Компрессорное оборудование"
+              - option "Электрооборудование"
+              - option "Насосное оборудование"
+            - button "Колонки" [ref=e184] [cursor=pointer]
+        - table [ref=e189]:
+          - rowgroup [ref=e190]:
+            - row [ref=e191]:
+              - columnheader "Код / Инв. №" [ref=e192]
+              - columnheader "Наименование" [ref=e193]
+              - columnheader "Категория & Тип" [ref=e194]
+              - columnheader "Подразделение / Позиция" [ref=e195]
+              - columnheader "Статус" [ref=e196]
+              - columnheader "Действие" [ref=e197]
+          - rowgroup [ref=e198]:
+            - row [ref=e215]:
+              - cell "EQ-DR-005 ИНВ-2015-0008" [ref=e216]:
+                - generic [ref=e217]:
+                  - generic [ref=e218]: EQ-DR-005
+                  - generic [ref=e219]: ИНВ-2015-0008
+              - 'cell "Дробилка молотковая ДМ-0.25 Модель: ДМ-0.25А" [ref=e220]':
+                - generic [ref=e221]:
+                  - generic [ref=e222]: Дробилка молотковая ДМ-0.25
+                  - generic [ref=e223]: "Модель: ДМ-0.25А"
+              - cell "Дробильное Технологическое оборудование" [ref=e224]:
+                - generic [ref=e225]:
+                  - generic [ref=e226]: Дробильное
+                  - generic [ref=e231]: Технологическое оборудование
+              - cell "Цех №1 Участок дробления, позиция 1" [ref=e232]:
+                - generic [ref=e233]:
+                  - generic [ref=e234]: Цех №1
+                  - generic [ref=e240]: Участок дробления, позиция 1
+              - cell "DRAFT" [ref=e241]
+              - cell [ref=e244]:
+                - link "Открыть" [ref=e246] [cursor=pointer]:
+                  - /url: /modules/eps/cmsjzsys4000tixd8elgpgq1s
+            - row [ref=e249]:
+              - cell "EQ-VN-004 ИНВ-2019-0112" [ref=e250]:
+                - generic [ref=e251]:
+                  - generic [ref=e252]: EQ-VN-004
+                  - generic [ref=e253]: ИНВ-2019-0112
+              - 'cell "Вентилятор промышленный ВЦ-14 Модель: ВЦ-14-46-8" [ref=e254]':
+                - generic [ref=e255]:
+                  - generic [ref=e256]: Вентилятор промышленный ВЦ-14
+                  - generic [ref=e257]: "Модель: ВЦ-14-46-8"
+              - cell "Вентиляция Вентиляционное оборудование" [ref=e258]:
+                - generic [ref=e259]:
+                  - generic [ref=e260]: Вентиляция
+                  - generic [ref=e265]: Вентиляционное оборудование
+              - cell "ОГМ Крыша корпуса 2, В-1" [ref=e266]:
+                - generic [ref=e267]:
+                  - generic [ref=e268]: ОГМ
+                  - generic [ref=e274]: Крыша корпуса 2, В-1
+              - cell "INACTIVE" [ref=e275]
+              - cell [ref=e278]:
+                - link "Открыть" [ref=e280] [cursor=pointer]:
+                  - /url: /modules/eps/cmsjzsyrx000rixd8btjm9y4y
+            - row [ref=e283]:
+              - cell "EQ-CM-003 ИНВ-2022-0034" [ref=e284]:
+                - generic [ref=e285]:
+                  - generic [ref=e286]: EQ-CM-003
+                  - generic [ref=e287]: ИНВ-2022-0034
+              - 'cell "Компрессор воздушный АИР-160 Модель: АИР-160М4" [ref=e288]':
+                - generic [ref=e289]:
+                  - generic [ref=e290]: Компрессор воздушный АИР-160
+                  - generic [ref=e291]: "Модель: АИР-160М4"
+              - cell "Пневматика Компрессорное оборудование" [ref=e292]:
+                - generic [ref=e293]:
+                  - generic [ref=e294]: Пневматика
+                  - generic [ref=e299]: Компрессорное оборудование
+              - cell "Цех №1 Компрессорная, позиция 3" [ref=e300]:
+                - generic [ref=e301]:
+                  - generic [ref=e302]: Цех №1
+                  - generic [ref=e308]: Компрессорная, позиция 3
+              - cell "ACTIVE" [ref=e309]
+              - cell [ref=e312]:
+                - link "Открыть" [ref=e314] [cursor=pointer]:
+                  - /url: /modules/eps/cmsjzsyrr000pixd8maddijve
+            - row [ref=e317]:
+              - cell "EQ-TR-002 ИНВ-2021-0089" [ref=e318]:
+                - generic [ref=e319]:
+                  - generic [ref=e320]: EQ-TR-002
+                  - generic [ref=e321]: ИНВ-2021-0089
+              - 'cell "Трансформатор силовой ТМ-630 Модель: ТМ-630/10" [ref=e322]':
+                - generic [ref=e323]:
+                  - generic [ref=e324]: Трансформатор силовой ТМ-630
+                  - generic [ref=e325]: "Модель: ТМ-630/10"
+              - cell "Трансформаторы Электрооборудование" [ref=e326]:
+                - generic [ref=e327]:
+                  - generic [ref=e328]: Трансформаторы
+                  - generic [ref=e333]: Электрооборудование
+              - cell "Цех №2 РУ-10кВ, ячейка 4" [ref=e334]:
+                - generic [ref=e335]:
+                  - generic [ref=e336]: Цех №2
+                  - generic [ref=e342]: РУ-10кВ, ячейка 4
+              - cell "ACTIVE" [ref=e343]
+              - cell [ref=e346]:
+                - link "Открыть" [ref=e348] [cursor=pointer]:
+                  - /url: /modules/eps/cmsjzsyrl000nixd82rb6l13z
+            - row [ref=e351]:
+              - cell "EQ-NS-001 ИНВ-2023-0441" [ref=e352]:
+                - generic [ref=e353]:
+                  - generic [ref=e354]: EQ-NS-001
+                  - generic [ref=e355]: ИНВ-2023-0441
+              - 'cell "Насосная станция Ц-12 Модель: Grundfos CR 32-3" [ref=e356]':
+                - generic [ref=e357]:
+                  - generic [ref=e358]: Насосная станция Ц-12
+                  - generic [ref=e359]: "Модель: Grundfos CR 32-3"
+              - cell "Гидравлика Насосное оборудование" [ref=e360]:
+                - generic [ref=e361]:
+                  - generic [ref=e362]: Гидравлика
+                  - generic [ref=e367]: Насосное оборудование
+              - cell "Цех №3 Насосная hall B, позиция 12" [ref=e368]:
+                - generic [ref=e369]:
+                  - generic [ref=e370]: Цех №3
+                  - generic [ref=e376]: Насосная hall B, позиция 12
+              - cell "ACTIVE" [ref=e377]
+              - cell [ref=e380]:
+                - link "Открыть" [ref=e382] [cursor=pointer]:
+                  - /url: /modules/eps/cmsjzsyr8000lixd8cg057oq6
+  - button "Open Next.js Dev Tools" [ref=e210] [cursor=pointer]
+  - alert [ref=e385]

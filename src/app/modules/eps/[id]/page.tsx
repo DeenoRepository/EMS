@@ -254,7 +254,7 @@ export default function EquipmentDetailPage({
                 <span className="text-slate-300">•</span>
                 <span>Инв. №: <span className="font-mono font-medium text-slate-700">{item.inventoryNumber}</span></span>
                 <span className="text-slate-300">•</span>
-                <span>Версия <span className="font-mono font-medium text-slate-700">v{item.version}</span></span>
+                <span>Версия <span className="font-mono font-medium text-slate-700">v{item.version ?? 1}</span></span>
               </div>
             </div>
 
@@ -276,7 +276,7 @@ export default function EquipmentDetailPage({
                 }}
                 className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8] transition cursor-pointer"
               >
-                <Edit size={13} /> Редактировать (v{item.version + 1})
+                <Edit size={13} /> Редактировать (v{(item.version ?? 1) + 1})
               </button>
             </div>
           </div>

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { MOCK_DOCUMENTS, DocumentItem } from "@/lib/modules/eps-advanced-store";
+import { getSession } from "@/lib/auth/session";
+import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -48,6 +50,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
+    const permissions = await getUserEpsPermissions();
+    if (!permissions.canEdit) {
+      return NextResponse.json({ error: "Отказано в доступе. Загрузка документов доступна только редакторам." }, { status: 403 });
+    }
+
     const body = await request.json();
     if (!body.equipmentId || !body.title) {
       return NextResponse.json({ error: "Необходимые поля (equipmentId, title) не заполнены" }, { status: 400 });

@@ -25,12 +25,12 @@ export async function getUserResponsibleWarehouses(): Promise<string[] | null> {
     });
 
     if (userWarehouses.length === 0) {
-      return null;
+      return [];
     }
 
     return userWarehouses.map((w) => w.name);
   } catch (err) {
     console.error("getUserResponsibleWarehouses failed:", err);
-    return null;
+    return [];
   }
 }

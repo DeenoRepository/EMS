@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { WmsWriteOffReason } from "@prisma/client";
+import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,9 +10,19 @@ export async function GET(request: Request) {
   const reason = searchParams.get("reason");
 
   try {
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
     const where: any = {};
     if (itemId) where.itemId = itemId;
     if (reason) where.reason = reason as WmsWriteOffReason;
+
+    if (responsibleWarehouses !== null) {
+      if (responsibleWarehouses.length === 0) {
+        return NextResponse.json({ writeOffs: [] });
+      }
+      where.item = {
+        warehouse: { in: responsibleWarehouses }
+      };
+    }
 
     const writeOffs = await prisma.wmsWriteOff.findMany({
       where,
@@ -29,12 +41,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { itemId, quantity, reason, equipmentId, equipmentName, performedBy, comments } = body;
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
 
-    if (!itemId || !quantity || !performedBy) {
+    const body = await request.json();
+    const { itemId, quantity, reason, equipmentId, equipmentName, comments } = body;
+
+    if (!itemId || !quantity) {
       return NextResponse.json(
-        { error: "Поля Позиция ТМЦ, Количество и Выполнивший обязательны" },
+        { error: "Поля Позиция ТМЦ и Количество обязательны" },
         { status: 400 }
       );
     }
@@ -44,6 +61,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
     }
 
+    const responsibleWarehouses = await getUserResponsibleWarehouses();
+    if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
+      return NextResponse.json(
+        { error: `Отказано в доступе. Вы не являетесь МОЛ склада "${item.warehouse}"` },
+        { status: 403 }
+      );
+    }
+
     if (Number(quantity) > item.quantity) {
       return NextResponse.json(
         { error: `Нельзя списать больше, чем есть на складе. Текущий остаток: ${item.quantity} ${item.unit}` },
@@ -51,6 +76,7 @@ export async function POST(request: Request) {
       );
     }
 
+    const performedBy = session.displayName || session.username;
     const newQty = item.quantity - Number(quantity);
     const newStatus = newQty <= item.minQuantity ? (newQty === 0 ? "OUT_OF_STOCK" : "LOW_STOCK") : "IN_STOCK";
 

@@ -1,0 +1,193 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e210] [cursor=pointer]
+  - alert [ref=e385]
+  - generic [ref=e559]:
+    - complementary "Основная навигация" [ref=e561]:
+      - generic [ref=e562]:
+        - link "EPS Logo EMS Enterprise Operational platform" [ref=e563] [cursor=pointer]:
+          - /url: /
+          - img "EPS Logo" [ref=e564]
+          - generic [ref=e565]:
+            - generic [ref=e566]: EMS Enterprise
+            - generic [ref=e567]: Operational platform
+        - button "Свернуть меню" [ref=e568] [cursor=pointer]
+      - textbox "Поиск по меню" [ref=e575]:
+        - /placeholder: Поиск по меню...
+      - navigation [ref=e576]:
+        - generic [ref=e577]: Главная
+        - link "Обзор Платформы" [ref=e578] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e585]: Бизнес-модули
+        - button "EPS Паспортизация подменю" [expanded] [ref=e586] [cursor=pointer]:
+          - generic [ref=e590]: EPS Паспортизация
+          - generic [ref=e591]: v2.3.6
+        - generic [ref=e594]:
+          - link "Реестр оборудования" [ref=e595] [cursor=pointer]:
+            - /url: /modules/eps
+          - link "Документы" [ref=e600] [cursor=pointer]:
+            - /url: /modules/eps/documents
+          - link "Отчёты" [ref=e605] [cursor=pointer]:
+            - /url: /modules/eps/reports
+          - link "Очередь согласований 1" [ref=e609] [cursor=pointer]:
+            - /url: /modules/eps/approval-queue
+            - generic [ref=e614]: Очередь согласований
+            - generic [ref=e615]: "1"
+          - link "История изменений" [ref=e616] [cursor=pointer]:
+            - /url: /modules/eps/change-history
+        - button "WMS Складской учет подменю" [ref=e620] [cursor=pointer]:
+          - generic [ref=e624]: WMS Складской учет
+          - generic [ref=e625]: v2.3.6
+        - generic [ref=e628]: Настройки & Администрирование
+        - button "Настройки и администрирование подменю" [ref=e629] [cursor=pointer]:
+          - generic [ref=e633]: Настройки
+      - generic [ref=e637]:
+        - generic [ref=e638]: EMS Enterprise
+        - generic [ref=e639]: v2.3.6
+    - generic [ref=e640]:
+      - banner "Верхняя панель" [ref=e641]:
+        - button "Команды и поиск по Shell... Ctrl K" [ref=e643] [cursor=pointer]:
+          - generic [ref=e647]: Команды и поиск по Shell...
+          - generic [ref=e648]: Ctrl K
+        - generic [ref=e649]:
+          - button "Уведомления" [ref=e651] [cursor=pointer]
+          - generic [ref=e657] [cursor=pointer]:
+            - generic [ref=e658]: АE
+            - generic [ref=e659]:
+              - generic [ref=e660]: Администратор EMS
+              - generic [ref=e661]: admin@ems.local
+      - main [ref=e664]:
+        - generic [ref=e665]:
+          - generic [ref=e666]:
+            - link "Главная" [ref=e667] [cursor=pointer]:
+              - /url: /
+            - link "EPS Паспортизация" [ref=e670] [cursor=pointer]:
+              - /url: /modules/eps
+            - generic [ref=e673]: EQ-DR-005
+          - generic [ref=e674]:
+            - generic [ref=e675]:
+              - generic [ref=e676]:
+                - heading "Дробилка молотковая ДМ-0.25" [level=1] [ref=e677]
+                - generic [ref=e678]: DRAFT
+              - generic [ref=e680]:
+                - generic [ref=e681]: "Код: EQ-DR-005"
+                - generic [ref=e682]: •
+                - generic [ref=e683]: "Инв. №: ИНВ-2015-0008"
+                - generic [ref=e684]: •
+                - generic [ref=e685]: Версия v
+            - generic [ref=e686]:
+              - link "Экспорт" [ref=e687] [cursor=pointer]:
+                - /url: /api/modules/eps/equipment/export
+              - button "Редактировать (vNaN)" [ref=e691] [cursor=pointer]
+        - generic [ref=e695]:
+          - generic [ref=e696]:
+            - generic [ref=e697]: Состояние
+            - generic [ref=e702]: Черновик
+            - generic [ref=e703]: Исправно
+          - generic [ref=e704]:
+            - generic [ref=e705]: След. ТО
+            - generic [ref=e710]: 15.09.2026
+            - generic [ref=e711]: План через 40 дн.
+          - generic [ref=e712]:
+            - generic [ref=e713]: Гарантия
+            - generic [ref=e719]: Активна
+            - generic [ref=e720]: Сервисный контракт
+          - generic [ref=e721]:
+            - generic [ref=e722]: Документов
+            - generic [ref=e728]: 0 ф.
+            - generic [ref=e729]: Паспорта и схемы
+        - generic [ref=e730]:
+          - generic [ref=e731]:
+            - button "Паспорт" [ref=e732] [cursor=pointer]
+            - button "Документы и схемы (0)" [ref=e736] [cursor=pointer]
+            - button "История версий" [ref=e740] [cursor=pointer]
+            - button "График ТОиР" [ref=e745] [cursor=pointer]
+          - generic [ref=e749]:
+            - generic [ref=e750]:
+              - generic [ref=e751]:
+                - heading "1. Паспортные данные" [level=2] [ref=e755]
+                - generic [ref=e756]:
+                  - generic [ref=e757]:
+                    - generic [ref=e758]: "Код EPS:"
+                    - generic [ref=e759]: EQ-DR-005
+                  - generic [ref=e760]:
+                    - generic [ref=e761]: "Статус оборудования:"
+                    - generic [ref=e762]: Черновик
+                  - generic [ref=e763]:
+                    - generic [ref=e764]: "Категория:"
+                    - generic [ref=e765]: Дробильное
+                  - generic [ref=e766]:
+                    - generic [ref=e767]: "Тип техники:"
+                    - generic [ref=e768]: Технологическое оборудование
+                  - generic [ref=e769]:
+                    - generic [ref=e770]: "Модель:"
+                    - generic [ref=e771]: ДМ-0.25А
+                  - generic [ref=e772]:
+                    - generic [ref=e773]: "Заводской номер:"
+                    - generic [ref=e774]: DM025-2015-0008
+                  - generic [ref=e775]:
+                    - generic [ref=e776]: "Инвентарный номер:"
+                    - generic [ref=e777]: ИНВ-2015-0008
+              - generic [ref=e778]:
+                - heading "2. Технические характеристики" [level=2] [ref=e784]
+                - generic [ref=e786]:
+                  - generic [ref=e787]: "Мощность (кВт):"
+                  - generic [ref=e788]: —
+            - generic [ref=e789]:
+              - generic [ref=e790]:
+                - heading "3. Размещение и ответственность" [level=2] [ref=e797]
+                - generic [ref=e798]:
+                  - generic [ref=e799]:
+                    - generic [ref=e800]: "Подразделение (Цех):"
+                    - generic [ref=e801]: Цех №1
+                  - generic [ref=e802]:
+                    - generic [ref=e803]: "Размещение / Пролет:"
+                    - generic [ref=e804]: Участок дробления, позиция 1
+                  - generic [ref=e805]:
+                    - generic [ref=e806]: "Ответственный сотрудник:"
+                    - generic [ref=e807]: —
+              - generic [ref=e808]:
+                - heading "4. Изготовитель и поставка" [level=2] [ref=e816]
+                - generic [ref=e817]:
+                  - generic [ref=e818]:
+                    - generic [ref=e819]: "Изготовитель:"
+                    - generic [ref=e820]: КМЗ
+                  - generic [ref=e821]:
+                    - generic [ref=e822]: "Страна происхождения:"
+                    - generic [ref=e823]: —
+                  - generic [ref=e824]:
+                    - generic [ref=e825]: "Происхождение техники:"
+                    - generic [ref=e826]: Отечественное оборудование
+                  - generic [ref=e827]:
+                    - generic [ref=e828]: "Поставщик:"
+                    - generic [ref=e829]: ОАО КомпрессорМашЗавод
+                  - generic [ref=e830]:
+                    - generic [ref=e831]: "Дата производства:"
+                    - generic [ref=e832]: 2014-09-10T00:00:00.000Z
+                  - generic [ref=e833]:
+                    - generic [ref=e834]: "Дата поставки:"
+                    - generic [ref=e835]: 2015-03-01T00:00:00.000Z
+            - generic [ref=e836]:
+              - generic [ref=e837]:
+                - heading "5. Эксплуатация и гарантия" [level=2] [ref=e842]
+                - generic [ref=e843]:
+                  - generic [ref=e844]:
+                    - generic [ref=e845]: "Ввод в эксплуатацию:"
+                    - generic [ref=e846]: 2015-04-15T00:00:00.000Z
+                  - generic [ref=e847]:
+                    - generic [ref=e848]: "Окончание гарантии:"
+                    - generic [ref=e849]: 2018-04-15T00:00:00.000Z
+                  - generic [ref=e850]:
+                    - generic [ref=e851]: "Плановое ТО:"
+                    - generic [ref=e852]: 2024-12-01T00:00:00.000Z
+              - generic [ref=e853]:
+                - heading "6. Дополнительные сведения" [level=2] [ref=e860]
+                - generic [ref=e861]:
+                  - generic [ref=e862]:
+                    - generic [ref=e863]: "Критичность оборудования:"
+                    - generic [ref=e864]: Класс C (Низкая)
+                  - generic [ref=e865]:
+                    - generic [ref=e866]: "Уникальность оборудования:"
+                    - generic [ref=e867]: Серийное оборудование
+            - generic [ref=e868]:
+              - text: Примечания
+              - paragraph [ref=e869]: Плановая оценка технического состояния перед вводом в эксплуатацию.

@@ -1,0 +1,131 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - complementary "Основная навигация" [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - link "EPS Logo EMS Enterprise Operational platform" [ref=f2e6] [cursor=pointer]:
+          - /url: /
+          - img "EPS Logo" [ref=f2e7]
+          - generic [ref=f2e8]:
+            - generic [ref=f2e9]: EMS Enterprise
+            - generic [ref=f2e10]: Operational platform
+        - button "Свернуть меню" [ref=f2e11] [cursor=pointer]
+      - textbox "Поиск по меню" [ref=f2e18]:
+        - /placeholder: Поиск по меню...
+      - navigation [ref=f2e19]:
+        - generic [ref=f2e20]: Главная
+        - link "Обзор Платформы" [ref=f2e21] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f2e28]: Бизнес-модули
+        - button "EPS Паспортизация подменю" [ref=f2e29] [cursor=pointer]:
+          - generic [ref=f2e33]: EPS Паспортизация
+          - generic [ref=f2e34]: v2.3.6
+        - button "WMS Складской учет подменю" [ref=f2e37] [cursor=pointer]:
+          - generic [ref=f2e41]: WMS Складской учет
+          - generic [ref=f2e42]: v2.3.6
+        - generic [ref=f2e45]: Настройки & Администрирование
+        - button "Настройки и администрирование подменю" [expanded] [ref=f2e46] [cursor=pointer]:
+          - generic [ref=f2e50]: Настройки
+        - generic [ref=f2e53]:
+          - link "Основные настройки" [ref=f2e54] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Безопасность & RBAC" [ref=f2e57] [cursor=pointer]:
+            - /url: /admin/rbac
+          - link "НСИ & Справочники EPS" [ref=f2e62] [cursor=pointer]:
+            - /url: /admin/settings/eps
+          - link "Аудит и Мониторинг" [ref=f2e68] [cursor=pointer]:
+            - /url: /admin/audit
+      - generic [ref=f2e74]:
+        - generic [ref=f2e75]: EMS Enterprise
+        - generic [ref=f2e76]: v2.3.6
+    - generic [ref=f2e77]:
+      - banner "Верхняя панель" [ref=f2e78]:
+        - button "Команды и поиск по Shell... Ctrl K" [ref=f2e80] [cursor=pointer]:
+          - generic [ref=f2e84]: Команды и поиск по Shell...
+          - generic [ref=f2e85]: Ctrl K
+        - generic [ref=f2e86]:
+          - button "Уведомления" [ref=f2e88] [cursor=pointer]
+          - generic [ref=f2e94] [cursor=pointer]:
+            - generic [ref=f2e95]: АE
+            - generic [ref=f2e96]:
+              - generic [ref=f2e97]: Администратор EMS
+              - generic [ref=f2e98]: admin@ems.local
+      - main [ref=f2e101]:
+        - navigation "Хлебные крошки" [ref=f2e102]:
+          - generic [ref=f2e103]: Цех №1 (Механообработка)
+          - link "Главная" [ref=f2e108] [cursor=pointer]:
+            - /url: /
+          - link "Настройки" [ref=f2e112] [cursor=pointer]:
+            - /url: /admin/settings
+          - generic [ref=f2e113]: Настройки Модуля EPS
+        - generic [ref=f2e117]:
+          - generic [ref=f2e118]:
+            - heading "Параметры и Справочники Паспортизации EPS" [level=1] [ref=f2e119]
+            - paragraph [ref=f2e120]: Конфигурация логики версионирования, динамических атрибутов типов оборудования и НСИ.
+          - button "Обновить НСИ" [ref=f2e121] [cursor=pointer]
+        - generic [ref=f2e127]:
+          - button "Общие Параметры" [ref=f2e128] [cursor=pointer]
+          - button "Конструктор Атрибутов" [active] [ref=f2e129] [cursor=pointer]
+          - button "Формирование Справочников" [ref=f2e130] [cursor=pointer]
+        - generic [ref=f2e159]:
+          - generic [ref=f2e160]:
+            - heading "Динамические Характеристики Техники" [level=2] [ref=f2e161]
+            - button "Добавить атрибут" [ref=f2e163] [cursor=pointer]
+          - table [ref=f2e165]:
+            - rowgroup [ref=f2e166]:
+              - row [ref=f2e167]:
+                - columnheader "Привязка / Категория" [ref=f2e168]
+                - columnheader "Название характеристики" [ref=f2e169]
+                - columnheader "Ключ поля" [ref=f2e170]
+                - columnheader "Тип данных" [ref=f2e171]
+                - columnheader "Обязательное" [ref=f2e172]
+            - rowgroup [ref=f2e173]:
+              - row [ref=f2e174]:
+                - cell "Вентиляционное оборудование" [ref=f2e175]
+                - cell "Производительность (м³/ч)" [ref=f2e176]
+                - cell "flow_m3h" [ref=f2e177]
+                - cell "NUMBER" [ref=f2e178]
+                - cell "Да" [ref=f2e179]
+              - row [ref=f2e181]:
+                - cell "Компрессорное оборудование" [ref=f2e182]
+                - cell "Давление (бар)" [ref=f2e183]
+                - cell "pressure_bar" [ref=f2e184]
+                - cell "NUMBER" [ref=f2e185]
+                - cell "Да" [ref=f2e186]
+              - row [ref=f2e188]:
+                - cell "Насосное оборудование" [ref=f2e189]
+                - cell "Мощность (кВт)" [ref=f2e190]
+                - cell "power_kw" [ref=f2e191]
+                - cell "NUMBER" [ref=f2e192]
+                - cell "Да" [ref=f2e193]
+              - row [ref=f2e195]:
+                - cell "Насосное оборудование" [ref=f2e196]
+                - cell "Подача (м³/ч)" [ref=f2e197]
+                - cell "flow_m3h" [ref=f2e198]
+                - cell "NUMBER" [ref=f2e199]
+                - cell "Да" [ref=f2e200]
+              - row [ref=f2e202]:
+                - cell "Насосное оборудование" [ref=f2e203]
+                - cell "Напор (м)" [ref=f2e204]
+                - cell "head_m" [ref=f2e205]
+                - cell "NUMBER" [ref=f2e206]
+                - cell "Нет" [ref=f2e207]
+              - row [ref=f2e209]:
+                - cell "Технологическое оборудование" [ref=f2e210]
+                - cell "Мощность (кВт)" [ref=f2e211]
+                - cell "power_kw" [ref=f2e212]
+                - cell "NUMBER" [ref=f2e213]
+                - cell "Нет" [ref=f2e214]
+              - row [ref=f2e216]:
+                - cell "Электрооборудование" [ref=f2e217]
+                - cell "Мощность (кВА)" [ref=f2e218]
+                - cell "power_kva" [ref=f2e219]
+                - cell "NUMBER" [ref=f2e220]
+                - cell "Да" [ref=f2e221]
+              - row [ref=f2e223]:
+                - cell "Электрооборудование" [ref=f2e224]
+                - cell "Напряжение ВН (кВ)" [ref=f2e225]
+                - cell "voltage_high_kv" [ref=f2e226]
+                - cell "NUMBER" [ref=f2e227]
+                - cell "Да" [ref=f2e228]
+  - button "Open Next.js Dev Tools" [ref=f2e154] [cursor=pointer]
+  - alert [ref=f2e158]

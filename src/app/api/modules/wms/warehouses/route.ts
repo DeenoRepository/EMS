@@ -44,9 +44,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
     // Создание складов и назначение МОЛ доступно только администраторам
-    if (session && !session.roles.includes("ADMIN")) {
+    if (!session.roles.includes("ADMIN")) {
       return NextResponse.json(
         { error: "Отказано в доступе. Управление складами и назначение МОЛ доступно только администратору." },
         { status: 403 }

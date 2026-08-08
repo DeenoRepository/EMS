@@ -32,7 +32,17 @@ export async function GET(request: Request) {
         { cell: { contains: query, mode: "insensitive" } }
       ];
     }
-    if (warehouse) where.warehouse = warehouse;
+    if (warehouse) {
+      if (responsibleWarehouses !== null) {
+        if (responsibleWarehouses.includes(warehouse)) {
+          where.warehouse = warehouse;
+        } else {
+          return NextResponse.json({ items: [], total: 0 });
+        }
+      } else {
+        where.warehouse = warehouse;
+      }
+    }
     if (category) where.category = category;
     if (status) where.status = status;
 

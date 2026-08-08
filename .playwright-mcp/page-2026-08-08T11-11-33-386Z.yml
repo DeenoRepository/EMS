@@ -1,0 +1,120 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary "Основная навигация" [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - link "EPS Logo EMS Enterprise Operational platform" [ref=f3e6] [cursor=pointer]:
+          - /url: /
+          - img "EPS Logo" [ref=f3e7]
+          - generic [ref=f3e8]:
+            - generic [ref=f3e9]: EMS Enterprise
+            - generic [ref=f3e10]: Operational platform
+        - button "Свернуть меню" [ref=f3e11] [cursor=pointer]
+      - textbox "Поиск по меню" [ref=f3e18]:
+        - /placeholder: Поиск по меню...
+      - navigation [ref=f3e19]:
+        - generic [ref=f3e20]: Главная
+        - link "Обзор Платформы" [ref=f3e21] [cursor=pointer]:
+          - /url: /
+        - generic [ref=f3e28]: Бизнес-модули
+        - button "EPS Паспортизация подменю" [ref=f3e29] [cursor=pointer]:
+          - generic [ref=f3e33]: EPS Паспортизация
+          - generic [ref=f3e34]: v2.3.6
+        - button "WMS Складской учет подменю" [ref=f3e37] [cursor=pointer]:
+          - generic [ref=f3e41]: WMS Складской учет
+          - generic [ref=f3e42]: v2.3.6
+        - generic [ref=f3e45]: Настройки & Администрирование
+        - button "Настройки и администрирование подменю" [expanded] [ref=f3e46] [cursor=pointer]:
+          - generic [ref=f3e50]: Настройки
+        - generic [ref=f3e53]:
+          - link "Основные настройки" [ref=f3e54] [cursor=pointer]:
+            - /url: /admin/settings
+          - link "Безопасность & RBAC" [ref=f3e57] [cursor=pointer]:
+            - /url: /admin/rbac
+          - link "НСИ & Справочники EPS" [ref=f3e62] [cursor=pointer]:
+            - /url: /admin/settings/eps
+          - link "Аудит и Мониторинг" [ref=f3e68] [cursor=pointer]:
+            - /url: /admin/audit
+      - generic [ref=f3e74]:
+        - generic [ref=f3e75]: EMS Enterprise
+        - generic [ref=f3e76]: v2.3.6
+    - generic [ref=f3e77]:
+      - banner "Верхняя панель" [ref=f3e78]:
+        - button "Команды и поиск по Shell... Ctrl K" [ref=f3e80] [cursor=pointer]:
+          - generic [ref=f3e84]: Команды и поиск по Shell...
+          - generic [ref=f3e85]: Ctrl K
+        - generic [ref=f3e86]:
+          - button "Уведомления" [ref=f3e88] [cursor=pointer]
+          - generic [ref=f3e94] [cursor=pointer]:
+            - generic [ref=f3e95]: "--"
+            - generic [ref=f3e96]:
+              - generic [ref=f3e97]: Гость / Загрузка...
+              - generic [ref=f3e98]: авторизация...
+      - main [ref=f3e101]:
+        - navigation "Хлебные крошки" [ref=f3e102]:
+          - generic [ref=f3e103]: Цех №1 (Механообработка)
+          - link "Главная" [ref=f3e108] [cursor=pointer]:
+            - /url: /
+          - link "Настройки" [ref=f3e112] [cursor=pointer]:
+            - /url: /admin/settings
+          - generic [ref=f3e113]: Безопасность & RBAC
+        - generic [ref=f3e117]:
+          - generic [ref=f3e118]:
+            - heading "Управление Доступом (RBAC) & Ролями" [level=1] [ref=f3e119]
+            - paragraph [ref=f3e120]: Настройка корпоративных ролей (Администратор, Редактор, Согласующий, Наблюдатель) и матрица прав.
+          - button "Добавить пользователя" [ref=f3e122] [cursor=pointer]
+        - generic [ref=f3e123]:
+          - textbox "Поиск пользователя по имени или e-mail…" [ref=f3e129]
+          - generic [ref=f3e130]:
+            - generic [ref=f3e131]: "Фильтр по роли:"
+            - combobox [ref=f3e134]:
+              - option "Все роли" [selected]
+              - option "ADMIN"
+              - option "EDITOR"
+              - option "APPROVER"
+              - option "VIEWER"
+        - generic [ref=f3e135]:
+          - generic [ref=f3e136]:
+            - generic [ref=f3e137]: Пользователь
+            - generic [ref=f3e138]: Корпоративный Email
+            - generic [ref=f3e139]: Матрица ролей и полномочий
+          - generic [ref=f3e140]:
+            - generic [ref=f3e141]:
+              - generic [ref=f3e142]: Администратор EMS
+              - generic [ref=f3e143]: "ID: 1"
+            - generic [ref=f3e144]: admin@ems.local
+            - generic [ref=f3e145]:
+              - button "✓ ADMIN" [ref=f3e146] [cursor=pointer]
+              - button "✓ EDITOR" [ref=f3e147] [cursor=pointer]
+              - button "✓ APPROVER" [ref=f3e148] [cursor=pointer]
+              - button "✓ VIEWER" [ref=f3e149] [cursor=pointer]
+          - generic [ref=f3e150]:
+            - generic [ref=f3e151]:
+              - generic [ref=f3e152]: Инженер Редактор
+              - generic [ref=f3e153]: "ID: 2"
+            - generic [ref=f3e154]: editor@ems.local
+            - generic [ref=f3e155]:
+              - button "+ ADMIN" [ref=f3e156] [cursor=pointer]
+              - button "✓ EDITOR" [ref=f3e157] [cursor=pointer]
+              - button "+ APPROVER" [ref=f3e158] [cursor=pointer]
+              - button "✓ VIEWER" [ref=f3e159] [cursor=pointer]
+          - generic [ref=f3e160]:
+            - generic [ref=f3e161]:
+              - generic [ref=f3e162]: Руководитель Согласующий
+              - generic [ref=f3e163]: "ID: 3"
+            - generic [ref=f3e164]: approver@ems.local
+            - generic [ref=f3e165]:
+              - button "+ ADMIN" [ref=f3e166] [cursor=pointer]
+              - button "+ EDITOR" [ref=f3e167] [cursor=pointer]
+              - button "✓ APPROVER" [ref=f3e168] [cursor=pointer]
+              - button "✓ VIEWER" [ref=f3e169] [cursor=pointer]
+          - generic [ref=f3e170]:
+            - generic [ref=f3e171]:
+              - generic [ref=f3e172]: Наблюдатель Оборудования
+              - generic [ref=f3e173]: "ID: 4"
+            - generic [ref=f3e174]: viewer@ems.local
+            - generic [ref=f3e175]:
+              - button "+ ADMIN" [ref=f3e176] [cursor=pointer]
+              - button "+ EDITOR" [ref=f3e177] [cursor=pointer]
+              - button "+ APPROVER" [ref=f3e178] [cursor=pointer]
+              - button "✓ VIEWER" [ref=f3e179] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f3e185] [cursor=pointer]

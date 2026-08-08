@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { WmsMovementType } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -40,6 +41,11 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     // Support batch items atomic array processing
@@ -61,6 +67,7 @@ export async function POST(request: Request) {
     const responsibleWarehouses = await getUserResponsibleWarehouses();
     const txOps: any[] = [];
     const createdMovementsCount = itemsList.length;
+    const sessionUser = session.displayName || session.username;
 
     for (const entry of itemsList) {
       const { itemId, type, quantity, fromLocation, toLocation, performedBy, reason, relatedOrderOrEq } = entry;
@@ -107,7 +114,7 @@ export async function POST(request: Request) {
             quantity: Number(quantity),
             fromLocation: fromLocation || item.cell,
             toLocation: toLocation || null,
-            performedBy: performedBy || "Кладовщик",
+            performedBy: sessionUser,
             reason: reason || null,
             relatedOrderOrEq: relatedOrderOrEq || null,
           }
@@ -136,7 +143,7 @@ export async function POST(request: Request) {
               quantity: Number(quantity),
               reason: "EQUIPMENT_REPAIR",
               comments: reason || "Списание на ремонт/обслуживание оборудования",
-              performedBy: performedBy || "Кладовщик"
+              performedBy: sessionUser
             }
           })
         );
