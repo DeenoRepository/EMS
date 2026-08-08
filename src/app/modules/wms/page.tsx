@@ -379,47 +379,7 @@ export default function WmsMainCatalogPage() {
           ]}
         />
 
-        {/* Selected Items Quick Action Bar */}
-        {selectedItemIds.length > 0 && (
-          <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-semibold text-blue-900">
-              <CheckSquare size={16} className="text-blue-600" />
-              <span>Выбрано позиций: <strong className="text-blue-700">{selectedItemIds.length}</strong></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  const sel = items.find((i) => i.id === selectedItemIds[0]);
-                  if (sel) {
-                    setReqFormData((prev) => ({ ...prev, selectedItemId: sel.id }));
-                    setShowRequisitionModal(true);
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
-              >
-                <Send size={13} /> Запросить со склада
-              </button>
-              <button
-                onClick={() => {
-                  const sel = items.find((i) => i.id === selectedItemIds[0]);
-                  if (sel) {
-                    setWriteOffFormData((prev) => ({ ...prev, itemId: sel.id }));
-                    setShowWriteOffModal(true);
-                  }
-                }}
-                className="flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 shadow-xs"
-              >
-                <FileSpreadsheet size={13} /> Списать на оборудование
-              </button>
-              <button
-                onClick={() => setSelectedItemIds([])}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Сбросить выбор
-              </button>
-            </div>
-          </div>
-        )}
+
 
         <div className="space-y-4">
           <FilterToolbar
