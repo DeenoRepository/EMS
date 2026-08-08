@@ -18,6 +18,7 @@ export interface DataTableProps<T> {
   loading?: boolean;
   emptyText?: string;
   onRowClick?: (item: T) => void;
+  getRowClassName?: (item: T) => string | undefined;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export function DataTable<T>({
   loading = false,
   emptyText = "Записи по заданным критериям не найдены.",
   onRowClick,
+  getRowClassName,
   className,
 }: DataTableProps<T>) {
   return (
@@ -65,7 +67,8 @@ export function DataTable<T>({
                 onClick={() => onRowClick && onRowClick(item)}
                 className={cn(
                   "hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition",
-                  onRowClick && "cursor-pointer"
+                  onRowClick && "cursor-pointer",
+                  getRowClassName && getRowClassName(item)
                 )}
               >
                 {columns.map((col) => (

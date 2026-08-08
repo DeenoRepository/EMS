@@ -25,6 +25,7 @@ import {
   FilterToolbar,
   DataTable,
   StatusBadge,
+  Checkbox,
 } from "@/components/ui";
 
 export interface WmsColumnVisibility {
@@ -65,6 +66,7 @@ function WmsRegistryContent() {
   const [showOpModal, setShowOpModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferModalItems, setTransferModalItems] = useState<WmsItem[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [opModalDefaultType] = useState<WmsMovement["type"]>("INCOMING");
 
   // Column visibility state with localStorage persistence (hydrated in useEffect to prevent SSR mismatch)
@@ -194,6 +196,37 @@ function WmsRegistryContent() {
 
   const tableColumns = useMemo(() => {
     const cols = [];
+
+    const allFilteredSelected =
+      filteredItems.length > 0 && filteredItems.every((item) => selectedIds.includes(item.id));
+
+    cols.push({
+      key: "select",
+      header: (
+        <Checkbox
+          checked={allFilteredSelected}
+          onChange={() => {
+            if (allFilteredSelected) {
+              setSelectedIds((prev) => prev.filter((id) => !filteredItems.some((i) => i.id === id)));
+            } else {
+              const newIds = new Set([...selectedIds, ...filteredItems.map((i) => i.id)]);
+              setSelectedIds(Array.from(newIds));
+            }
+          }}
+        />
+      ),
+      cell: (item: WmsItem) => (
+        <Checkbox
+          checked={selectedIds.includes(item.id)}
+          onChange={() => {
+            setSelectedIds((prev) =>
+              prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+            );
+          }}
+        />
+      ),
+      className: "w-10 text-center",
+    });
 
     if (columns.sku) {
       cols.push({
@@ -327,7 +360,7 @@ function WmsRegistryContent() {
     }
 
     return cols;
-  }, [columns]);
+  }, [columns, filteredItems, selectedIds]);
 
   return (
     <main className="w-full px-5 py-6 md:px-8 space-y-6">
@@ -478,12 +511,45 @@ function WmsRegistryContent() {
         onResetAll={resetAllFilters}
       />
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-blue-200 bg-blue-50/90 dark:border-blue-900/60 dark:bg-blue-950/60 px-4 py-3 text-xs shadow-sm animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center gap-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#3473d4] text-[11px] font-bold text-white">
+              {selectedIds.length}
+            </span>
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
+              Выбрано позиций ТМЦ для массового перемещения: <strong className="text-[#3473d4]">{selectedIds.length}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              Сбросить выбор
+            </button>
+            <button
+              onClick={() => {
+                setTransferModalItems(items.filter((i) => selectedIds.includes(i.id)));
+                setShowTransferModal(true);
+              }}
+              className="flex items-center gap-2 rounded-lg bg-[#3473d4] px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#2565c8] transition cursor-pointer"
+            >
+              <ArrowLeftRight size={13} /> Создать запрос на перемещение ({selectedIds.length})
+            </button>
+          </div>
+        </div>
+      )}
+
       <DataTable
         columns={tableColumns}
         data={filteredItems}
         keyExtractor={(item) => item.id}
         loading={loading}
         emptyText="ТМЦ по заданным фильтрам не найдены."
+        getRowClassName={(item) =>
+          selectedIds.includes(item.id) ? "bg-blue-50/40 dark:bg-blue-950/30 font-medium" : undefined
+        }
       />
 
       <WmsItemForm
