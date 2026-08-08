@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { ArrowLeftRight, Plus, RefreshCw, Send, CheckCircle, Clock, Bell, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeftRight, Plus, RefreshCw, Send, CheckCircle, Clock, Bell, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { PageHeader, DataTable, StatusBadge, Modal, ModalHeader } from "@/components/ui";
 import { useShell } from "@/components/layout/shell-context";
 
@@ -47,14 +47,35 @@ function WmsRequisitionsPageContent() {
   const [loading, setLoading] = useState(true);
   const [showRequisitionModal, setShowRequisitionModal] = useState(false);
 
-  const [reqFormData, setReqFormData] = useState({
+  interface ReqRow {
+    id: string;
+    selectedItemId: string;
+    quantity: number;
+  }
+
+  const [reqItemsRows, setReqItemsRows] = useState<ReqRow[]>([
+    { id: "1", selectedItemId: "", quantity: 1 }
+  ]);
+
+  const [reqHeader, setReqHeader] = useState({
     fromWarehouse: "",
     toWarehouse: "",
-    requestedBy: "Кладовщик Идеалов",
-    note: "",
-    selectedItemId: "",
-    quantity: 1
+    requestedBy: "Инженер Редактор (editor)",
+    note: ""
   });
+
+  const addReqRow = () => {
+    const defaultItemId = items[0]?.id || "";
+    setReqItemsRows((prev) => [
+      ...prev,
+      { id: Date.now().toString(), selectedItemId: defaultItemId, quantity: 1 }
+    ]);
+  };
+
+  const removeReqRow = (id: string) => {
+    if (reqItemsRows.length <= 1) return;
+    setReqItemsRows((prev) => prev.filter((r) => r.id !== id));
+  };
 
   const fetchData = () => {
     setLoading(true);
@@ -72,14 +93,16 @@ function WmsRequisitionsPageContent() {
         setWarehousesList(whs);
 
         if (whs.length > 0) {
-          setReqFormData((prev) => ({
+          setReqHeader((prev) => ({
             ...prev,
             fromWarehouse: prev.fromWarehouse || whs[0].name,
             toWarehouse: prev.toWarehouse || (whs[1]?.name || whs[0].name)
           }));
         }
         if (loadedItems.length > 0) {
-          setReqFormData((prev) => ({ ...prev, selectedItemId: loadedItems[0].id }));
+          setReqItemsRows((prev) =>
+            prev.map((r) => (r.selectedItemId ? r : { ...r, selectedItemId: loadedItems[0].id }))
+          );
         }
       })
       .catch((err) => console.error("Requisitions query error:", err))
@@ -92,26 +115,34 @@ function WmsRequisitionsPageContent() {
 
   const handleCreateRequisition = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selItem = items.find((i) => i.id === reqFormData.selectedItemId);
-    if (!selItem) return;
+    const payloadItems = reqItemsRows
+      .map((row) => {
+        const item = items.find((i) => i.id === row.selectedItemId);
+        if (!item) return null;
+        return {
+          itemId: item.id,
+          itemSku: item.sku,
+          itemName: item.name,
+          quantity: row.quantity
+        };
+      })
+      .filter(Boolean);
+
+    if (payloadItems.length === 0) {
+      alert("Выберите хотя бы одну позицию ТМЦ для запроса");
+      return;
+    }
 
     try {
       const res = await fetch("/api/modules/wms/requisitions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fromWarehouse: reqFormData.fromWarehouse,
-          toWarehouse: reqFormData.toWarehouse,
-          requestedBy: reqFormData.requestedBy,
-          note: reqFormData.note,
-          items: [
-            {
-              itemId: selItem.id,
-              itemSku: selItem.sku,
-              itemName: selItem.name,
-              quantity: reqFormData.quantity
-            }
-          ]
+          fromWarehouse: reqHeader.fromWarehouse,
+          toWarehouse: reqHeader.toWarehouse,
+          requestedBy: reqHeader.requestedBy,
+          note: reqHeader.note,
+          items: payloadItems
         })
       });
       if (res.ok) {
@@ -316,20 +347,20 @@ function WmsRequisitionsPageContent() {
           keyExtractor={(row) => row.id}
         />
 
-        <Modal open={showRequisitionModal} onClose={() => setShowRequisitionModal(false)} size="md">
+        <Modal open={showRequisitionModal} onClose={() => setShowRequisitionModal(false)} size="xl">
           <ModalHeader
             icon={<Send size={16} />}
-            title="Запрос товара у другого склада"
-            subtitle="Межскладской трансфер позиции для закрытия потребности"
+            title="Запрос ТМЦ у другого склада"
+            subtitle="Формирование заявки для ответственного кладовщика (МОЛ) склада-поставщика"
             onClose={() => setShowRequisitionModal(false)}
           />
           <form onSubmit={handleCreateRequisition} className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Запросивший *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Получатель *</label>
                 <select
-                  value={reqFormData.fromWarehouse}
-                  onChange={(e) => setReqFormData({ ...reqFormData, fromWarehouse: e.target.value })}
+                  value={reqHeader.fromWarehouse}
+                  onChange={(e) => setReqHeader({ ...reqHeader, fromWarehouse: e.target.value })}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
                 >
                   {warehousesList.map((w) => (
@@ -340,8 +371,8 @@ function WmsRequisitionsPageContent() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Поставщик *</label>
                 <select
-                  value={reqFormData.toWarehouse}
-                  onChange={(e) => setReqFormData({ ...reqFormData, toWarehouse: e.target.value })}
+                  value={reqHeader.toWarehouse}
+                  onChange={(e) => setReqHeader({ ...reqHeader, toWarehouse: e.target.value })}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
                 >
                   {warehousesList.map((w) => (
@@ -351,27 +382,74 @@ function WmsRequisitionsPageContent() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Запрашиваемый ТМЦ *</label>
-              <select
-                value={reqFormData.selectedItemId}
-                onChange={(e) => setReqFormData({ ...reqFormData, selectedItemId: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2 pt-2">
+              <span className="text-xs font-semibold text-slate-700">Запрашиваемые позиции ТМЦ ({reqItemsRows.length}):</span>
+              <button
+                type="button"
+                onClick={addReqRow}
+                className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
               >
-                {items.map((it) => (
-                  <option key={it.id} value={it.id}>
-                    {it.name} ({it.sku}) - Остаток: {it.quantity} {it.unit}
-                  </option>
-                ))}
-              </select>
+                <Plus size={13} /> Добавить позицию
+              </button>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+              {reqItemsRows.map((row, idx) => (
+                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                  <div className="col-span-8">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Выберите ТМЦ #{idx + 1} *</label>
+                    <select
+                      value={row.selectedItemId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setReqItemsRows(reqItemsRows.map((r) => (r.id === row.id ? { ...r, selectedItemId: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                    >
+                      {items.map((it) => (
+                        <option key={it.id} value={it.id}>
+                          {it.name} ({it.sku}) — Доступный остаток: {it.quantity} {it.unit}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Количество *</label>
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      value={row.quantity}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setReqItemsRows(reqItemsRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
+                      }}
+                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="col-span-1 flex items-center justify-center pt-4">
+                    <button
+                      type="button"
+                      disabled={reqItemsRows.length <= 1}
+                      onClick={() => removeReqRow(row.id)}
+                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Количество *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Примечание / Обоснование</label>
               <input
-                type="number"
-                value={reqFormData.quantity}
-                onChange={(e) => setReqFormData({ ...reqFormData, quantity: Number(e.target.value) })}
+                type="text"
+                value={reqHeader.note}
+                onChange={(e) => setReqHeader({ ...reqHeader, note: e.target.value })}
+                placeholder="Для закрытия аварийной заявки ТОИР"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
               />
             </div>
@@ -386,9 +464,9 @@ function WmsRequisitionsPageContent() {
               </button>
               <button
                 type="submit"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm"
               >
-                Отправить запрос
+                Отправить запрос кладовщику
               </button>
             </div>
           </form>
