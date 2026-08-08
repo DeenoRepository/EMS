@@ -45,9 +45,11 @@ function SidebarContent() {
   const pathname = usePathname();
 
   const isEpsActive = pathname.startsWith("/modules/eps");
+  const isWmsActive = pathname.startsWith("/modules/wms");
   const isSettingsActive = pathname.startsWith("/admin");
 
   const [epsOpen, setEpsOpen] = useState<boolean>(isEpsActive);
+  const [wmsOpen, setWmsOpen] = useState<boolean>(isWmsActive);
   const [settingsOpen, setSettingsOpen] = useState<boolean>(isSettingsActive);
 
   useEffect(() => {
@@ -56,6 +58,8 @@ function SidebarContent() {
       if (!isSubscribed) return;
       const savedEps = localStorage.getItem("ems_shell_sidebar_eps_open");
       if (savedEps !== null) setEpsOpen(savedEps === "true");
+      const savedWms = localStorage.getItem("ems_shell_sidebar_wms_open");
+      if (savedWms !== null) setWmsOpen(savedWms === "true");
       const savedSettings = localStorage.getItem("ems_shell_sidebar_settings_open");
       if (savedSettings !== null) setSettingsOpen(savedSettings === "true");
     });
@@ -104,6 +108,14 @@ function SidebarContent() {
     });
   };
 
+  const toggleWms = () => {
+    setWmsOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem("ems_shell_sidebar_wms_open", String(next));
+      return next;
+    });
+  };
+
   const toggleSettings = () => {
     setSettingsOpen((prev) => {
       const next = !prev;
@@ -119,6 +131,16 @@ function SidebarContent() {
       localStorage.setItem("ems_shell_sidebar_eps_open", "true");
     } else {
       toggleEps();
+    }
+  };
+
+  const handleWmsClick = () => {
+    if (collapsed) {
+      setSidebarCollapsed(false);
+      setWmsOpen(true);
+      localStorage.setItem("ems_shell_sidebar_wms_open", "true");
+    } else {
+      toggleWms();
     }
   };
 
@@ -144,16 +166,19 @@ function SidebarContent() {
   };
   const navDashboard = NAV_ITEMS.find((i) => i.id === "nav-dashboard");
   const epsNav = NAV_ITEMS.find((i) => i.id === "nav-eps-root");
+  const wmsNav = NAV_ITEMS.find((i) => i.id === "nav-wms-root");
   const settingsNav = NAV_ITEMS.find((i) => i.id === "nav-settings-root");
 
   const epsSubItems = epsNav?.children ?? [];
+  const wmsSubItems = wmsNav?.children ?? [];
   const settingsSubItems = settingsNav?.children ?? [];
 
   const showDashboard = navDashboard ? itemMatchesQuery(navDashboard) : false;
   const showEpsRoot = epsNav ? itemMatchesQuery(epsNav) : false;
+  const showWmsRoot = wmsNav ? itemMatchesQuery(wmsNav) : false;
   const showSettingsRoot = settingsNav ? itemMatchesQuery(settingsNav) : false;
 
-  const showBusinessModulesSection = showEpsRoot;
+  const showBusinessModulesSection = showEpsRoot || showWmsRoot;
 
   const renderModuleBadge = (modId: string) => {
     const status = moduleHealth[modId] || MODULES_CONFIG[modId]?.status || "online";
@@ -335,6 +360,60 @@ function SidebarContent() {
                               {pendingApprovals}
                             </span>
                           )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* WMS Module Expandable */}
+            {showWmsRoot && (
+              <>
+                <button
+                  title={MODULES_CONFIG.wms?.name || "WMS Складской учет"}
+                  onClick={handleWmsClick}
+                  aria-expanded={wmsOpen}
+                  aria-label={`${MODULES_CONFIG.wms?.name || "WMS Складной учет"} подменю`}
+                  className={`group mb-1 flex h-9 w-full items-center rounded-md text-left text-[11px] font-medium transition ${
+                    collapsed ? "justify-center p-0" : "gap-3 px-3 py-2"
+                  } ${
+                    isWmsActive ? "bg-[#1b2945] text-[#55a5ff]" : "text-slate-300 hover:bg-white/5"
+                  }`}
+                >
+                  <Warehouse size={14} className={isWmsActive ? "text-[#55a5ff]" : "text-slate-400"} />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 truncate">{MODULES_CONFIG.wms?.name || "WMS Складской учет"}</span>
+                      <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[9px] text-blue-400 font-mono">
+                        {MODULES_CONFIG.wms?.version || "v1.0.0"}
+                      </span>
+                      {wmsOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    </>
+                  )}
+                </button>
+
+                {/* WMS Submenu */}
+                {!collapsed && (wmsOpen || query.length > 0) && (
+                  <div className="mb-2 ml-4 border-l border-[#2a3b59] pl-3 text-[10px] text-slate-400 space-y-0.5">
+                    {wmsSubItems.map((sub) => {
+                      if (!itemMatchesQuery(sub)) return null;
+                      const isSubActive = pathname === sub.href;
+
+                      return (
+                        <Link
+                          key={sub.id}
+                          href={sub.href}
+                          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
+                            isSubActive ? "bg-white/10 text-white font-semibold" : "hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {sub.id === "nav-wms-dashboard" && <LayoutDashboard size={12} />}
+                          {sub.id === "nav-wms-items" && <Box size={12} />}
+                          {sub.id === "nav-wms-warehouses" && <Warehouse size={12} />}
+                          {sub.id === "nav-wms-movements" && <History size={12} />}
+                          <span className="flex-1">{sub.title}</span>
                         </Link>
                       );
                     })}
