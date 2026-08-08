@@ -414,7 +414,6 @@ function SidebarContent() {
                           {sub.id === "nav-wms-dashboard" && <LayoutDashboard size={12} />}
                           {sub.id === "nav-wms-transfers" && <ArrowRightLeft size={12} />}
                           {sub.id === "nav-wms-personal-cards" && <UserCheck size={12} />}
-                          {sub.id === "nav-wms-warehouses" && <Warehouse size={12} />}
                           {sub.id === "nav-wms-movements" && <History size={12} />}
                           <span className="flex-1">{sub.title}</span>
                         </Link>

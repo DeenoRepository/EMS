@@ -101,14 +101,6 @@ export const NAV_ITEMS: NavItem[] = [
         iconName: "UserCheck"
       },
       {
-        id: "nav-wms-warehouses",
-        title: "Склады & Ячейки",
-        href: "/modules/wms/warehouses",
-        category: "Бизнес-модули",
-        keywords: ["склады", "ячейки", "топология", "стеллажи", "хранение"],
-        iconName: "Warehouse"
-      },
-      {
         id: "nav-wms-movements",
         title: "Движения & Списание",
         href: "/modules/wms/movements",
