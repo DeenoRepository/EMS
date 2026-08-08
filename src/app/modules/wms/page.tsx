@@ -241,8 +241,9 @@ export default function WmsMainCatalogPage() {
     const totalUnits = items.reduce((acc, i) => acc + i.quantity, 0);
     const lowStockCount = items.filter((i) => i.status === "LOW_STOCK" || i.quantity <= i.minQuantity).length;
     const epsCount = items.filter((i) => i.isEps).length;
-    return { totalPositions, totalUnits, lowStockCount, epsCount };
-  }, [items]);
+    const pendingRequisitionsCount = requisitions.filter((r) => r.status === "REQUESTED").length;
+    return { totalPositions, totalUnits, lowStockCount, epsCount, pendingRequisitionsCount };
+  }, [items, requisitions]);
 
   const toggleSelectItem = (id: string) => {
     setSelectedItemIds((prev) =>
@@ -421,6 +422,14 @@ export default function WmsMainCatalogPage() {
               subColor: "emerald",
               icon: <ShieldAlert size={18} />,
               iconColor: "emerald"
+            },
+            {
+              label: "Запросы на перемещение",
+              value: kpiStats.pendingRequisitionsCount,
+              sub: kpiStats.pendingRequisitionsCount > 0 ? "Требуется согласование МОЛ" : "Нет новых запросов",
+              subColor: kpiStats.pendingRequisitionsCount > 0 ? "amber" : "slate",
+              icon: <ArrowLeftRight size={18} />,
+              iconColor: kpiStats.pendingRequisitionsCount > 0 ? "amber" : "blue"
             }
           ]}
         />
