@@ -43,6 +43,7 @@ function SidebarContent() {
     setSidebarCollapsed,
     toggleSidebar: onToggle,
     pendingApprovals,
+    pendingWmsRequisitions,
   } = useShell();
 
   const pathname = usePathname();
@@ -419,6 +420,11 @@ function SidebarContent() {
                           {sub.id === "nav-wms-requisitions" && <ArrowRightLeft size={12} />}
                           {sub.id === "nav-wms-toir" && <Wrench size={12} />}
                           <span className="flex-1">{sub.title}</span>
+                          {sub.id === "nav-wms-requisitions" && pendingWmsRequisitions > 0 && (
+                            <span className="rounded bg-amber-500/25 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 font-mono animate-pulse border border-amber-500/30">
+                              {pendingWmsRequisitions}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}

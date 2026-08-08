@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
-import { ArrowLeftRight, Plus, RefreshCw, Send, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeftRight, Plus, RefreshCw, Send, CheckCircle, Clock, Bell, CheckCircle2, XCircle } from "lucide-react";
 import { PageHeader, DataTable, StatusBadge, Modal, ModalHeader } from "@/components/ui";
+import { useShell } from "@/components/layout/shell-context";
 
 interface WmsItem {
   id: string;
@@ -39,6 +40,7 @@ interface WmsRequisition {
 }
 
 export default function WmsRequisitionsPage() {
+  const { refreshPendingWmsRequisitions } = useShell();
   const [requisitions, setRequisitions] = useState<WmsRequisition[]>([]);
   const [items, setItems] = useState<WmsItem[]>([]);
   const [warehousesList, setWarehousesList] = useState<Warehouse[]>([]);
@@ -56,6 +58,7 @@ export default function WmsRequisitionsPage() {
 
   const fetchData = () => {
     setLoading(true);
+    refreshPendingWmsRequisitions();
     Promise.all([
       fetch("/api/modules/wms/requisitions").then((r) => (r.ok ? r.json() : { requisitions: [] })),
       fetch("/api/modules/wms/items").then((r) => (r.ok ? r.json() : { items: [] })),
@@ -136,6 +139,8 @@ export default function WmsRequisitionsPage() {
     }
   };
 
+  const pendingRequisitions = requisitions.filter((r) => r.status === "REQUESTED");
+
   return (
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
@@ -165,6 +170,55 @@ export default function WmsRequisitionsPage() {
             </div>
           }
         />
+
+        {/* NOTIFICATION BANNER: Pending Incoming Requisitions */}
+        {pendingRequisitions.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-amber-900 text-xs">
+                <Bell size={16} className="text-amber-600 animate-bounce" />
+                <span>Входящие запросы на перемещение ТМЦ от других складов ({pendingRequisitions.length})</span>
+              </div>
+              <span className="text-[10px] text-amber-700 font-semibold uppercase tracking-wider">
+                Требуется согласование МОЛ
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {pendingRequisitions.map((req) => (
+                <div
+                  key={req.id}
+                  className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-white px-3.5 py-2.5 shadow-2xs text-xs"
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 font-semibold text-slate-900">
+                      <span className="font-mono text-indigo-600 font-bold">{req.requisitionNumber}</span>
+                      <span>Запросил: <strong className="text-blue-600">{req.fromWarehouse}</strong> у <strong className="text-slate-800">{req.toWarehouse}</strong></span>
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      Позиции: {req.items?.map((it) => `${it.itemName} (${it.quantity} шт)`).join(", ")} | Автор: {req.requestedBy}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleStatusChange(req.id, "APPROVED")}
+                      className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-2xs hover:bg-emerald-700"
+                    >
+                      <CheckCircle2 size={13} /> Согласовать
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(req.id, "REJECTED")}
+                      className="flex items-center gap-1 rounded-md bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-2xs hover:bg-rose-700"
+                    >
+                      <XCircle size={13} /> Отклонить
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <DataTable
           columns={[

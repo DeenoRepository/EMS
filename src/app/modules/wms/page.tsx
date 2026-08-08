@@ -348,54 +348,7 @@ export default function WmsMainCatalogPage() {
           }
         />
 
-        {/* NOTIFICATION BANNER: Pending Incoming Requisitions for Warehouse Responsible Staff */}
-        {pendingRequisitions.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-amber-900 text-xs">
-                <Bell size={16} className="text-amber-600 animate-bounce" />
-                <span>Входящие запросы на перемещение ТМЦ от других складов ({pendingRequisitions.length})</span>
-              </div>
-              <span className="text-[10px] text-amber-700 font-semibold uppercase tracking-wider">
-                Требуется согласование МОЛ
-              </span>
-            </div>
 
-            <div className="space-y-2">
-              {pendingRequisitions.map((req) => (
-                <div
-                  key={req.id}
-                  className="flex items-center justify-between rounded-lg border border-amber-200/80 bg-white px-3.5 py-2.5 shadow-2xs text-xs"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2 font-semibold text-slate-900">
-                      <span className="font-mono text-indigo-600 font-bold">{req.requisitionNumber}</span>
-                      <span>Запросил: <strong className="text-blue-600">{req.fromWarehouse}</strong> у <strong className="text-slate-800">{req.toWarehouse}</strong></span>
-                    </div>
-                    <div className="text-[11px] text-slate-600">
-                      Позиции: {req.items?.map((it) => `${it.itemName} (${it.quantity} шт)`).join(", ")} | Автор: {req.requestedBy}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleRequisitionStatus(req.id, "APPROVED")}
-                      className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-2xs hover:bg-emerald-700"
-                    >
-                      <CheckCircle size={13} /> Согласовать
-                    </button>
-                    <button
-                      onClick={() => handleRequisitionStatus(req.id, "REJECTED")}
-                      className="flex items-center gap-1 rounded-md bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-2xs hover:bg-rose-700"
-                    >
-                      <XCircle size={13} /> Отклонить
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <KpiGrid
           items={[

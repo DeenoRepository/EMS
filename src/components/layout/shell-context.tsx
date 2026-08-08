@@ -49,6 +49,8 @@ interface ShellContextType {
   addRecentPage: (page: { title: string; href: string }) => void;
   pendingApprovals: number;
   refreshPendingApprovals: () => Promise<void>;
+  pendingWmsRequisitions: number;
+  refreshPendingWmsRequisitions: () => Promise<void>;
   notifications: NotificationItem[];
   markNotificationRead: (id: string) => void;
   searchModalOpen: boolean;
@@ -68,6 +70,7 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
   const [recentPages, setRecentPages] = useState<RecentPage[]>([]);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<number>(0);
+  const [pendingWmsRequisitions, setPendingWmsRequisitions] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
@@ -137,6 +140,20 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshPendingWmsRequisitions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/modules/wms/requisitions/count");
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.count === "number") {
+          setPendingWmsRequisitions(data.count);
+        }
+      }
+    } catch {
+      // Игнорируем ошибки при отсутствии сети
+    }
+  }, []);
+
   const markNotificationRead = (id: string) => {
     setNotifications((prev) => {
       const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
@@ -170,20 +187,22 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    // Асинхронное получение первичной очереди согласований
+    // Асинхронное получение первичной очереди согласований и WMS запросов
     void (async () => {
       await refreshPendingApprovals();
+      await refreshPendingWmsRequisitions();
     })();
 
     // Автоматическое периодическое обновление очереди согласований каждые 60 секунд
     const intervalId = setInterval(() => {
       void refreshPendingApprovals();
+      void refreshPendingWmsRequisitions();
     }, 60000);
 
     applyTheme(theme);
 
     return () => clearInterval(intervalId);
-  }, [refreshPendingApprovals, applyTheme, theme]);
+  }, [refreshPendingApprovals, refreshPendingWmsRequisitions, applyTheme, theme]);
 
   const logout = async () => {
     try {
@@ -265,6 +284,8 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
         addRecentPage,
         pendingApprovals,
         refreshPendingApprovals,
+        pendingWmsRequisitions,
+        refreshPendingWmsRequisitions,
         notifications,
         markNotificationRead,
         searchModalOpen,
