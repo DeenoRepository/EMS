@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
+import { getSession } from "@/lib/auth/session";
+import { hasRole } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -41,11 +43,21 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    
+    // Создание складов и назначение МОЛ доступно только администраторам
+    if (session && !session.roles.includes("ADMIN")) {
+      return NextResponse.json(
+        { error: "Отказано в доступе. Управление складами и назначение МОЛ доступно только администратору." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     if (!body.name || !body.responsibleUser) {
       return NextResponse.json(
-        { error: "Название склада и ответственное лицо обязательны" },
+        { error: "Название склада и ответственное лицо (МОЛ) обязательны" },
         { status: 400 }
       );
     }

@@ -4,16 +4,15 @@ import { useState, useEffect } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import {
   Warehouse as WarehouseIcon,
-  Plus,
   RefreshCw,
   UserCheck,
-  MapPin
+  MapPin,
+  ShieldAlert
 } from "lucide-react";
+import Link from "next/link";
 import {
   PageHeader,
-  StatusBadge,
-  Modal,
-  ModalHeader
+  StatusBadge
 } from "@/components/ui";
 
 interface StorageCell {
@@ -33,13 +32,6 @@ interface Warehouse {
 export default function WmsWarehousesPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    responsibleUser: "Кладовщик И.И.",
-  });
 
   const fetchWarehouses = () => {
     setLoading(true);
@@ -54,43 +46,19 @@ export default function WmsWarehousesPage() {
     fetchWarehouses();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/modules/wms/warehouses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setFormData({ name: "", responsibleUser: "Кладовщик И.И." });
-        fetchWarehouses();
-      } else {
-        const errorData = await res.json();
-        alert(errorData.error || "Ошибка создания склада");
-      }
-    } catch (err) {
-      console.error("Warehouse create error:", err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <ShellLayout>
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Склады & Ячейки хранения"
-          description="Управление топологией складских помещений и местами размещения ТМЦ"
+          description="Оперативный обзор топологии складов и доступных мест хранения"
           breadcrumbs={[
             { title: "Главная", href: "/" },
             { title: "WMS Складской учет", href: "/modules/wms" },
             { title: "Склады & Ячейки" },
           ]}
           actions={
-            <>
+            <div className="flex items-center gap-2">
               <button
                 onClick={fetchWarehouses}
                 disabled={loading}
@@ -98,13 +66,14 @@ export default function WmsWarehousesPage() {
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-[#2f74df] px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm shadow-blue-200 hover:bg-[#2565c8]"
+              <Link
+                href="/admin/settings"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
               >
-                <Plus size={14} /> Добавить склад
-              </button>
-            </>
+                <ShieldAlert size={14} className="text-[#3473d4]" />
+                Настройка складов в Shell
+              </Link>
+            </div>
           }
         />
 
@@ -155,55 +124,6 @@ export default function WmsWarehousesPage() {
             </div>
           ))}
         </div>
-
-        <Modal open={showModal} onClose={() => setShowModal(false)} size="lg">
-          <ModalHeader
-            icon={<WarehouseIcon size={16} />}
-            title="Добавление нового склада"
-            subtitle="Укажите наименование и материально ответственное лицо"
-            onClose={() => setShowModal(false)}
-          />
-          <form onSubmit={handleSubmit} className="space-y-4 p-5">
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Наименование склада *</label>
-              <input
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Склад №3 (Запчасти и расходники)"
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-700">Материально ответственное лицо (МОЛ) *</label>
-              <input
-                required
-                value={formData.responsibleUser}
-                onChange={(e) => setFormData({ ...formData, responsibleUser: e.target.value })}
-                placeholder="Иванов И.И."
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
-              >
-                {submitting ? "Создание..." : "Создать склад"}
-              </button>
-            </div>
-          </form>
-        </Modal>
       </main>
     </ShellLayout>
   );
