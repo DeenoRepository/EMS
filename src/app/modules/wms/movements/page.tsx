@@ -400,22 +400,6 @@ export default function ConsolidatedWmsOperationsPage() {
                       <button
                         onClick={() => {
                           setActionMenuOpen(false);
-                          setShowCardModal(true);
-                        }}
-                        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition"
-                      >
-                        <div className="rounded p-1 bg-emerald-100 text-emerald-600">
-                          <UserCheck size={14} />
-                        </div>
-                        <div>
-                          <div>Выдать сотруднику</div>
-                          <div className="text-[10px] font-normal text-slate-400">Выдача СИЗ / Личная карточка</div>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setActionMenuOpen(false);
                           setShowTransferModal(true);
                         }}
                         className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition"

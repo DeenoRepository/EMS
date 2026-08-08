@@ -1,18 +1,9 @@
-# Task Decomposition: WMS Address Storage Topology Page Styling Alignment
+# Task Decomposition: Remove "Выдать сотруднику" from Movements Dropdown Menu
 
 ## 1. Frontend Architect Agent (`nextjs-frontend-architect`)
-- [ ] Inspect `src/app/modules/wms/topology/page.tsx`.
-- [ ] Refactor UI to align strictly with standard EMS design system:
-  - Add `ShellLayout` wrapper.
-  - Use `PageHeader` (title "Адресный учет & Топология складов", description, breadcrumbs, actions).
-  - Add `KpiGrid` with stats (Всего складских зон, Ячеек хранения, Заполненность ячеек %, Свободная емкость).
-  - Use `FilterToolbar` (Search by cell/zone code, filter by warehouse).
-  - Use `DataTable` for structured zones & cells list with status badges (`COMPACT`, `EMPTY`, `FULL`).
-  - Standardize modals (`Modal`, `ModalHeader`) for creating new zones and cells.
+- [ ] Edit `src/app/modules/wms/movements/page.tsx`:
+  - Remove the "Выдать сотруднику" option from the `+ Оформить складскую операцию ▾` dropdown menu (since issuance is handled in `/modules/wms/personal-cards`).
 
-## 2. Backend & Business Logic Agent (`backend-api-architect`)
-- [ ] Verify `src/app/api/modules/wms/bins/route.ts` API endpoints for zones and cells.
-
-## 3. Code Review & QA Agent (`qa-code-reviewer`)
+## 2. Code Review & QA Agent (`qa-code-reviewer`)
 - [ ] Run `npx tsc --noEmit`.
 - [ ] Run `npm run build`.
