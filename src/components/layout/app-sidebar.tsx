@@ -29,6 +29,7 @@ import {
   PieChart,
   ArrowRightLeft,
   UserCheck,
+  MapPin,
 } from "lucide-react";
 import { useShell } from "./shell-context";
 import { MODULES_CONFIG } from "@/lib/config/modules";
@@ -413,6 +414,10 @@ function SidebarContent() {
                         >
                           {sub.id === "nav-wms-dashboard" && <LayoutDashboard size={12} />}
                           {sub.id === "nav-wms-movements" && <History size={12} />}
+                          {sub.id === "nav-wms-personal-cards" && <UserCheck size={12} />}
+                          {sub.id === "nav-wms-topology" && <MapPin size={12} />}
+                          {sub.id === "nav-wms-requisitions" && <ArrowRightLeft size={12} />}
+                          {sub.id === "nav-wms-toir" && <Wrench size={12} />}
                           <span className="flex-1">{sub.title}</span>
                         </Link>
                       );
