@@ -18,4 +18,13 @@ export const MODULES_CONFIG: Record<string, ModuleConfig> = {
     status: "online",
     description: "Управление паспортами оборудования и структурой иерархии",
   },
+  wms: {
+    id: "wms",
+    name: "WMS Складской учет",
+    href: "/modules/wms",
+    version: `v${APP_VERSION}`,
+    status: "online",
+    description: "Управление складами, ячейками хранения, остатками ТМЦ и списанием",
+  },
 };
+

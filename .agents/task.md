@@ -1,19 +1,24 @@
-# Application Logic Audit Tasks
+# WMS Module Implementation Tasks
 
-## 1. Database & ORM (`postgres-prisma-engineer`)
-- [x] Audit `prisma/schema.prisma` models, relations, indices, and fields (Checked enums, relational maps, cascade rules)
-- [x] Audit database connection & query instances in `src/lib/db/prisma.ts` (Lazy Prisma instance configured)
+## 1. Database & Schema Alignment (`postgres-prisma-engineer`)
+- [x] Verify `prisma/schema.prisma` models: `Warehouse`, `StorageCell`, `WmsItem`, `WmsMovement`, `WmsTransferRequest`.
+- [x] Ensure DB indexes and relational cascades are intact.
 
-## 2. Backend & API (`backend-api-architect`)
-- [x] Audit middleware configuration in `src/middleware.ts` (Public route bypass & RBAC for `/admin` verified)
-- [x] Audit API route handlers under `src/app/api/` (Auth, files, reference, modules endpoints reviewed)
-- [x] Audit backend services in `src/lib/` (Auth, session token, and RBAC utility functions verified)
+## 2. Backend API Services (`backend-api-architect`)
+- [x] Implement WMS API endpoints under `src/app/api/modules/wms/`:
+  - `warehouses/route.ts` (List & create warehouses/cells)
+  - `items/route.ts` (List, search, filter, and create WMS items)
+  - `movements/route.ts` (Incoming, Outgoing/Equipment write-off, Transfers)
 
-## 3. Frontend Architecture (`nextjs-frontend-architect`)
-- [x] Audit root layout & entry points (`src/app/layout.tsx`, `src/app/page.tsx`)
-- [x] Audit user modules (`src/app/modules/`) & administrative pages (`src/app/admin/`, `src/app/login/`)
-- [x] Audit shared UI components in `src/components/`
+## 3. Frontend Pages & Standard UI Integration (`nextjs-frontend-architect`)
+- [x] Update `src/lib/config/modules.ts` and `src/lib/config/nav.ts` to register WMS in sidebar.
+- [x] Build WMS module UI pages under `src/app/modules/wms/`:
+  - `page.tsx` (Dashboard & Stock overview with UI charts)
+  - `items/page.tsx` (Stock items catalog table)
+  - `warehouses/page.tsx` (Warehouses & cells management)
+  - `movements/page.tsx` (Movement history & EPS equipment write-off form)
 
-## 4. Verification & QA (`qa-code-reviewer`)
-- [x] Run `npx tsc --noEmit` type checking (PASS: 0 errors)
-- [x] Run `npm run lint` linting check (PASS: 0 errors, 58 warnings)
+## 4. Quality Assurance & Verification (`qa-code-reviewer`)
+- [x] Run `npx tsc --noEmit` type checking (PASS: 0 errors).
+- [x] Perform `npx next build` production build verification (PASS: 48/48 routes built).
+

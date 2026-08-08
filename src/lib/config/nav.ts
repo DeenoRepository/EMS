@@ -69,6 +69,48 @@ export const NAV_ITEMS: NavItem[] = [
     ]
   },
   {
+    id: "nav-wms-root",
+    title: "WMS Складской учет",
+    href: "/modules/wms",
+    category: "Бизнес-модули",
+    keywords: ["wms", "склад", "тмц", "остатки", "ячейки", "запчасти", "складской учет"],
+    iconName: "Warehouse",
+    children: [
+      {
+        id: "nav-wms-dashboard",
+        title: "Дашборд Склада",
+        href: "/modules/wms",
+        category: "Бизнес-модули",
+        keywords: ["дашборд", "обзор", "склад", "wms", "dashboard"],
+        iconName: "LayoutDashboard"
+      },
+      {
+        id: "nav-wms-items",
+        title: "Остатки & Каталог ТМЦ",
+        href: "/modules/wms/items",
+        category: "Бизнес-модули",
+        keywords: ["остатки", "каталог", "тмц", "запчасти", "номенклатура"],
+        iconName: "Box"
+      },
+      {
+        id: "nav-wms-warehouses",
+        title: "Склады & Ячейки",
+        href: "/modules/wms/warehouses",
+        category: "Бизнес-модули",
+        keywords: ["склады", "ячейки", "топология", "стеллажи", "хранение"],
+        iconName: "Warehouse"
+      },
+      {
+        id: "nav-wms-movements",
+        title: "Движения & Списание",
+        href: "/modules/wms/movements",
+        category: "Бизнес-модули",
+        keywords: ["приход", "расход", "перемещение", "списание", "оборудование"],
+        iconName: "History"
+      }
+    ]
+  },
+  {
     id: "nav-eps-new",
     title: "Создание нового паспорта оборудования",
     href: "/modules/eps/new",

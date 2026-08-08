@@ -19,6 +19,7 @@ import {
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
+  Warehouse,
 } from "lucide-react";
 
 const platforms = [
@@ -31,6 +32,16 @@ const platforms = [
     action: "Открыть",
     href: "/modules/eps",
     icon: Server,
+  },
+  {
+    code: "WMS",
+    name: "WMS Складской учет",
+    owner: "Складской комплекс / Логистика",
+    status: "Активен",
+    version: "v1.0.0",
+    action: "Открыть",
+    href: "/modules/wms",
+    icon: Warehouse,
   },
   {
     code: "MRO",
