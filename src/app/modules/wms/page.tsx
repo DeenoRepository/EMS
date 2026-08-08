@@ -21,7 +21,8 @@ import {
   XCircle,
   Trash2,
   BadgeCheck,
-  ChevronDown
+  ChevronDown,
+  Eye
 } from "lucide-react";
 import {
   PageHeader,
@@ -112,6 +113,8 @@ export default function WmsMainCatalogPage() {
   const [showRequisitionModal, setShowRequisitionModal] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [selectedLabelItem, setSelectedLabelItem] = useState<WmsItem | null>(null);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [selectedCardItem, setSelectedCardItem] = useState<WmsItem | null>(null);
 
   // Forms data
   const [itemFormData, setItemFormData] = useState({
@@ -720,13 +723,13 @@ export default function WmsMainCatalogPage() {
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
-                        setReqItemsRows([{ id: "1", selectedItemId: row.id, quantity: 1 }]);
-                        setShowRequisitionModal(true);
+                        setSelectedCardItem(row);
+                        setShowCardModal(true);
                       }}
-                      title="Запросить со склада"
-                      className="rounded p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                      title="Карточка ТМЦ"
+                      className="rounded p-1.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
-                      <Send size={15} />
+                      <Eye size={15} />
                     </button>
                     <button
                       onClick={() => {
@@ -737,16 +740,6 @@ export default function WmsMainCatalogPage() {
                       className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors"
                     >
                       <QrCode size={15} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setWriteOffFormData((prev) => ({ ...prev, itemId: row.id }));
-                        setShowWriteOffModal(true);
-                      }}
-                      title="Списать на оборудование"
-                      className="rounded p-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                    >
-                      <FileSpreadsheet size={15} />
                     </button>
                   </div>
                 )
@@ -1205,6 +1198,86 @@ export default function WmsMainCatalogPage() {
             </div>
           </form>
         </Modal>
+
+        {/* ITEM CARD MODAL */}
+        {selectedCardItem && (
+          <Modal open={showCardModal} onClose={() => setShowCardModal(false)} size="md">
+            <ModalHeader
+              icon={<Box size={16} />}
+              title={`Паспорт ТМЦ: ${selectedCardItem.name}`}
+              subtitle={`Артикул / SKU: ${selectedCardItem.sku}`}
+              onClose={() => setShowCardModal(false)}
+            />
+            <div className="p-6 space-y-4 text-xs">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Наименование</span>
+                    <span className="font-bold text-slate-800 text-xs">{selectedCardItem.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Артикул (SKU)</span>
+                    <span className="font-mono font-bold text-blue-600 text-xs">{selectedCardItem.sku}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Категория</span>
+                    <span className="font-semibold text-slate-700">{selectedCardItem.category}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Тип хранения</span>
+                    <span className="font-semibold text-slate-700">{selectedCardItem.type || "Стандарт ЗИП"}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-200/60 pt-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Склад локации</span>
+                    <span className="font-semibold text-slate-800">{selectedCardItem.warehouse}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Ячейка хранения</span>
+                    <span className="font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold">{selectedCardItem.cell || "А1-01"}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 border-t border-slate-200/60 pt-3">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Текущий остаток</span>
+                    <span className="font-bold text-emerald-600 text-sm">{selectedCardItem.quantity} {selectedCardItem.unit}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Мин. остаток</span>
+                    <span className="font-medium text-slate-600">{selectedCardItem.minQuantity} {selectedCardItem.unit}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-medium">Цена за ед.</span>
+                    <span className="font-mono font-semibold text-slate-700">{selectedCardItem.unitPrice ? `${selectedCardItem.unitPrice} ₽` : "—"}</span>
+                  </div>
+                </div>
+
+                {selectedCardItem.batchNumber && (
+                  <div className="border-t border-slate-200/60 pt-3 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Партия / Серия:</span>
+                    <span className="font-mono font-bold text-slate-700">{selectedCardItem.batchNumber}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCardModal(false)}
+                  className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                >
+                  Закрыть
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
 
         {/* BARCODE LABEL MODAL */}
         {selectedLabelItem && (
