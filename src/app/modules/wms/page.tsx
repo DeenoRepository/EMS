@@ -1018,38 +1018,47 @@ export default function WmsMainCatalogPage() {
             onClose={() => setShowCreateItemModal(false)}
           />
           <form onSubmit={handleCreateItem} className="p-6 space-y-4">
-            {/* Auto-fill from Equipment Card banner */}
-            <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Wrench size={16} className="text-blue-600" />
-                <div>
-                  <div className="text-xs font-bold text-slate-800">Заполнить на основании оборудования (EPS)</div>
-                  <div className="text-[10px] text-slate-500">Автоматически подтянуть наименование ЗИП, SKU и категорию из паспорта узла</div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Оборудование-Основание (EPS)</label>
+                <select
+                  onChange={(e) => {
+                    const selectedEq = equipments.find((eq) => eq.id === e.target.value);
+                    if (selectedEq) {
+                      setItemFormData({
+                        ...itemFormData,
+                        name: `Ремкомплект / ЗИП для ${selectedEq.name}`,
+                        sku: `ZIP-${selectedEq.equipmentCode}-${Math.floor(100 + Math.random() * 900)}`,
+                        category: "Запчасти & Механика",
+                        description: `Запасная часть для обслуживания оборудования: ${selectedEq.name} (Код: ${selectedEq.equipmentCode})`,
+                        isEps: true
+                      });
+                    }
+                  }}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">-- Автозаполнение по объекту (опционально) --</option>
+                  {equipments.map((eq) => (
+                    <option key={eq.id} value={eq.id}>
+                      {eq.name} ({eq.equipmentCode})
+                    </option>
+                  ))}
+                </select>
               </div>
-              <select
-                onChange={(e) => {
-                  const selectedEq = equipments.find((eq) => eq.id === e.target.value);
-                  if (selectedEq) {
-                    setItemFormData({
-                      ...itemFormData,
-                      name: `Ремкомплект / ЗИП для ${selectedEq.name}`,
-                      sku: `ZIP-${selectedEq.equipmentCode}-${Math.floor(100 + Math.random() * 900)}`,
-                      category: "Запчасти & Механика",
-                      description: `Запасная часть для обслуживания оборудования: ${selectedEq.name} (Код: ${selectedEq.equipmentCode})`,
-                      isEps: true
-                    });
-                  }
-                }}
-                className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs text-slate-700 font-medium focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">-- Выберите оборудование --</option>
-                {equipments.map((eq) => (
-                  <option key={eq.id} value={eq.id}>
-                    {eq.name} ({eq.equipmentCode})
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Категория ТМЦ *</label>
+                <select
+                  value={itemFormData.category}
+                  onChange={(e) => setItemFormData({ ...itemFormData, category: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="Запчасти & Механика">Запчасти & Механика</option>
+                  <option value="Электрооборудование">Электрооборудование</option>
+                  <option value="Гидравлика & Пневматика">Гидравлика & Пневматика</option>
+                  <option value="Расходные материалы">Расходные материалы</option>
+                  <option value="Критический ЗИП">Критический ЗИП</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1133,21 +1142,7 @@ export default function WmsMainCatalogPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Категория ТМЦ *</label>
-                <select
-                  value={itemFormData.category}
-                  onChange={(e) => setItemFormData({ ...itemFormData, category: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="Запчасти & Механика">Запчасти & Механика</option>
-                  <option value="Электрооборудование">Электрооборудование</option>
-                  <option value="Гидравлика & Пневматика">Гидравлика & Пневматика</option>
-                  <option value="Расходные материалы">Расходные материалы</option>
-                  <option value="Критический ЗИП">Критический ЗИП</option>
-                </select>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Ед. измерения *</label>
                 <input
