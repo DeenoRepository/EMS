@@ -85,6 +85,22 @@ export const NAV_ITEMS: NavItem[] = [
         iconName: "LayoutDashboard"
       },
       {
+        id: "nav-wms-transfers",
+        title: "Перемещения МОЛ",
+        href: "/modules/wms/transfers",
+        category: "Бизнес-модули",
+        keywords: ["перемещения", "мол", "трансфер", "согласование"],
+        iconName: "ArrowRightLeft"
+      },
+      {
+        id: "nav-wms-personal-cards",
+        title: "Личные карточки СИЗ",
+        href: "/modules/wms/personal-cards",
+        category: "Бизнес-модули",
+        keywords: ["карточки", "сиз", "выдача", "инструмент", "возврат"],
+        iconName: "UserCheck"
+      },
+      {
         id: "nav-wms-warehouses",
         title: "Склады & Ячейки",
         href: "/modules/wms/warehouses",

@@ -27,6 +27,8 @@ import {
   History,
   Warehouse,
   PieChart,
+  ArrowRightLeft,
+  UserCheck,
 } from "lucide-react";
 import { useShell } from "./shell-context";
 import { MODULES_CONFIG } from "@/lib/config/modules";
@@ -410,7 +412,8 @@ function SidebarContent() {
                           }`}
                         >
                           {sub.id === "nav-wms-dashboard" && <LayoutDashboard size={12} />}
-                          {sub.id === "nav-wms-items" && <Box size={12} />}
+                          {sub.id === "nav-wms-transfers" && <ArrowRightLeft size={12} />}
+                          {sub.id === "nav-wms-personal-cards" && <UserCheck size={12} />}
                           {sub.id === "nav-wms-warehouses" && <Warehouse size={12} />}
                           {sub.id === "nav-wms-movements" && <History size={12} />}
                           <span className="flex-1">{sub.title}</span>

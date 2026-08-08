@@ -396,6 +396,7 @@ model WmsItem {
   updatedAt           DateTime      @updatedAt
   movements           WmsMovement[]
   transferRequests    WmsTransferRequest[]
+  personalCards       WmsPersonalCard[]
 
   @@index([name])
   @@index([category])
@@ -448,6 +449,27 @@ model WmsTransferRequest {
   @@index([itemId])
   @@index([status])
   @@index([fromWarehouse, toWarehouse])
+}
+
+model WmsPersonalCard {
+  id               String    @id @default(cuid())
+  itemId           String
+  itemSku          String
+  itemName         String
+  employeeName     String
+  employeePosition String?
+  department       String?
+  issuedQuantity   Int
+  issuedAt         DateTime  @default(now())
+  returnedAt       DateTime?
+  returnCondition  String?   // GOOD, REPAIR, SCRAPPED
+  notes            String?
+  createdById      String?
+
+  item WmsItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([employeeName])
 }
 
 model EnterpriseFacility {
