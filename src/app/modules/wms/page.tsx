@@ -108,6 +108,7 @@ export default function WmsMainCatalogPage() {
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [showCreateItemModal, setShowCreateItemModal] = useState(false);
   const [showWriteOffModal, setShowWriteOffModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRequisitionModal, setShowRequisitionModal] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [selectedLabelItem, setSelectedLabelItem] = useState<WmsItem | null>(null);
@@ -184,6 +185,46 @@ export default function WmsMainCatalogPage() {
       setReqItemsRows([{ id: "1", selectedItemId: items[0].id, quantity: 1 }]);
     }
     setShowRequisitionModal(true);
+  };
+
+  interface TransferRow {
+    id: string;
+    itemId: string;
+    quantity: number;
+  }
+
+  const [transferHeader, setTransferHeader] = useState({
+    fromWarehouse: "",
+    toWarehouse: "",
+    reason: "Перемещение ТМЦ между складами МОЛ"
+  });
+
+  const [transferRows, setTransferRows] = useState<TransferRow[]>([
+    { id: "1", itemId: "", quantity: 1 }
+  ]);
+
+  const openTransferModalWithSelected = () => {
+    if (selectedItemIds.length > 0) {
+      const selectedRows = selectedItemIds.map((id, index) => ({
+        id: String(index + 1),
+        itemId: id,
+        quantity: 1
+      }));
+      setTransferRows(selectedRows);
+    } else if (items.length > 0) {
+      setTransferRows([{ id: "1", itemId: items[0].id, quantity: 1 }]);
+    }
+    setShowTransferModal(true);
+  };
+
+  const addTransferRow = () => {
+    const defaultItemId = items[0]?.id || "";
+    setTransferRows((prev) => [...prev, { id: Date.now().toString(), itemId: defaultItemId, quantity: 1 }]);
+  };
+
+  const removeTransferRow = (id: string) => {
+    if (transferRows.length <= 1) return;
+    setTransferRows((prev) => prev.filter((r) => r.id !== id));
   };
 
   const fetchData = () => {
@@ -391,7 +432,7 @@ export default function WmsMainCatalogPage() {
                 onClick={openRequisitionModalWithSelected}
                 className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
               >
-                <Send size={14} /> Запросить со склада
+                <Send size={14} /> Запросить перемещение со склада
               </button>
               {/* Unified Action Dropdown Button */}
               <div className="relative">
@@ -428,7 +469,7 @@ export default function WmsMainCatalogPage() {
                       <button
                         onClick={() => {
                           setActionMenuOpen(false);
-                          openRequisitionModalWithSelected();
+                          openTransferModalWithSelected();
                         }}
                         className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition"
                       >
