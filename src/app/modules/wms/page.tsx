@@ -1207,126 +1207,128 @@ export default function WmsMainCatalogPage() {
         {selectedCardItem && (
           <Modal open={showCardModal} onClose={() => setShowCardModal(false)} size="lg">
             <ModalHeader
-              icon={<Box size={18} className="text-blue-600" />}
+              icon={<Box size={16} />}
               title="Паспорт номенклатуры ТМЦ"
               subtitle={`Артикул / SKU: ${selectedCardItem.sku}`}
               onClose={() => setShowCardModal(false)}
             />
-            <div className="p-6 space-y-5 text-xs">
-              {/* Top Summary Banner */}
-              <div className="rounded-xl bg-slate-900 p-4 text-white shadow-md flex items-center justify-between">
+            <div className="p-6 space-y-4 text-xs">
+              {/* Top Item Summary Card */}
+              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 flex items-start justify-between">
                 <div className="space-y-1.5 flex-1 pr-4">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/60">
+                    <span className="font-mono text-[11px] font-bold text-[#2f74df] bg-white px-2 py-0.5 rounded border border-blue-200">
                       {selectedCardItem.sku}
                     </span>
                     {selectedCardItem.isEps && (
-                      <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/40">
+                      <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
                         Критический ЗИП (EPS)
                       </span>
                     )}
                   </div>
-                  <h3 className="text-base font-bold text-white tracking-wide">{selectedCardItem.name}</h3>
-                  <p className="text-[11px] text-slate-400">Категория: {selectedCardItem.category} • Тип: {selectedCardItem.type || "Запасные части"}</p>
+                  <h3 className="text-sm font-bold text-slate-900 leading-snug">{selectedCardItem.name}</h3>
+                  <p className="text-[11px] text-slate-500">
+                    Категория: <strong className="text-slate-700 font-medium">{selectedCardItem.category}</strong> • Тип: <strong className="text-slate-700 font-medium">{selectedCardItem.type || "ЗИП"}</strong>
+                  </p>
                 </div>
-                <div className="text-right border-l border-slate-700/80 pl-5">
-                  <div className="text-[10px] text-slate-400">Текущий остаток</div>
-                  <div className="text-xl font-extrabold text-emerald-400 font-mono">
-                    {selectedCardItem.quantity} <span className="text-xs text-slate-300">{selectedCardItem.unit}</span>
+                <div className="text-right border-l border-blue-100 pl-4 min-w-[120px]">
+                  <div className="text-[10px] font-medium text-slate-400">Текущий остаток</div>
+                  <div className="text-lg font-extrabold text-slate-900 font-mono mt-0.5">
+                    {selectedCardItem.quantity} <span className="text-xs font-normal text-slate-500">{selectedCardItem.unit}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="text-[10px] mt-1 font-medium">
                     {selectedCardItem.quantity <= selectedCardItem.minQuantity ? (
-                      <span className="text-rose-400 font-semibold">⚠️ Ниже лимита ({selectedCardItem.minQuantity})</span>
+                      <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">⚠️ Ниже лимита ({selectedCardItem.minQuantity})</span>
                     ) : (
-                      <span className="text-emerald-400">✓ Запас в норме</span>
+                      <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">✓ Запас в норме</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Detailed Specs Grid */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 {/* Block 1: Location & Storage */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
-                    <MapPin size={14} className="text-blue-600" /> Склад и Адресное Хранение
+                <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] pb-1 border-b border-slate-100">
+                    <MapPin size={13} className="text-[#2f74df]" /> Склад и Локация
                   </div>
                   <div className="space-y-1 text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Склад:</span>
-                      <span className="font-semibold text-slate-800">{selectedCardItem.warehouse}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Склад:</span>
+                      <span className="font-semibold text-slate-700 text-right truncate max-w-[120px]">{selectedCardItem.warehouse}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Ячейка хранения:</span>
-                      <span className="font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{selectedCardItem.cell || "А1-01"}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Ячейка:</span>
+                      <span className="font-mono font-bold text-[#2f74df] bg-blue-50 px-1.5 py-0.5 rounded text-[10px]">{selectedCardItem.cell || "А1-01"}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Зона хранения:</span>
-                      <span className="font-semibold text-slate-700">{selectedCardItem.zone || "Основная зона A"}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Зона:</span>
+                      <span className="font-medium text-slate-700">{selectedCardItem.zone || "Основная A"}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Block 2: Stock & Limits */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
-                    <Layers size={14} className="text-emerald-600" /> Нормативы Запасов
+                <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] pb-1 border-b border-slate-100">
+                    <Layers size={13} className="text-emerald-600" /> Нормативы Запасов
                   </div>
                   <div className="space-y-1 text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Мин. остаток:</span>
-                      <span className="font-semibold text-slate-800">{selectedCardItem.minQuantity} {selectedCardItem.unit}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Мин. остаток:</span>
+                      <span className="font-semibold text-slate-700">{selectedCardItem.minQuantity} {selectedCardItem.unit}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Макс. вместимость:</span>
-                      <span className="font-semibold text-slate-800">{selectedCardItem.maxQuantity || 100} {selectedCardItem.unit}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Макс. лимит:</span>
+                      <span className="font-semibold text-slate-700">{selectedCardItem.maxQuantity || 100} {selectedCardItem.unit}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Зарезервировано:</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Резерв:</span>
                       <span className="font-semibold text-amber-600">{selectedCardItem.reservedQuantity || 0} {selectedCardItem.unit}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Block 3: Accounting & Economics */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
-                    <DollarSign size={14} className="text-indigo-600" /> Стоимость & Партия
+                <div className="rounded-xl border border-slate-200 bg-white p-3.5 space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px] pb-1 border-b border-slate-100">
+                    <DollarSign size={13} className="text-indigo-600" /> Стоимость & Партия
                   </div>
                   <div className="space-y-1 text-[11px]">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Учетная цена:</span>
-                      <span className="font-mono font-bold text-slate-900">{selectedCardItem.unitPrice ? `${selectedCardItem.unitPrice.toLocaleString("ru-RU")} ₽` : "—"}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Учетная цена:</span>
+                      <span className="font-mono font-semibold text-slate-800">{selectedCardItem.unitPrice ? `${selectedCardItem.unitPrice.toLocaleString("ru-RU")} ₽` : "—"}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Общая стоимость:</span>
-                      <span className="font-mono font-bold text-indigo-700">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Общая сумма:</span>
+                      <span className="font-mono font-bold text-[#2f74df]">
                         {selectedCardItem.unitPrice ? `${(selectedCardItem.unitPrice * selectedCardItem.quantity).toLocaleString("ru-RU")} ₽` : "—"}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Партия / Серия:</span>
-                      <span className="font-mono text-slate-700">{selectedCardItem.batchNumber || "—"}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Партия:</span>
+                      <span className="font-mono text-slate-600">{selectedCardItem.batchNumber || "—"}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Technical Description & Supplier */}
-              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 space-y-1.5">
                 <div className="flex items-center justify-between text-slate-800 font-bold text-[11px]">
-                  <span>Описание и Поставщик номенклатуры</span>
+                  <span>Описание номенклатуры</span>
                   {selectedCardItem.supplier && (
-                    <span className="text-[10px] text-slate-500 font-normal">Поставщик: <strong className="text-slate-700">{selectedCardItem.supplier}</strong></span>
+                    <span className="text-[10px] text-slate-400 font-normal">Поставщик: <strong className="text-slate-700 font-medium">{selectedCardItem.supplier}</strong></span>
                   )}
                 </div>
-                <p className="text-slate-600 leading-relaxed text-[11px]">
-                  {selectedCardItem.description || "Номенклатурная единица зарегистрирована в базе складского учета WMS. Предназначена для использования в ремонтах, обслуживании технологического оборудования и аварийного ЗИП."}
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  {selectedCardItem.description || "Номенклатурная позиция зарегистрирована в едином реестре WMS. Предназначена для планово-предупредительного ремонта и обслуживания оборудования."}
                 </p>
               </div>
 
               {/* Action Buttons Footer */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -1334,14 +1336,14 @@ export default function WmsMainCatalogPage() {
                     setSelectedLabelItem(selectedCardItem);
                     setShowLabelModal(true);
                   }}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
                 >
-                  <QrCode size={14} className="text-slate-500" /> Печать этикетки / QR
+                  <QrCode size={13} className="text-slate-500" /> Печать этикетки / QR
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCardModal(false)}
-                  className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white hover:bg-blue-700 shadow-xs transition"
+                  className="rounded-lg bg-[#2f74df] px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#2565c8] transition"
                 >
                   Закрыть паспорт
                 </button>
