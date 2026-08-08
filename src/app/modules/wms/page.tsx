@@ -387,6 +387,12 @@ export default function WmsMainCatalogPage() {
               >
                 <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Обновить
               </button>
+              <button
+                onClick={openRequisitionModalWithSelected}
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700 transition"
+              >
+                <Send size={14} /> Запросить со склада
+              </button>
               {/* Unified Action Dropdown Button */}
               <div className="relative">
                 <button
