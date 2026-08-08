@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import {
   History,
@@ -20,7 +20,10 @@ import {
   Trash2,
   Layers,
   Wrench,
-  Check
+  Check,
+  BadgeCheck,
+  PlusCircle,
+  Search
 } from "lucide-react";
 import {
   PageHeader,
@@ -56,6 +59,7 @@ interface WmsItem {
   sku: string;
   name: string;
   unit: string;
+  category?: string;
   quantity: number;
   warehouse: string;
   cell?: string;
@@ -67,14 +71,17 @@ interface EquipmentOption {
   name: string;
 }
 
-// Multi-item Row Types
+// Multi-item Row Types with Nomenclature Matching State
 interface InboundItemRow {
   id: string;
+  selectedCatalogItemId: string; // Existing nomenclature ID if selected
   name: string;
   sku: string;
+  category: string;
   warehouse: string;
   cell: string;
   quantity: number;
+  isExisting: boolean;
 }
 
 interface TransferItemRow {
@@ -109,7 +116,7 @@ export default function ConsolidatedWmsOperationsPage() {
 
   // Multi-item Inbound Form State
   const [inboundRows, setInboundRows] = useState<InboundItemRow[]>([
-    { id: "1", name: "", sku: "", warehouse: "", cell: "Яч-01", quantity: 1 }
+    { id: "1", selectedCatalogItemId: "", name: "", sku: "", category: "Запчасти & Механика", warehouse: "", cell: "Яч-01", quantity: 1, isExisting: false }
   ]);
 
   // Multi-item Transfer Form State
@@ -182,11 +189,45 @@ export default function ConsolidatedWmsOperationsPage() {
   const availableTargetWarehouses = warehouses.filter((w) => w.name !== transferHeader.fromWarehouse);
   const targetTransferWarehouseObj = warehouses.find((w) => w.name === transferHeader.toWarehouse);
 
+  // Auto-fill nomenclature item when selected from catalog
+  const handleSelectNomenclature = (rowId: string, catalogItemId: string) => {
+    if (!catalogItemId) {
+      setInboundRows((prev) =>
+        prev.map((r) =>
+          r.id === rowId
+            ? { ...r, selectedCatalogItemId: "", isExisting: false }
+            : r
+        )
+      );
+      return;
+    }
+
+    const catalogItem = items.find((i) => i.id === catalogItemId);
+    if (catalogItem) {
+      setInboundRows((prev) =>
+        prev.map((r) =>
+          r.id === rowId
+            ? {
+                ...r,
+                selectedCatalogItemId: catalogItem.id,
+                name: catalogItem.name,
+                sku: catalogItem.sku,
+                category: catalogItem.category || "Запчасти & Механика",
+                warehouse: catalogItem.warehouse,
+                cell: catalogItem.cell || "Яч-01",
+                isExisting: true
+              }
+            : r
+        )
+      );
+    }
+  };
+
   // Row Adders & Removers
   const addInboundRow = () => {
     setInboundRows([
       ...inboundRows,
-      { id: Date.now().toString(), name: "", sku: "", warehouse: warehouses[0]?.name || "", cell: "Яч-01", quantity: 1 }
+      { id: Date.now().toString(), selectedCatalogItemId: "", name: "", sku: "", category: "Запчасти & Механика", warehouse: warehouses[0]?.name || "", cell: "Яч-01", quantity: 1, isExisting: false }
     ]);
   };
   const removeInboundRow = (id: string) => {
@@ -209,13 +250,12 @@ export default function ConsolidatedWmsOperationsPage() {
   };
 
   // Submit Handlers
-  // 1. Multi-item Inbound Submit
+  // 1. Multi-item Inbound Submit with Nomenclature Matching & Auto-creation
   const handleInboundBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // First register items in /items API or batch movements
-      const createdItems = await Promise.all(
+      const results = await Promise.all(
         inboundRows.map((r) =>
           fetch("/api/modules/wms/items", {
             method: "POST",
@@ -223,7 +263,7 @@ export default function ConsolidatedWmsOperationsPage() {
             body: JSON.stringify({
               name: r.name,
               sku: r.sku,
-              category: "Запчасти & Механика",
+              category: r.category || "Запчасти & Механика",
               type: "ZIP",
               warehouse: r.warehouse || warehouses[0]?.name || "Главный склад",
               cell: r.cell || "Яч-01",
@@ -234,12 +274,12 @@ export default function ConsolidatedWmsOperationsPage() {
         )
       );
 
-      if (createdItems.every(Boolean)) {
+      if (results.every(Boolean)) {
         setShowInboundModal(false);
-        setInboundRows([{ id: "1", name: "", sku: "", warehouse: warehouses[0]?.name || "", cell: "Яч-01", quantity: 1 }]);
+        setInboundRows([{ id: "1", selectedCatalogItemId: "", name: "", sku: "", category: "Запчасти & Механика", warehouse: warehouses[0]?.name || "", cell: "Яч-01", quantity: 1, isExisting: false }]);
         fetchData();
       } else {
-        alert("Часть позиций не прошла проверку. Проверьте артикулы и заполнение полей.");
+        alert("Часть позиций не прошла обработку. Проверьте правильность заполнения полей.");
       }
     } catch (err) {
       console.error(err);
@@ -325,7 +365,7 @@ export default function ConsolidatedWmsOperationsPage() {
       <main className="w-full px-5 py-6 md:px-8 space-y-6">
         <PageHeader
           title="Движения ТМЦ"
-          description="Единый центр проведения прихода, межскладских перемещений и списаний ТМЦ по оборудованию."
+          description="Единый центр проведения прихода номенклатуры, межскладских перемещений и списаний ТМЦ по оборудованию."
           breadcrumbs={[
             { title: "Главная", href: "/" },
             { title: "WMS Складской учет", href: "/modules/wms" },
@@ -369,7 +409,7 @@ export default function ConsolidatedWmsOperationsPage() {
                         </div>
                         <div>
                           <div>Оформить Приход</div>
-                          <div className="text-[10px] font-normal text-slate-400">Поступление партии позиций</div>
+                          <div className="text-[10px] font-normal text-slate-400">Поступление/Создание номенклатуры</div>
                         </div>
                       </button>
 
@@ -425,7 +465,7 @@ export default function ConsolidatedWmsOperationsPage() {
               },
               {
                 key: "itemSku",
-                header: "Артикул / ТМЦ",
+                header: "Артикул / Номенклатура",
                 cell: (row) => (
                   <div className="font-mono">
                     <span className="block text-[11px] font-bold text-[#3473d4]">{row.itemName}</span>
@@ -437,7 +477,7 @@ export default function ConsolidatedWmsOperationsPage() {
                 key: "type",
                 header: "Тип операции",
                 cell: (row) => {
-                  if (row.type === "INCOMING") return <StatusBadge status="ACTIVE" label="Приход" />;
+                  if (row.type === "INCOMING") return <StatusBadge status="ACTIVE" label="Приход номенклатуры" />;
                   if (row.type === "TRANSFER") return <StatusBadge status="PENDING" label="Перемещение" />;
                   if (row.type === "PERSONAL_CARD") return <StatusBadge status="COMPLETED" label="Личная карточка" />;
                   return <StatusBadge status="DECOMMISSIONED" label="Списание" />;
@@ -472,18 +512,18 @@ export default function ConsolidatedWmsOperationsPage() {
           />
         </div>
 
-        {/* MODAL 1: MULTI-ITEM INBOUND RECEIVING */}
+        {/* MODAL 1: MULTI-ITEM INBOUND RECEIVING WITH NOMENCLATURE MATCHING */}
         <Modal open={showInboundModal} onClose={() => setShowInboundModal(false)} size="xl">
           <ModalHeader
             icon={<Plus size={16} />}
-            title="Мульти-позиционное оформление Прихода ТМЦ"
-            subtitle="Заполнение составной накладной поступления позиций на склад"
+            title="Приход номенклатурных единиц"
+            subtitle="Выбор из реестра номенклатуры (с подгрузкой данных) или авто-создание новых единиц"
             onClose={() => setShowInboundModal(false)}
           />
           <form onSubmit={handleInboundBatchSubmit} className="space-y-4 p-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <span className="text-xs font-semibold text-slate-700">
-                Позиций в накладной: <strong className="text-blue-600">{inboundRows.length}</strong>
+                Позиций в накладной прихода: <strong className="text-blue-600">{inboundRows.length}</strong>
               </span>
               <button
                 type="button"
@@ -494,79 +534,111 @@ export default function ConsolidatedWmsOperationsPage() {
               </button>
             </div>
 
-            <div className="max-h-80 overflow-y-auto space-y-3 pr-1">
+            <div className="max-h-96 overflow-y-auto space-y-4 pr-1">
               {inboundRows.map((row, idx) => (
-                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/50 p-3">
-                  <div className="col-span-4">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Наименование ТМЦ #{idx + 1} *</label>
-                    <input
-                      required
-                      type="text"
-                      value={row.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, name: val } : r)));
-                      }}
-                      placeholder="Манжета гидравлическая 50х70"
-                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                    />
+                <div key={row.id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5 space-y-3">
+                  {/* Nomenclature Selector Header */}
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                    <div className="flex items-center gap-2 flex-1 mr-4">
+                      <span className="text-xs font-bold text-slate-700"># {idx + 1}</span>
+                      <select
+                        value={row.selectedCatalogItemId}
+                        onChange={(e) => handleSelectNomenclature(row.id, e.target.value)}
+                        className="flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">-- Выберите существующую номенклатуру (или введите вручную) --</option>
+                        {items.map((catItem) => (
+                          <option key={catItem.id} value={catItem.id}>
+                            {catItem.name} (SKU: {catItem.sku}) — Склад: {catItem.warehouse} (Остаток: {catItem.quantity})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {row.isExisting ? (
+                        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-100">
+                          <BadgeCheck size={12} /> Существующая номенклатура
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-100">
+                          <PlusCircle size={12} /> Новая номенклатура
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={inboundRows.length <= 1}
+                        onClick={() => removeInboundRow(row.id)}
+                        className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="col-span-3">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Артикул (SKU) *</label>
-                    <input
-                      required
-                      type="text"
-                      value={row.sku}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, sku: val } : r)));
-                      }}
-                      placeholder="HYD-5070-01"
-                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
+                  {/* Nomenclature Data Input Fields */}
+                  <div className="grid grid-cols-12 gap-3 items-center">
+                    <div className="col-span-5">
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Наименование ТМЦ *</label>
+                      <input
+                        required
+                        type="text"
+                        value={row.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, name: val, selectedCatalogItemId: "", isExisting: false } : r)));
+                        }}
+                        placeholder="Манжета гидравлическая 50х70"
+                        className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
 
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Склад</label>
-                    <select
-                      value={row.warehouse}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, warehouse: val } : r)));
-                      }}
-                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                    >
-                      {warehouses.map((w) => (
-                        <option key={w.id} value={w.name}>{w.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                    <div className="col-span-3">
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Артикул (SKU) *</label>
+                      <input
+                        required
+                        type="text"
+                        value={row.sku}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, sku: val, selectedCatalogItemId: "", isExisting: false } : r)));
+                        }}
+                        placeholder="HYD-5070-01"
+                        className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
 
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Кол-во ед. *</label>
-                    <input
-                      required
-                      type="number"
-                      min="1"
-                      value={row.quantity}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
-                      }}
-                      className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Склад *</label>
+                      <select
+                        value={row.warehouse}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, warehouse: val } : r)));
+                        }}
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                      >
+                        {warehouses.map((w) => (
+                          <option key={w.id} value={w.name}>{w.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div className="col-span-1 flex justify-center pt-4">
-                    <button
-                      type="button"
-                      disabled={inboundRows.length <= 1}
-                      onClick={() => removeInboundRow(row.id)}
-                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="col-span-2">
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Приход ед. *</label>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        value={row.quantity}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setInboundRows(inboundRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
+                        }}
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none font-bold"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -585,7 +657,7 @@ export default function ConsolidatedWmsOperationsPage() {
                 disabled={submitting}
                 className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
               >
-                {submitting ? "Проведение..." : "Провести Приход накладной"}
+                {submitting ? "Проведение..." : "Провести Приход номенклатуры"}
               </button>
             </div>
           </form>
