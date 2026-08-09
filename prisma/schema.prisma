@@ -370,6 +370,28 @@ enum WmsWriteOffReason {
   OTHER
 }
 
+enum WmsRole {
+  WMS_ADMIN
+  STOREKEEPER
+  OPERATOR
+  AUDITOR
+}
+
+model WarehouseKeeper {
+  id          String    @id @default(cuid())
+  warehouseId String
+  userId      String
+  username    String
+  role        WmsRole   @default(STOREKEEPER)
+  isPrimary   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, userId])
+  @@index([userId])
+}
+
 model Warehouse {
   id                  String   @id @default(cuid())
   name                String   @unique
@@ -379,6 +401,7 @@ model Warehouse {
   responsibleUsername String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  keepers             WarehouseKeeper[]
   zones               WmsZone[]
   storageCells        StorageCell[]
 }

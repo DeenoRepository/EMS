@@ -7,17 +7,16 @@
 const revokedJtiHashes = new Map<string, number>();
 
 /**
- * Вычисляет SHA-256 хэш идентификатора `jti` без использования Node-специфичного 'crypto'
+ * Вычисляет SHA-256 хэш идентификатора `jti`.
+ * Синхронная реализация через Node.js crypto (совместима с API Routes).
+ * Для Edge Runtime используется Web Crypto API через async-обёртку.
  */
 export function hashJti(jti: string): string {
   if (!jti) return "";
-  let hash = 0;
-  for (let i = 0; i < jti.length; i++) {
-    const char = jti.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return `h_${Math.abs(hash).toString(36)}`;
+  // Use Node.js crypto for synchronous SHA-256 (available in API routes)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createHash } = require("crypto") as typeof import("crypto");
+  return createHash("sha256").update(jti).digest("hex");
 }
 
 /**

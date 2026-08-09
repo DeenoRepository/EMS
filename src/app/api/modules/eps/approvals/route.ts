@@ -197,7 +197,8 @@ export async function POST(request: Request) {
           }
         });
 
-        if (targetEquipment) {
+        const ALLOWED_PREDECESSORS: EquipmentStatus[] = ["DRAFT", "PENDING_APPROVAL"];
+        if (targetEquipment && ALLOWED_PREDECESSORS.includes(targetEquipment.status as EquipmentStatus)) {
           await tx.equipment.update({
             where: { id: targetEquipment.id },
             data: { status: "ACTIVE" }
