@@ -218,17 +218,6 @@ export function EditItemModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Цена за ед. (руб)</label>
-            <input
-              type="number"
-              min="0"
-              value={formData.unitPrice}
-              onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Номер партии</label>
             <input
               type="text"
