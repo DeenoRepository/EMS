@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Modal, ModalHeader } from "@/components/ui";
-import { Plus, Wand2, Calculator, FileText, Building2, PackageCheck } from "lucide-react";
+import { Wand2, PackageCheck } from "lucide-react";
 import { Warehouse, CreateWmsItemPayload } from "@/types/wms";
 
 interface CreateItemModalProps {
@@ -20,7 +20,7 @@ export function CreateItemModal({
 }: CreateItemModalProps) {
   const safeWarehouses = warehouses || [];
 
-  const [formData, setFormData] = useState<CreateWmsItemPayload & { invoiceNumber?: string; supplier?: string }>({
+  const [formData, setFormData] = useState<CreateWmsItemPayload>({
     name: "",
     sku: "",
     category: "Запчасти & Механика",
@@ -34,10 +34,8 @@ export function CreateItemModal({
     minQuantity: 2,
     maxQuantity: 100,
     unit: "шт",
-    unitPrice: 1500,
+    unitPrice: 0,
     isEps: false,
-    supplier: "",
-    invoiceNumber: "",
     description: ""
   });
   const [submitting, setSubmitting] = useState(false);
@@ -92,43 +90,6 @@ export function CreateItemModal({
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
       <ModalHeader title="Оформление Прихода ТМЦ на Склад (Приемка)" onClose={onClose} />
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
-        {/* Блок первично-учетного документа */}
-        <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-            <FileText size={14} className="text-blue-600" />
-            <span>Первичные сопроводительные документы</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                Поставщик / Контрагент
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.supplier || ""}
-                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-1.5 text-xs bg-white focus:ring-2 focus:ring-blue-500"
-                  placeholder="ООО «ПромСнабЗапчасть»"
-                />
-                <Building2 size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                № Накладной / УПД / Акта
-              </label>
-              <input
-                type="text"
-                value={formData.invoiceNumber || ""}
-                onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-                className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs bg-white focus:ring-2 focus:ring-blue-500 font-mono"
-                placeholder="УПД-2025/8812"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Номенклатурные данные */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
@@ -235,8 +196,8 @@ export function CreateItemModal({
             </div>
           </div>
 
-          {/* Количественный и финансовый пересчет */}
-          <div className="grid grid-cols-3 gap-2 md:col-span-2 rounded-xl bg-blue-50/40 p-3 border border-blue-100">
+          {/* Количественные данные */}
+          <div className="grid grid-cols-1 gap-2 md:col-span-2 rounded-xl bg-blue-50/40 p-3 border border-blue-100">
             <div>
               <label className="block text-[11px] font-bold text-slate-700 mb-1">
                 Количество прихода *
@@ -257,31 +218,6 @@ export function CreateItemModal({
                   className="w-14 rounded-lg border border-slate-200 px-1.5 py-1.5 text-xs text-center font-medium bg-white"
                   placeholder="шт"
                 />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                Цена за ед. (руб)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.unitPrice}
-                onChange={(e) =>
-                  setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })
-                }
-                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-blue-900 mb-1 flex items-center gap-1">
-                <Calculator size={12} /> Итого стоимость:
-              </label>
-              <div className="w-full rounded-lg border border-blue-200 px-2.5 py-1.5 text-xs font-extrabold text-blue-700 bg-blue-100/60 flex items-center justify-between">
-                <span>{totalPrice.toLocaleString("ru-RU")}</span>
-                <span className="text-[10px] text-blue-500 font-bold">РУБ</span>
               </div>
             </div>
           </div>

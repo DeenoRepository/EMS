@@ -49,13 +49,10 @@ export default function WmsMainCatalogPage() {
 function WmsMainCatalogPageContent() {
   const { currentUser } = useShell();
   const userRoles = currentUser?.roles || [];
-  // Разрешаем складские операции администраторам, кладовщикам, редакторам или при отсутствующей загрузке ролей
+  // Разрешаем складские операции ТОЛЬКО кладовщикам (STOREKEEPER) и администраторам (ADMIN)
   const canEdit =
-    !currentUser ||
-    userRoles.length === 0 ||
-    userRoles.includes("ADMIN") ||
-    userRoles.includes("STOREKEEPER") ||
-    userRoles.includes("EDITOR");
+    Boolean(currentUser) &&
+    (userRoles.includes("ADMIN") || userRoles.includes("STOREKEEPER"));
 
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -434,13 +431,15 @@ function WmsMainCatalogPageContent() {
                   >
                     <Eye size={15} />
                   </button>
-                  <button
-                    onClick={() => openEditModal(row)}
-                    title="Редактировать позицию ТМЦ / Место хранения"
-                    className="rounded p-1.5 text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors"
-                  >
-                    <Pencil size={15} />
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => openEditModal(row)}
+                      title="Редактировать позицию ТМЦ / Место хранения"
+                      className="rounded p-1.5 text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setSelectedLabelItem(row);
@@ -491,12 +490,6 @@ function WmsMainCatalogPageContent() {
                 <span className="text-slate-500">Остаток:</span>
                 <div className="font-bold text-slate-900">
                   {selectedCardItem.quantity} {selectedCardItem.unit}
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-500">Цена за ед.:</span>
-                <div className="font-semibold text-slate-800">
-                  {selectedCardItem.unitPrice} {selectedCardItem.currency}
                 </div>
               </div>
             </div>
