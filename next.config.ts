@@ -2,6 +2,21 @@ import type { NextConfig } from "next";
 
 import pkg from "./package.json";
 
+const isDev = process.env.NODE_ENV !== "production";
+
+const ContentSecurityPolicy = `
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval'" : ""};
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  img-src 'self' data: blob:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  ${isDev ? "" : "upgrade-insecure-requests;"}
+`.replace(/\s{2,}/g, " ").trim();
+
 const nextConfig: NextConfig = {
   output: "standalone",
   env: {
@@ -12,6 +27,10 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
+          {
+            key: "Content-Security-Policy",
+            value: ContentSecurityPolicy
+          },
           {
             key: "X-DNS-Prefetch-Control",
             value: "on"

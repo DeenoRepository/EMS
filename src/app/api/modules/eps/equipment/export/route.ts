@@ -4,6 +4,7 @@ import { Prisma, EquipmentStatus } from "@prisma/client";
 import { EquipmentItem } from "@/lib/modules/eps-store";
 import { getSession } from "@/lib/auth/session";
 import { logEvent } from "@/lib/telemetry/logger";
+import { sanitizeCsvValue } from "@/lib/utils/csv-sanitize";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -93,11 +94,12 @@ export async function GET(request: Request) {
     }
   }
 
-  const headers = selectedFields.map((f) => f.label);
+  const headers = selectedFields.map((f) => sanitizeCsvValue(f.label));
   const rows = items.map((item) =>
     selectedFields.map((field) => {
-      const val = field.extract(item as unknown as EquipmentItem);
-      return `"${val.replace(/"/g, '""')}"`;
+      const rawVal = field.extract(item as unknown as EquipmentItem);
+      const safeVal = sanitizeCsvValue(rawVal);
+      return `"${safeVal.replace(/"/g, '""')}"`;
     })
   );
 

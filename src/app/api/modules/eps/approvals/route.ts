@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 import { logEvent } from "@/lib/telemetry/logger";
+import { randomUUID } from "crypto";
 
 async function ensureDbUser(session: { id: string; email?: string; displayName?: string; username?: string }) {
   try {
@@ -62,12 +63,19 @@ export async function GET() {
 
     return NextResponse.json({ items });
   } catch (error) {
-    console.error("[EPS Approvals GET] DB Error:", error);
-    return NextResponse.json({ error: "Ошибка получения заявок на согласование" }, { status: 500 });
+    const requestId = randomUUID();
+    console.error(`[EPS Approvals GET] DB Error [requestId=${requestId}]:`, error);
+    return NextResponse.json(
+      { error: "Ошибка получения заявок на согласование", requestId },
+      { status: 500 }
+    );
   }
 }
 
+const ALLOWED_ACTIONS = new Set(["CREATE", "APPROVE", "APPROVED", "REJECT", "REJECTED"]);
+
 export async function POST(request: Request) {
+  const requestId = randomUUID();
   try {
     const session = await getSession();
     if (!session) {
@@ -77,6 +85,14 @@ export async function POST(request: Request) {
     const permissions = await getUserEpsPermissions();
     const body = await request.json();
     const { id, action, targetCode, title, comments } = body;
+
+    // SEC-12: Strict validation of approval action enum
+    if (!action || typeof action !== "string" || !ALLOWED_ACTIONS.has(action)) {
+      return NextResponse.json(
+        { error: `Недопустимое действие согласования. Разрешены: CREATE, APPROVE, REJECT` },
+        { status: 400 }
+      );
+    }
 
     const actorId = await ensureDbUser(session);
 
@@ -128,12 +144,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Разрешение заявки (APPROVED / REJECTED)
+    // Разрешение заявки (APPROVE / REJECT)
     if (!permissions.canApprove) {
       return NextResponse.json({ error: "Отказано в доступе. Согласование доступно только согласующим и администраторам." }, { status: 403 });
     }
 
-    const newStatus = action === "APPROVED" || action === "APPROVE" ? "APPROVED" : "REJECTED";
+    if (!id) {
+      return NextResponse.json({ error: "Необходим ID заявки для согласования" }, { status: 400 });
+    }
 
     const existing = await prisma.approvalRequest.findUnique({
       where: { id: String(id) },
@@ -145,6 +163,16 @@ export async function POST(request: Request) {
         { status: 404 }
       );
     }
+
+    // SEC-12: Validate state transitions — only allow transition if currently PENDING
+    if (existing.status !== "PENDING") {
+      return NextResponse.json(
+        { error: `Заявка уже переведена в статус "${existing.status}"` },
+        { status: 409 }
+      );
+    }
+
+    const newStatus = action === "APPROVED" || action === "APPROVE" ? "APPROVED" : "REJECTED";
 
     const updated = await prisma.approvalRequest.update({
       where: { id: String(id) },
@@ -184,11 +212,12 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("[EPS Approvals POST] Detailed Error Stack:", error);
+    // SEC-13: Stable error response with requestId, internal stack kept in server log only
+    console.error(`[EPS Approvals POST] Error [requestId=${requestId}]:`, error);
     return NextResponse.json(
       {
-        error: error?.message || "Ошибка обработки согласования в БД",
-        details: String(error),
+        error: "Ошибка обработки согласования в БД",
+        requestId,
       },
       { status: 500 }
     );

@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { storeLocalFile } from "@/lib/storage/provider";
+import { storeSecureFile } from "@/lib/storage/secure-provider";
+import { getSession } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
 
@@ -13,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    const stored = await storeLocalFile({
+    const stored = await storeSecureFile({
       fileName: file.name || "document.pdf",
       mimeType: file.type || "application/pdf",
       bytes

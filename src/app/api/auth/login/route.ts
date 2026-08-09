@@ -4,6 +4,11 @@ import { MOCK_USERS, Role } from "@/lib/auth/rbac";
 import { createSessionToken, setSessionCookie } from "@/lib/auth/session";
 import { authenticateLdapUser } from "@/lib/auth/ldap";
 import bcrypt from "bcryptjs";
+import {
+  checkLoginRateLimit,
+  registerFailedLoginAttempt,
+  resetLoginAttempts,
+} from "@/lib/auth/rate-limiter";
 
 export async function POST(request: Request) {
   try {
@@ -15,12 +20,30 @@ export async function POST(request: Request) {
     }
 
     const cleanUsername = username.trim().toLowerCase();
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
+    const rateLimitIdentifier = `${clientIp}:${cleanUsername}`;
+
+    // SEC-14: Проверка Rate Limiting для предотвращения Brute-Force атак
+    const rateCheck = checkLoginRateLimit(rateLimitIdentifier);
+    if (rateCheck.isBlocked) {
+      return NextResponse.json(
+        {
+          error: `Превышено число неверных попыток входа (SEC-14). Попробуйте снова через ${rateCheck.retryAfterSeconds} секунд.`,
+          retryAfterSeconds: rateCheck.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateCheck.retryAfterSeconds || 900),
+          },
+        }
+      );
+    }
 
     // 0. Попытка аутентификации через LDAP / Active Directory (при наличии LDAP_URL в env)
     try {
       const ldapUser = await authenticateLdapUser(cleanUsername, password);
       if (ldapUser) {
-        // Создаем или получаем пользователя в локальной БД для сохранения истории
         let dbUser = await prisma.user.findUnique({
           where: { email: ldapUser.email }
         });
@@ -36,6 +59,14 @@ export async function POST(request: Request) {
           });
         }
 
+        if (!dbUser.isActive) {
+          registerFailedLoginAttempt(rateLimitIdentifier);
+          return NextResponse.json(
+            { error: "Учетная запись отключена или заблокирована" },
+            { status: 403 }
+          );
+        }
+
         const sessionPayload = {
           id: dbUser.id,
           username: ldapUser.username,
@@ -46,6 +77,7 @@ export async function POST(request: Request) {
 
         const token = await createSessionToken(sessionPayload);
         await setSessionCookie(token);
+        resetLoginAttempts(rateLimitIdentifier);
 
         const response = NextResponse.json({ success: true, user: sessionPayload });
         response.cookies.set("ems_session", token, {
@@ -53,7 +85,7 @@ export async function POST(request: Request) {
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
           path: "/",
-          maxAge: 8 * 60 * 60
+          maxAge: 2 * 60 * 60
         });
 
         return response;
@@ -81,7 +113,6 @@ export async function POST(request: Request) {
       });
 
       if (dbUser) {
-        // Если у пользователя есть passwordHash, проверяем его через bcrypt
         let isValidPassword = false;
         if (dbUser.passwordHash) {
           isValidPassword = await bcrypt.compare(password, dbUser.passwordHash);
@@ -104,17 +135,20 @@ export async function POST(request: Request) {
             console.warn("Set session cookie warning:", cErr);
           }
 
+          resetLoginAttempts(rateLimitIdentifier);
+
           const response = NextResponse.json({ success: true, user: sessionPayload });
           response.cookies.set("ems_session", token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
             path: "/",
-            maxAge: 8 * 60 * 60
+            maxAge: 2 * 60 * 60
           });
 
           return response;
         } else if (dbUser.passwordHash) {
+          registerFailedLoginAttempt(rateLimitIdentifier);
           return NextResponse.json(
             { error: "Неверное имя пользователя или пароль" },
             { status: 401 }
@@ -126,8 +160,8 @@ export async function POST(request: Request) {
     }
 
     // 2. Фоллбек на MOCK_USERS исключительно для локальной разработки (dev/test)
-    // В продуктивном контуре (NODE_ENV=production) MOCK-авторизация СТРОГО заблокирована
     if (process.env.NODE_ENV === "production" || process.env.ENABLE_MOCK_AUTH === "false") {
+      registerFailedLoginAttempt(rateLimitIdentifier);
       return NextResponse.json(
         { error: "Неверный логин или пароль" },
         { status: 401 }
@@ -136,6 +170,7 @@ export async function POST(request: Request) {
 
     const userEntry = MOCK_USERS[cleanUsername];
     if (!userEntry || userEntry._devPassword !== password) {
+      registerFailedLoginAttempt(rateLimitIdentifier);
       return NextResponse.json(
         { error: "Неверный логин или пароль" },
         { status: 401 }
@@ -157,13 +192,15 @@ export async function POST(request: Request) {
       console.warn("Set session cookie warning:", cErr);
     }
 
+    resetLoginAttempts(rateLimitIdentifier);
+
     const response = NextResponse.json({ success: true, user: sessionPayload });
     response.cookies.set("ems_session", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: (process.env.NODE_ENV as string) === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 8 * 60 * 60
+      maxAge: 2 * 60 * 60
     });
 
     return response;

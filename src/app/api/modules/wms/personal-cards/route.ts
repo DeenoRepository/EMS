@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
+import { canReturnPersonalCard } from "@/lib/wms/state-machine";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -178,6 +179,17 @@ async function handleReturn(request: Request) {
       return NextResponse.json({ error: "Запись в личной карточке не найдена" }, { status: 404 });
     }
 
+    // SEC-05: Идемпотентность — проверка, что личная карточка еще не возвращена
+    if (!canReturnPersonalCard(card.returnedAt)) {
+      return NextResponse.json(
+        {
+          error: "Данная позиция личной карточки уже была возвращена ранее (SEC-05)",
+          returnedAt: card.returnedAt,
+        },
+        { status: 409 }
+      );
+    }
+
     const responsibleWarehouses = await getUserResponsibleWarehouses();
     if (responsibleWarehouses !== null && !responsibleWarehouses.includes(card.item.warehouse)) {
       return NextResponse.json(
@@ -186,30 +198,33 @@ async function handleReturn(request: Request) {
       );
     }
 
-    // Если состояние GOOD (исправно) — оприходовать обратно на склад, иначе записать списание
+    // В транзакции: атомарный условный возврат только при returnedAt IS NULL
     const isGood = returnCondition === "GOOD";
     const writeOffReason = returnCondition === "REPAIR" ? "EQUIPMENT_REPAIR" : "DAMAGE";
 
-    const txOps: any[] = [
-      prisma.wmsPersonalCard.update({
-        where: { id: cardId },
+    const result = await prisma.$transaction(async (tx) => {
+      const cardUpdate = await tx.wmsPersonalCard.updateMany({
+        where: { id: cardId, returnedAt: null },
         data: {
           returnedAt: new Date(),
           returnCondition
         }
-      })
-    ];
+      });
 
-    if (isGood) {
-      txOps.push(
-        prisma.wmsItem.update({
+      if (cardUpdate.count === 0) {
+        throw new Error("ALREADY_RETURNED");
+      }
+
+      if (isGood) {
+        await tx.wmsItem.update({
           where: { id: card.itemId },
           data: {
-            quantity: card.item.quantity + card.issuedQuantity,
+            quantity: { increment: card.issuedQuantity },
             status: (card.item.quantity + card.issuedQuantity) <= card.item.minQuantity ? "LOW_STOCK" : "IN_STOCK"
           }
-        }),
-        prisma.wmsMovement.create({
+        });
+
+        await tx.wmsMovement.create({
           data: {
             itemId: card.itemId,
             itemSku: card.itemSku,
@@ -221,11 +236,9 @@ async function handleReturn(request: Request) {
             performedBy: session.displayName || session.username,
             reason: `Возврат из личной карточки (${employeeConditionLabel(returnCondition)})`,
           }
-        })
-      );
-    } else {
-      txOps.push(
-        prisma.wmsWriteOff.create({
+        });
+      } else {
+        await tx.wmsWriteOff.create({
           data: {
             itemId: card.itemId,
             itemSku: card.itemSku,
@@ -235,8 +248,9 @@ async function handleReturn(request: Request) {
             performedBy: session.displayName || session.username,
             comments: `Возврат из личной карточки ${card.employeeName} в непригодном состоянии (${employeeConditionLabel(returnCondition)})`
           }
-        }),
-        prisma.wmsMovement.create({
+        });
+
+        await tx.wmsMovement.create({
           data: {
             itemId: card.itemId,
             itemSku: card.itemSku,
@@ -248,14 +262,20 @@ async function handleReturn(request: Request) {
             performedBy: session.displayName || session.username,
             reason: `Списание при возврате из личной карточки (${employeeConditionLabel(returnCondition)})`,
           }
-        })
+        });
+      }
+
+      return await tx.wmsPersonalCard.findUnique({ where: { id: cardId } });
+    });
+
+    return NextResponse.json({ card: result, success: true });
+  } catch (err: any) {
+    if (err.message === "ALREADY_RETURNED") {
+      return NextResponse.json(
+        { error: "Данная позиция личной карточки уже была возвращена (SEC-05)" },
+        { status: 409 }
       );
     }
-
-    const [updatedCard] = await prisma.$transaction(txOps);
-
-    return NextResponse.json({ card: updatedCard, success: true });
-  } catch (err) {
     console.error("WMS Personal card return failed:", err);
     return NextResponse.json({ error: "Ошибка при оформлении возврата" }, { status: 500 });
   }
