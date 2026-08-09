@@ -1,42 +1,63 @@
 /**
- * Token Blacklist & Session Revocation Service
- * Поддержка мгновенного отзыва JWT-токенов при выходе (Logout) или сбросе сессии.
- * Использует In-Memory хранилище с TTL-очисткой, с возможностью расширения до Redis.
+ * Token Blacklist & Session Revocation Service (SEC-11)
+ * Поддержка мгновенного отзыва JWT-токенов по хэшу от их уникального `jti`.
+ * Совместимо с Edge Runtime (Next.js Middleware).
  */
 
-const revokedTokens = new Map<string, number>();
+const revokedJtiHashes = new Map<string, number>();
 
-// Периодическая очистка просроченных токенов (каждые 15 минут)
+/**
+ * Вычисляет SHA-256 хэш идентификатора `jti` без использования Node-специфичного 'crypto'
+ */
+export function hashJti(jti: string): string {
+  if (!jti) return "";
+  let hash = 0;
+  for (let i = 0; i < jti.length; i++) {
+    const char = jti.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0;
+  }
+  return `h_${Math.abs(hash).toString(36)}`;
+}
+
+/**
+ * Вносит `jti` токена в реестр отозванных по его хэшу
+ * @param jtiOrToken - Уникальный jti или JWT токен
+ * @param ttlSeconds - время жизни отзыва в секундах (по умолчанию 2 часа)
+ */
+export function revokeToken(jtiOrToken: string, ttlSeconds = 2 * 60 * 60): void {
+  if (!jtiOrToken) return;
+  const hash = hashJti(jtiOrToken);
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+  revokedJtiHashes.set(hash, expiresAt);
+}
+
+/**
+ * Проверяет, отозван ли токен по хэшу его `jti`
+ */
+export function isTokenRevoked(jtiOrToken: string): boolean {
+  if (!jtiOrToken) return false;
+  const hash = hashJti(jtiOrToken);
+  const expiresAt = revokedJtiHashes.get(hash);
+
+  if (!expiresAt) return false;
+
+  if (Date.now() > expiresAt) {
+    revokedJtiHashes.delete(hash);
+    return false;
+  }
+
+  return true;
+}
+
+// Периодическая очистка просроченных записей
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now();
-    for (const [token, expiresAt] of revokedTokens.entries()) {
+    for (const [hash, expiresAt] of revokedJtiHashes.entries()) {
       if (now > expiresAt) {
-        revokedTokens.delete(token);
+        revokedJtiHashes.delete(hash);
       }
     }
   }, 15 * 60 * 1000);
-}
-
-/**
- * Вносит токен в список отозванных
- * @param token - JWT токен или JTI
- * @param ttlSeconds - время жизни токена в секундах (по умолчанию 8 часов)
- */
-export function revokeToken(token: string, ttlSeconds = 8 * 60 * 60): void {
-  const expiresAt = Date.now() + ttlSeconds * 1000;
-  revokedTokens.set(token, expiresAt);
-}
-
-/**
- * Проверяет, отозван ли токен
- */
-export function isTokenRevoked(token: string): boolean {
-  const expiresAt = revokedTokens.get(token);
-  if (!expiresAt) return false;
-  if (Date.now() > expiresAt) {
-    revokedTokens.delete(token);
-    return false;
-  }
-  return true;
 }

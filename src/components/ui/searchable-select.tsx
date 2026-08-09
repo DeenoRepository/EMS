@@ -54,7 +54,10 @@ export function SearchableSelect({
       return options.map((opt) => ({
         id: opt.value,
         name: opt.label,
-        sku: ""
+        sku: "",
+        quantity: undefined,
+        unit: undefined,
+        warehouse: undefined,
       }));
     }
     if (items && Array.isArray(items)) {

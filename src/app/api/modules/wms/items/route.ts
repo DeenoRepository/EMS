@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { WmsItemType } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
+import { createWmsItemSchema } from "@/lib/validations/wms";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -66,14 +67,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parseResult = createWmsItemSchema.safeParse(rawBody);
 
-    if (!body.name || !body.sku || !body.warehouse) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Поля Наименование, Артикул (SKU) и Склад обязательны" },
+        {
+          error: "Некорректные параметры запроса ТМЦ (SEC-03)",
+          details: parseResult.error.flatten()
+        },
         { status: 400 }
       );
     }
+
+    const body = parseResult.data;
 
     // Права на склад
     const responsibleWarehouses = await getUserResponsibleWarehouses();
@@ -84,7 +91,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const incomingQty = Number(body.quantity) || 1;
+    const incomingQty = body.quantity || 1;
 
     // 1. Поиск существующей номенклатурной единицы по артикулу (SKU) на выбранном складе
     const existingNomenclature = await prisma.wmsItem.findFirst({
@@ -106,7 +113,7 @@ export async function POST(request: Request) {
           where: { id: existingNomenclature.id },
           data: {
             quantity: updatedQty,
-            unitPrice: body.unitPrice ? Number(body.unitPrice) : existingNomenclature.unitPrice,
+            unitPrice: body.unitPrice ?? existingNomenclature.unitPrice,
             cell: body.cell || existingNomenclature.cell,
             status: updatedStatus,
             updatedAt: new Date()
@@ -135,19 +142,19 @@ export async function POST(request: Request) {
       data: {
         sku: body.sku,
         name: body.name,
-        category: body.category || "Запчасти & Механика",
-        type: (body.type as WmsItemType) || "ZIP",
-        unit: body.unit || "шт",
+        category: body.category,
+        type: body.type,
+        unit: body.unit,
         warehouse: body.warehouse,
         cell: body.cell || "Яч-01",
         batchNumber: body.batchNumber || null,
         serialNumber: body.serialNumber || null,
         quantity: incomingQty,
-        minQuantity: Number(body.minQuantity) || 2,
-        maxQuantity: Number(body.maxQuantity) || 100,
-        unitPrice: Number(body.unitPrice) || 1500,
-        currency: body.currency || "RUB",
-        status: incomingQty <= (Number(body.minQuantity) || 2) ? "LOW_STOCK" : "IN_STOCK",
+        minQuantity: body.minQuantity,
+        maxQuantity: body.maxQuantity,
+        unitPrice: body.unitPrice,
+        currency: body.currency,
+        status: incomingQty <= body.minQuantity ? "LOW_STOCK" : "IN_STOCK",
         supplier: body.supplier || "Поставщик",
         description: body.description || null,
       }
@@ -163,7 +170,7 @@ export async function POST(request: Request) {
         fromLocation: "Поставщик / Новая номенклатура",
         toLocation: body.cell || "Яч-01",
         performedBy: sessionUser,
-        reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit || "шт"})`,
+        reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit})`,
       }
     });
 

@@ -513,7 +513,7 @@ async function main() {
   console.log("► Шаг 6: Номенклатурные единицы ТМЦ...");
 
   const item1 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-ZIP-10023" },
+    where: { sku_warehouse: { sku: "SKU-ZIP-10023", warehouse: wh1.name } },
     update: { quantity: 45 },
     create: {
       sku: "SKU-ZIP-10023",
@@ -536,7 +536,7 @@ async function main() {
   });
 
   const item2 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-PPE-50012" },
+    where: { sku_warehouse: { sku: "SKU-PPE-50012", warehouse: wh2.name } },
     update: { quantity: 18 },
     create: {
       sku: "SKU-PPE-50012",
@@ -559,7 +559,7 @@ async function main() {
   });
 
   const item3 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-TL-80004" },
+    where: { sku_warehouse: { sku: "SKU-TL-80004", warehouse: wh3.name } },
     update: { quantity: 8 },
     create: {
       sku: "SKU-TL-80004",
@@ -582,7 +582,7 @@ async function main() {
   });
 
   const item4 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-ZIP-20044" },
+    where: { sku_warehouse: { sku: "SKU-ZIP-20044", warehouse: wh1.name } },
     update: { quantity: 3 },
     create: {
       sku: "SKU-ZIP-20044",
@@ -604,7 +604,7 @@ async function main() {
   });
 
   const item5 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-CON-30007" },
+    where: { sku_warehouse: { sku: "SKU-CON-30007", warehouse: wh2.name } },
     update: { quantity: 120 },
     create: {
       sku: "SKU-CON-30007",
@@ -626,7 +626,7 @@ async function main() {
   });
 
   const item6 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-PPE-50034" },
+    where: { sku_warehouse: { sku: "SKU-PPE-50034", warehouse: wh2.name } },
     update: { quantity: 45 },
     create: {
       sku: "SKU-PPE-50034",
@@ -648,7 +648,7 @@ async function main() {
   });
 
   const item7 = await prisma.wmsItem.upsert({
-    where: { sku: "SKU-ZIP-10088" },
+    where: { sku_warehouse: { sku: "SKU-ZIP-10088", warehouse: wh1.name } },
     update: { quantity: 0 },
     create: {
       sku: "SKU-ZIP-10088",

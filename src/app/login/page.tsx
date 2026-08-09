@@ -13,16 +13,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent, customUser?: string, customPass?: string) => {
+    if (e) e.preventDefault();
     setError(null);
     setLoading(true);
+
+    const loginUser = customUser ?? username;
+    const loginPass = customPass ?? password;
 
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username: loginUser, password: loginPass })
       });
 
       const data = await res.json().catch(() => ({}));
@@ -31,8 +34,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка сети при попытке авторизации");
     } finally {
@@ -43,6 +45,7 @@ export default function LoginPage() {
   const quickLogin = (u: string, p: string) => {
     setUsername(u);
     setPassword(p);
+    handleLogin(undefined, u, p);
   };
 
   return (

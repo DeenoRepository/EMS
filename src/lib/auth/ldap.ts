@@ -1,5 +1,14 @@
 import { Role } from "./rbac";
 
+const isLdapMockEnabled = process.env.LDAP_MOCK_SUCCESS === "true";
+const isLdapMockEnvironment = ["development", "test"].includes(process.env.NODE_ENV ?? "");
+
+if (isLdapMockEnabled && !isLdapMockEnvironment) {
+  throw new Error(
+    "CRITICAL SECURITY ERROR: LDAP_MOCK_SUCCESS is only allowed in development or test"
+  );
+}
+
 export interface LdapUserResult {
   username: string;
   email: string;
@@ -19,17 +28,12 @@ export async function authenticateLdapUser(
   const ldapUrl = process.env.LDAP_URL;
   const baseDn = process.env.LDAP_BASE_DN;
 
-  // Если LDAP не сконфигурирован в env, пропускаем
-  if (!ldapUrl || !baseDn) {
+  // Если LDAP не сконфигурирован в env или credentials пустые, пропускаем
+  if (!ldapUrl || !baseDn || !username || !pass) {
     return null;
   }
 
   try {
-    // Конструкция LDAP Bind запроса через HTTP/LDAP gateway или TLS
-    const bindDn = process.env.LDAP_BIND_DN_PATTERN
-      ? process.env.LDAP_BIND_DN_PATTERN.replace("{username}", username)
-      : `cn=${username},${baseDn}`;
-
     console.info(`[LDAP] Попытка входа пользователя ${username} via LDAP: ${ldapUrl}`);
 
     // При вызове из Node.js контура в продакшне при наличии настроенного LDAP сервлета / ldapjs

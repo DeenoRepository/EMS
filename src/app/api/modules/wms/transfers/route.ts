@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
+import { positiveIntSchema, wmsIdSchema } from "@/lib/validations/wms";
+import { isValidTransferTransition } from "@/lib/wms/state-machine";
+import { WmsTransferStatus } from "@prisma/client";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -49,17 +52,31 @@ export async function POST(request: Request) {
 
     // Сценарий 1: Подтверждение / Отклонение заявки (Приемка МОЛ-получателем)
     if (action === "APPROVE" || action === "REJECT") {
-      if (!requestId) {
-        return NextResponse.json({ error: "Не указан ID заявки" }, { status: 400 });
+      const idParse = wmsIdSchema.safeParse(requestId);
+      if (!idParse.success) {
+        return NextResponse.json({ error: "Не указан или некорректен ID заявки" }, { status: 400 });
       }
 
+      const targetStatus: WmsTransferStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
+
       const transferReq = await prisma.wmsTransferRequest.findUnique({
-        where: { id: requestId },
+        where: { id: idParse.data },
         include: { item: true }
       });
 
       if (!transferReq) {
         return NextResponse.json({ error: "Заявка на перемещение не найдена" }, { status: 404 });
+      }
+
+      // SEC-04: Идемпотентность статусов — запрет повторной обработки
+      if (!isValidTransferTransition(transferReq.status, targetStatus)) {
+        return NextResponse.json(
+          {
+            error: `Заявка на перемещение уже находится в конечном статусе "${transferReq.status}" (SEC-04)`,
+            currentStatus: transferReq.status,
+          },
+          { status: 409 }
+        );
       }
 
       // Проверка прав МОЛ целевого склада
@@ -72,73 +89,69 @@ export async function POST(request: Request) {
       }
 
       if (action === "REJECT") {
-        const updated = await prisma.wmsTransferRequest.update({
-          where: { id: requestId },
+        // Атомарный перевод статуса в REJECTED при условии, что текущий статус PENDING
+        const updatedCount = await prisma.wmsTransferRequest.updateMany({
+          where: { id: idParse.data, status: "PENDING" },
           data: { status: "REJECTED", comment: body.comment || "Отклонено получателем" }
         });
+
+        if (updatedCount.count === 0) {
+          return NextResponse.json(
+            { error: "Заявка на перемещение уже была обработана другим запросом (SEC-04)" },
+            { status: 409 }
+          );
+        }
+
+        const updated = await prisma.wmsTransferRequest.findUnique({ where: { id: idParse.data } });
         return NextResponse.json({ request: updated, success: true });
       }
 
       // APPROVE: Перемещение остатка из склада-отправителя на склад-получатель
-      if (transferReq.item.quantity < transferReq.quantity) {
-        return NextResponse.json(
-          { error: `Недостаточно остатка на складе отправителя. Доступно: ${transferReq.item.quantity}` },
-          { status: 400 }
-        );
-      }
-
-      // Проверка наличия такой же номенклатуры на складе-получателе
-      const targetItem = await prisma.wmsItem.findFirst({
-        where: {
-          sku: transferReq.itemSku,
-          warehouse: transferReq.toWarehouse
-        }
-      });
-
-      const txOps: any[] = [
-        prisma.wmsTransferRequest.update({
-          where: { id: requestId },
+      // SEC-16: Атомарное списывание у склада-отправителя с проверкой достаточного остатка
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Изменяем статус трансфера с PENDING на APPROVED
+        const reqUpdate = await tx.wmsTransferRequest.updateMany({
+          where: { id: idParse.data, status: "PENDING" },
           data: { status: "APPROVED" }
-        }),
-        prisma.wmsItem.update({
-          where: { id: transferReq.itemId },
-          data: {
-            quantity: transferReq.item.quantity - transferReq.quantity,
-            status: (transferReq.item.quantity - transferReq.quantity) <= 0 ? "OUT_OF_STOCK" : (transferReq.item.quantity - transferReq.quantity) <= transferReq.item.minQuantity ? "LOW_STOCK" : "IN_STOCK"
-          }
-        }),
-        prisma.wmsMovement.create({
-          data: {
-            itemId: transferReq.itemId,
-            itemSku: transferReq.itemSku,
-            itemName: transferReq.itemName,
-            type: "TRANSFER",
-            quantity: transferReq.quantity,
-            fromLocation: transferReq.fromWarehouse,
-            toLocation: transferReq.toWarehouse,
-            performedBy: session.displayName || session.username,
-            reason: `Межскладской трансфер (Заявка ${transferReq.id.slice(-6)})`,
-          }
-        })
-      ];
+        });
 
-      if (targetItem) {
-        // Увеличиваем остаток у существующей номенклатурной единицы на целевом складе
-        const newTargetQty = targetItem.quantity + transferReq.quantity;
-        txOps.push(
-          prisma.wmsItem.update({
+        if (reqUpdate.count === 0) {
+          throw new Error("ALREADY_PROCESSED");
+        }
+
+        // 2. Атомарное уменьшение количества на складе-отправителе (SEC-16)
+        const itemUpdate = await tx.wmsItem.updateMany({
+          where: {
+            id: transferReq.itemId,
+            quantity: { gte: transferReq.quantity }
+          },
+          data: {
+            quantity: { decrement: transferReq.quantity }
+          }
+        });
+
+        if (itemUpdate.count === 0) {
+          throw new Error("INSUFFICIENT_STOCK");
+        }
+
+        // Поиск или создание номенклатуры на целевом складе
+        const targetItem = await tx.wmsItem.findFirst({
+          where: {
+            sku: transferReq.itemSku,
+            warehouse: transferReq.toWarehouse
+          }
+        });
+
+        if (targetItem) {
+          await tx.wmsItem.update({
             where: { id: targetItem.id },
             data: {
-              quantity: newTargetQty,
-              status: newTargetQty <= 0 ? "OUT_OF_STOCK" : newTargetQty <= targetItem.minQuantity ? "LOW_STOCK" : "IN_STOCK",
+              quantity: { increment: transferReq.quantity },
               lastIncomingDate: new Date()
             }
-          })
-        );
-      } else {
-        // Создаем новую номенклатурную позицию на целевом складе
-        txOps.push(
-          prisma.wmsItem.create({
+          });
+        } else {
+          await tx.wmsItem.create({
             data: {
               sku: transferReq.item.sku,
               name: transferReq.item.name,
@@ -157,24 +170,48 @@ export async function POST(request: Request) {
               description: transferReq.item.description,
               lastIncomingDate: new Date()
             }
-          })
-        );
-      }
+          });
+        }
 
-      const [updated] = await prisma.$transaction(txOps);
+        await tx.wmsMovement.create({
+          data: {
+            itemId: transferReq.itemId,
+            itemSku: transferReq.itemSku,
+            itemName: transferReq.itemName,
+            type: "TRANSFER",
+            quantity: transferReq.quantity,
+            fromLocation: transferReq.fromWarehouse,
+            toLocation: transferReq.toWarehouse,
+            performedBy: session.displayName || session.username,
+            reason: `Межскладской трансфер (Заявка ${transferReq.id.slice(-6)})`,
+          }
+        });
 
-      return NextResponse.json({ request: updated, success: true });
+        return await tx.wmsTransferRequest.findUnique({ where: { id: idParse.data } });
+      });
+
+      return NextResponse.json({ request: result, success: true });
     }
 
     // Сценарий 2: Создание новой заявки на перемещение МОЛ-отправителем
-    if (!itemId || !quantity || !toWarehouse) {
+    const qtyParse = positiveIntSchema.safeParse(Number(quantity));
+    const itemParse = wmsIdSchema.safeParse(itemId);
+
+    if (!itemParse.success || !qtyParse.success || !toWarehouse) {
       return NextResponse.json(
-        { error: "Поля Позиция ТМЦ, Количество и Склад-получатель обязательны" },
+        {
+          error: "Некорректные параметры перемещения ТМЦ (SEC-03)",
+          details: {
+            itemId: itemParse.success ? undefined : itemParse.error.flatten(),
+            quantity: qtyParse.success ? undefined : qtyParse.error.flatten(),
+            toWarehouse: toWarehouse ? undefined : "Укажите склад-получатель"
+          }
+        },
         { status: 400 }
       );
     }
 
-    const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
+    const item = await prisma.wmsItem.findUnique({ where: { id: itemParse.data } });
     if (!item) {
       return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
     }
@@ -192,7 +229,7 @@ export async function POST(request: Request) {
         itemId: item.id,
         itemSku: item.sku,
         itemName: item.name,
-        quantity: Number(quantity),
+        quantity: qtyParse.data,
         fromWarehouse: item.warehouse,
         toWarehouse: toWarehouse,
         requestedBy: session.displayName || session.username,
@@ -204,7 +241,19 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ request: created, success: true }, { status: 201 });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "ALREADY_PROCESSED") {
+      return NextResponse.json(
+        { error: "Заявка на перемещение уже была обработана (SEC-04)" },
+        { status: 409 }
+      );
+    }
+    if (err.message === "INSUFFICIENT_STOCK") {
+      return NextResponse.json(
+        { error: "Недостаточно остатка на складе отправителя (SEC-16)" },
+        { status: 409 }
+      );
+    }
     console.error("WMS Transfer request POST failed:", err);
     return NextResponse.json({ error: "Ошибка обработки межскладского перемещения" }, { status: 500 });
   }

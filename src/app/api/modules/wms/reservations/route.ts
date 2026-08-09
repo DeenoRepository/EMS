@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
+import { createReservationSchema } from "@/lib/validations/wms";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -45,15 +46,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { itemId, equipmentId, equipmentName, maintenancePlanDate, reservedQuantity, reason } = body;
+    const rawBody = await request.json();
+    const parseResult = createReservationSchema.safeParse({
+      itemId: rawBody.itemId,
+      quantity: Number(rawBody.reservedQuantity ?? rawBody.quantity),
+      reservedBy: session.displayName || session.username,
+      purpose: rawBody.reason || rawBody.purpose,
+      notes: rawBody.notes,
+    });
 
-    if (!itemId || !reservedQuantity) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Поля Позиция ТМЦ и Количество обязательны" },
+        {
+          error: "Некорректные параметры резервирования ТМЦ (SEC-03)",
+          details: parseResult.error.flatten(),
+        },
         { status: 400 }
       );
     }
+
+    const { itemId, quantity: reservedQuantity, purpose: reason } = parseResult.data;
+    const { equipmentId, equipmentName, maintenancePlanDate } = rawBody;
 
     // Проверка остатка ТМЦ
     const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
@@ -70,7 +83,7 @@ export async function POST(request: Request) {
     }
 
     const availableQty = item.quantity - item.reservedQuantity;
-    if (Number(reservedQuantity) > availableQty) {
+    if (reservedQuantity > availableQty) {
       return NextResponse.json(
         { error: `Недостаточно свободного остатка для резерва. Доступно: ${availableQty} ${item.unit}` },
         { status: 400 }
@@ -87,7 +100,7 @@ export async function POST(request: Request) {
           equipmentId: equipmentId || null,
           equipmentName: equipmentName || null,
           maintenancePlanDate: maintenancePlanDate ? new Date(maintenancePlanDate) : null,
-          reservedQuantity: Number(reservedQuantity),
+          reservedQuantity,
           reservedBy,
           reason: reason || "Резерв под ППР в ТОИР",
         },
@@ -95,7 +108,7 @@ export async function POST(request: Request) {
       prisma.wmsItem.update({
         where: { id: itemId },
         data: {
-          reservedQuantity: { increment: Number(reservedQuantity) },
+          reservedQuantity: { increment: reservedQuantity },
         },
       }),
     ]);

@@ -561,15 +561,12 @@ function WmsMainCatalogPageContent() {
       {/* MODAL: PRINT BARCODE LABEL */}
       {selectedLabelItem && (
         <BarcodeLabelModal
-          isOpen={showLabelModal}
+          open={showLabelModal}
           onClose={() => setShowLabelModal(false)}
-          item={{
-            sku: selectedLabelItem.sku,
-            name: selectedLabelItem.name,
-            warehouse: selectedLabelItem.warehouse,
-            cell: selectedLabelItem.cell,
-            barcode: selectedLabelItem.barcode
-          }}
+          title="Печать этикетки ТМЦ"
+          sku={selectedLabelItem.sku}
+          name={selectedLabelItem.name}
+          location={selectedLabelItem.cell || selectedLabelItem.warehouse}
         />
       )}
     </main>

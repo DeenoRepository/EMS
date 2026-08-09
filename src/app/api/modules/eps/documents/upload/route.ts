@@ -3,6 +3,22 @@ import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 import { prisma } from "@/lib/db/prisma";
 import { uploadDocumentFile } from "@/lib/storage/s3";
+import { logEvent } from "@/lib/telemetry/logger";
+
+// SEC-05: Maximum file size limit (50 MB) and MIME-type whitelist
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/zip",
+  "text/plain"
+]);
 
 export async function POST(request: Request) {
   try {
@@ -33,6 +49,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // SEC-05: Validate File Size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `Размер файла превышает максимально допустимый лимит (50 МБ). Текущий размер: ${(file.size / (1024 * 1024)).toFixed(2)} МБ` },
+        { status: 400 }
+      );
+    }
+
+    // SEC-05: Validate File MIME-Type
+    if (file.type && !ALLOWED_MIME_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: `Неподдерживаемый тип файла: ${file.type}. Разрешены: PDF, DWG/DOCX, XLSX, PNG/JPG, ZIP, TXT.` },
+        { status: 400 }
+      );
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -40,7 +72,7 @@ export async function POST(request: Request) {
     const uploadResult = await uploadDocumentFile({
       fileName: file.name,
       buffer,
-      contentType: file.type,
+      contentType: file.type || "application/octet-stream",
       folder: `equipment/${equipmentId}`
     });
 
@@ -83,6 +115,15 @@ export async function POST(request: Request) {
       });
 
       return { document: doc, newVersion: ver };
+    });
+
+    logEvent({
+      level: "audit",
+      module: "EPS",
+      action: "DOCUMENT_UPLOADED",
+      userId: session.id,
+      userEmail: session.email,
+      details: { equipmentId, documentId: document.id, version: newVersion.versionNumber, fileSize: file.size }
     });
 
     return NextResponse.json({

@@ -56,3 +56,6 @@ Thumbs.db
 # Playwright MCP session snapshots
 .playwright-mcp/
 
+
+# Claude CLI local state
+.claude/

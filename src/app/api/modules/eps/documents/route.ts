@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { MOCK_DOCUMENTS, DocumentItem } from "@/lib/modules/eps-advanced-store";
 import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
+import { logEvent } from "@/lib/telemetry/logger";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -14,9 +14,18 @@ export async function GET(request: Request) {
   const equipmentCode = searchParams.get("equipmentCode");
 
   try {
+    const permissions = await getUserEpsPermissions();
     const where: Record<string, unknown> = {};
     if (equipmentCode) {
       where.equipment = { equipmentCode };
+    }
+
+    // SEC-03: Restricted document access by department for non-unrestricted (non-ADMIN) users
+    if (!permissions.isUnrestricted && session.department) {
+      where.equipment = {
+        ...(where.equipment as object || {}),
+        department: session.department
+      };
     }
 
     const dbDocs = await prisma.document.findMany({
@@ -37,6 +46,7 @@ export async function GET(request: Request) {
       version: d.versions[0]?.versionNumber || 1,
       updatedAt: d.updatedAt.toISOString()
     }));
+
     return NextResponse.json({ items: mapped, total: mapped.length });
   } catch (err) {
     console.error("EPS Documents DB query failed:", err);
@@ -69,11 +79,19 @@ export async function POST(request: Request) {
         status: "IN_REVIEW"
       }
     });
+
+    logEvent({
+      level: "audit",
+      module: "EPS",
+      action: "DOCUMENT_CREATED",
+      userId: session.id,
+      userEmail: session.email,
+      details: { documentId: created.id, equipmentId: body.equipmentId }
+    });
+
     return NextResponse.json({ success: true, item: created }, { status: 201 });
   } catch (err) {
     console.error("EPS Document POST failed:", err);
     return NextResponse.json({ error: "Ошибка загрузки документа в базу данных" }, { status: 500 });
   }
 }
-
-

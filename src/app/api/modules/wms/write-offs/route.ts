@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { WmsWriteOffReason } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
+import { createWriteOffSchema } from "@/lib/validations/wms";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -51,15 +52,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { itemId, quantity, reason, equipmentId, equipmentName, comments } = body;
+    const rawBody = await request.json();
+    const parseResult = createWriteOffSchema.safeParse({
+      itemId: rawBody.itemId,
+      quantity: Number(rawBody.quantity),
+      reason: rawBody.reason || "EQUIPMENT_REPAIR",
+      approvedBy: session.displayName || session.username,
+      equipmentId: rawBody.equipmentId,
+      notes: rawBody.comments,
+    });
 
-    if (!itemId || !quantity) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Поля Позиция ТМЦ и Количество обязательны" },
+        {
+          error: "Некорректные параметры списания ТМЦ (SEC-03)",
+          details: parseResult.error.flatten(),
+        },
         { status: 400 }
       );
     }
+
+    const { itemId, quantity, reason } = parseResult.data;
+    const { equipmentId, equipmentName, comments } = rawBody;
 
     const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
     if (!item) {
@@ -75,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     const availableQuantity = item.quantity - item.reservedQuantity;
-    if (Number(quantity) > availableQuantity) {
+    if (quantity > availableQuantity) {
       return NextResponse.json(
         { error: `Нельзя списать больше доступного остатка (с учетом резерва). Доступно к списанию: ${availableQuantity} ${item.unit} (Всего: ${item.quantity}, Зарезервировано: ${item.reservedQuantity})` },
         { status: 400 }
@@ -83,7 +97,7 @@ export async function POST(request: Request) {
     }
 
     const performedBy = session.displayName || session.username;
-    const newQty = item.quantity - Number(quantity);
+    const newQty = item.quantity - quantity;
     const newStatus = newQty <= item.minQuantity ? (newQty === 0 ? "OUT_OF_STOCK" : "LOW_STOCK") : "IN_STOCK";
 
     // Транзакция: списание ТМЦ и запись движения
@@ -93,8 +107,8 @@ export async function POST(request: Request) {
           itemId,
           itemSku: item.sku,
           itemName: item.name,
-          quantity: Number(quantity),
-          reason: (reason as WmsWriteOffReason) || "EQUIPMENT_REPAIR",
+          quantity,
+          reason,
           equipmentId: equipmentId || null,
           equipmentName: equipmentName || null,
           performedBy,
@@ -115,10 +129,10 @@ export async function POST(request: Request) {
           itemSku: item.sku,
           itemName: item.name,
           type: "OUTGOING",
-          quantity: Number(quantity),
+          quantity,
           fromLocation: `${item.warehouse} (${item.cell || "Обустройство"})`,
           performedBy,
-          reason: `Списание: ${reason || "Ремонт оборудования"} ${equipmentName ? `(${equipmentName})` : ""}`,
+          reason: `Списание: ${reason} ${equipmentName ? `(${equipmentName})` : ""}`,
           relatedOrderOrEq: equipmentId || null,
         },
       }),

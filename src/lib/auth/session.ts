@@ -2,22 +2,38 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { UserSession } from "./rbac";
 import { isTokenRevoked } from "./token-blacklist";
+import { jwtPayloadSchema } from "./jwt-schema";
 
-const secretKey = process.env.JWT_SECRET || (process.env.NODE_ENV === "test" ? "test-secret-key-for-unit-tests-only" : "");
-if (!secretKey) {
-  throw new Error("CRITICAL SECURITY ERROR: JWT_SECRET environment variable is mandatory!");
+function getJwtSecret(): Uint8Array {
+  const secretKey =
+    process.env.JWT_SECRET ||
+    (process.env.NODE_ENV !== "production" ? "ems-dev-jwt-secret-key-for-local-development-only-32bytes" : "");
+  if (!secretKey) {
+    throw new Error("CRITICAL SECURITY ERROR: JWT_SECRET environment variable is mandatory!");
+  }
+  return new TextEncoder().encode(secretKey);
 }
-const JWT_SECRET = new TextEncoder().encode(secretKey);
 
 const SESSION_COOKIE_NAME = "ems_session";
+const JWT_ISSUER = "ems-auth-service";
+const JWT_AUDIENCE = "ems-app";
 
 export async function createSessionToken(payload: UserSession): Promise<string> {
   const jti = `jti_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  return new SignJWT({ ...payload, jti })
+  return new SignJWT({
+    id: payload.id,
+    username: payload.username,
+    displayName: payload.displayName,
+    email: payload.email,
+    roles: payload.roles,
+    jti,
+  })
     .setProtectedHeader({ alg: "HS256" })
+    .setIssuer(JWT_ISSUER)
+    .setAudience(JWT_AUDIENCE)
     .setIssuedAt()
-    .setExpirationTime("8h")
-    .sign(JWT_SECRET);
+    .setExpirationTime("2h") // Сокращенный TTL access-токена (SEC-10)
+    .sign(getJwtSecret());
 }
 
 export async function verifySessionToken(token: string): Promise<UserSession | null> {
@@ -25,8 +41,28 @@ export async function verifySessionToken(token: string): Promise<UserSession | n
     if (isTokenRevoked(token)) {
       return null;
     }
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as unknown as UserSession;
+
+    const { payload } = await jwtVerify(token, getJwtSecret(), {
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      algorithms: ["HS256"],
+    });
+
+    // Валидация структуры JWT payload через Zod (SEC-10)
+    const parseResult = jwtPayloadSchema.safeParse(payload);
+    if (!parseResult.success) {
+      console.warn("JWT Payload validation failed:", parseResult.error.flatten());
+      return null;
+    }
+
+    const validData = parseResult.data;
+    return {
+      id: validData.id,
+      username: validData.username,
+      displayName: validData.displayName,
+      email: validData.email,
+      roles: validData.roles,
+    };
   } catch {
     return null;
   }
@@ -47,7 +83,7 @@ export async function setSessionCookie(token: string) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 8 * 60 * 60 // 8 hours
+      maxAge: 2 * 60 * 60 // 2 hours TTL (SEC-10)
     });
   } catch (err) {
     console.warn("Could not set cookie directly:", err);
