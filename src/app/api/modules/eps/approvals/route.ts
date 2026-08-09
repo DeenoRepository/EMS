@@ -174,17 +174,38 @@ export async function POST(request: Request) {
 
     const newStatus = action === "APPROVED" || action === "APPROVE" ? "APPROVED" : "REJECTED";
 
-    const updated = await prisma.approvalRequest.update({
-      where: { id: String(id) },
-      data: {
-        status: newStatus,
-        decidedById: actorId,
-        decidedAt: new Date(),
-      },
-      include: {
-        requestedBy: { select: { email: true, displayName: true } },
-        decidedBy: { select: { email: true, displayName: true } },
-      },
+    // LOG-01: Connect ApprovalRequest resolution to Equipment status mutation inside a transaction
+    const updated = await prisma.$transaction(async (tx) => {
+      const app = await tx.approvalRequest.update({
+        where: { id: String(id) },
+        data: {
+          status: newStatus,
+          decidedById: actorId,
+          decidedAt: new Date(),
+        },
+        include: {
+          requestedBy: { select: { email: true, displayName: true } },
+          decidedBy: { select: { email: true, displayName: true } },
+        },
+      });
+
+      // If approved, translate target equipment status to ACTIVE
+      if (newStatus === "APPROVED" && app.targetId) {
+        const targetEquipment = await tx.equipment.findFirst({
+          where: {
+            OR: [{ id: app.targetId }, { equipmentCode: app.targetId }]
+          }
+        });
+
+        if (targetEquipment) {
+          await tx.equipment.update({
+            where: { id: targetEquipment.id },
+            data: { status: "ACTIVE" }
+          });
+        }
+      }
+
+      return app;
     });
 
     logEvent({

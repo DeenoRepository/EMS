@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { MOCK_EVENTS, TimelineEvent } from "@/lib/modules/eps-advanced-store";
+import { TimelineEvent } from "@/lib/modules/eps-advanced-store";
 import { getSession } from "@/lib/auth/session";
+import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,8 +14,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
     }
 
+    const permissions = await getUserEpsPermissions();
+    const whereCondition: Record<string, unknown> = {};
+
+    if (equipmentId) {
+      whereCondition.equipmentId = equipmentId;
+    }
+
+    // SEC-03: Restricted event log access by department for non-unrestricted users
+    if (!permissions.isUnrestricted && session.department) {
+      whereCondition.equipment = {
+        department: session.department
+      };
+    }
+
     const dbEvents = await prisma.equipmentEvent.findMany({
-      where: equipmentId ? { equipmentId } : undefined,
+      where: whereCondition,
       orderBy: { createdAt: "desc" }
     });
 
