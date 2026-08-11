@@ -17,7 +17,7 @@ export async function POST() {
     const response = NextResponse.json({ success: true, message: "Сессия успешно завершена" });
     response.cookies.set("ems_session", "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
       path: "/",
       maxAge: 0

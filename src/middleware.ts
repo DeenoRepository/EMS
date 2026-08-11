@@ -16,12 +16,18 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get("ems_session")?.value;
 
   if (!token) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    }
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
   const session = await verifySessionToken(token);
   if (!session) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Сессия недействительна или истекла" }, { status: 401 });
+    }
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }

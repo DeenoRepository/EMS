@@ -39,6 +39,7 @@ export async function createSessionToken(payload: UserSession): Promise<string> 
 export async function verifySessionToken(token: string): Promise<UserSession | null> {
   try {
     if (isTokenRevoked(token)) {
+      console.warn("[verifySessionToken] Token is revoked");
       return null;
     }
 
@@ -63,7 +64,8 @@ export async function verifySessionToken(token: string): Promise<UserSession | n
       email: validData.email,
       roles: validData.roles,
     };
-  } catch {
+  } catch (err) {
+    console.error("[verifySessionToken] verify error stack:", err instanceof Error ? err.stack : err);
     return null;
   }
 }
@@ -80,7 +82,7 @@ export async function setSessionCookie(token: string) {
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
       path: "/",
       maxAge: 2 * 60 * 60 // 2 hours TTL (SEC-10)

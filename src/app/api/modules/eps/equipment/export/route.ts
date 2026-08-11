@@ -77,7 +77,7 @@ export async function GET(request: Request) {
       extract: (i) =>
         i.techSpecs
           ? Object.entries(i.techSpecs)
-              .map(([k, v]) => `${k}: ${v}`)
+              .map(([k, v]) => `${sanitizeCsvValue(String(k))}: ${sanitizeCsvValue(String(v))}`)
               .join("; ")
           : "",
     },

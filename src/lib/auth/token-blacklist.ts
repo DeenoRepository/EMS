@@ -7,17 +7,19 @@
 const revokedJtiHashes = new Map<string, number>();
 
 /**
- * Вычисляет SHA-256 хэш идентификатора `jti` без использования Node-специфичного 'crypto'
+ * Вычисляет хэш идентификатора `jti`.
+ * Совместимо с Edge Runtime (Next.js Middleware) и Node.js без внешней зависимости crypto.
  */
 export function hashJti(jti: string): string {
   if (!jti) return "";
-  let hash = 0;
+  let h1 = 0x811c9dc5;
+  let h2 = 0xcbf29ce4;
   for (let i = 0; i < jti.length; i++) {
-    const char = jti.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
+    const ch = jti.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 0x01000193);
+    h2 = Math.imul(h2 ^ ch, 0x01000193);
   }
-  return `h_${Math.abs(hash).toString(36)}`;
+  return (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
 }
 
 /**

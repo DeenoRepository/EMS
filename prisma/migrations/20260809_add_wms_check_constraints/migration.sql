@@ -27,4 +27,4 @@ ALTER TABLE "WmsTransferRequest"
 
 -- 6. Таблица WmsPersonalCard (Количество спецодежды/СИЗ должно быть строго больше нуля)
 ALTER TABLE "WmsPersonalCard"
-  ADD CONSTRAINT "chk_wms_personalcard_quantity" CHECK ("quantity" > 0);
+  ADD CONSTRAINT "chk_wms_personalcard_quantity" CHECK ("issuedQuantity" > 0);

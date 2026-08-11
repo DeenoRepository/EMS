@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         const response = NextResponse.json({ success: true, user: sessionPayload });
         response.cookies.set("ems_session", token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
+          secure: process.env.COOKIE_SECURE === "true",
           sameSite: "lax",
           path: "/",
           maxAge: 2 * 60 * 60
@@ -107,9 +107,16 @@ export async function POST(request: Request) {
         },
         include: {
           userRoles: {
-            include: { role: true }
-          }
-        }
+            include: {
+              role: {
+                include: {
+                  permissions: { include: { permission: true } },
+                  scope: true,
+                },
+              },
+            },
+          },
+        },
       });
 
       if (dbUser) {
@@ -119,13 +126,24 @@ export async function POST(request: Request) {
         }
 
         if (isValidPassword) {
-          const roles: Role[] = dbUser.userRoles.map((ur) => ur.role.key as Role);
+          const roles = dbUser.userRoles.map((ur) => ur.role.key);
+          const permissionsSet = new Set<string>();
+          dbUser.userRoles.forEach((ur) => {
+            if (ur.role.key === "ADMIN") {
+              permissionsSet.add("*");
+            }
+            ur.role.permissions.forEach((rp) => {
+              permissionsSet.add(rp.permission.code);
+            });
+          });
+
           const sessionPayload = {
             id: dbUser.id,
             username: dbUser.email.split("@")[0],
             displayName: dbUser.displayName,
             email: dbUser.email,
-            roles: roles.length > 0 ? roles : (["VIEWER"] as Role[])
+            roles: roles.length > 0 ? roles : ["viewer_readonly"],
+            permissions: Array.from(permissionsSet),
           };
 
           const token = await createSessionToken(sessionPayload);
@@ -140,7 +158,7 @@ export async function POST(request: Request) {
           const response = NextResponse.json({ success: true, user: sessionPayload });
           response.cookies.set("ems_session", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
+            secure: process.env.COOKIE_SECURE === "true",
             sameSite: "lax",
             path: "/",
             maxAge: 2 * 60 * 60
@@ -197,7 +215,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ success: true, user: sessionPayload });
     response.cookies.set("ems_session", token, {
       httpOnly: true,
-      secure: (process.env.NODE_ENV as string) === "production",
+      secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
       path: "/",
       maxAge: 2 * 60 * 60
