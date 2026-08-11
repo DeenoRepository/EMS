@@ -1,6 +1,5 @@
 import {
   PrismaClient,
-  RoleKey,
   EquipmentStatus,
   LifecycleStage,
   DocumentType,
@@ -19,24 +18,24 @@ async function main() {
 
   // ─── 1. ROLES ─────────────────────────────────────────────────────────────
   const roleViewer = await prisma.role.upsert({
-    where: { key: RoleKey.VIEWER },
+    where: { key: "viewer_readonly" },
     update: {},
-    create: { key: RoleKey.VIEWER, name: "Просмотр" },
+    create: { key: "viewer_readonly", name: "Просмотр" },
   });
   const roleEditor = await prisma.role.upsert({
-    where: { key: RoleKey.EDITOR },
+    where: { key: "eps_engineer" },
     update: {},
-    create: { key: RoleKey.EDITOR, name: "Редактор" },
+    create: { key: "eps_engineer", name: "Редактор" },
   });
   const roleApprover = await prisma.role.upsert({
-    where: { key: RoleKey.APPROVER },
+    where: { key: "eps_approver" },
     update: {},
-    create: { key: RoleKey.APPROVER, name: "Согласующий" },
+    create: { key: "eps_approver", name: "Согласующий" },
   });
   const roleAdmin = await prisma.role.upsert({
-    where: { key: RoleKey.ADMIN },
+    where: { key: "ADMIN" },
     update: {},
-    create: { key: RoleKey.ADMIN, name: "Администратор" },
+    create: { key: "ADMIN", name: "Администратор", isSystem: true },
   });
 
   // ─── 2. USERS ─────────────────────────────────────────────────────────────

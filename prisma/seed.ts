@@ -2,7 +2,6 @@
 import {
   PrismaClient,
   // EPS
-  RoleKey,
   EquipmentStatus,
   LifecycleStage,
   DocumentType,
@@ -29,56 +28,190 @@ async function main() {
   console.log("═══════════════════════════════════════════════════\n");
 
   // ══════════════════════════════════════════════════════
-  // БЛОК 1: EPS — РОЛИ, ПОЛЬЗОВАТЕЛИ, ОБОРУДОВАНИЕ
+  // БЛОК 0: СИСТЕМНЫЕ РАЗРЕШЕНИЯ (PERMISSIONS)
   // ══════════════════════════════════════════════════════
-  console.log("► Шаг 1: Создание Ролей и Пользователей...");
+  console.log("► Шаг 0: Сидирование реестра разрешений (Permissions)...");
+
+  const permissionsList = [
+    // EPS Permissions
+    { code: "eps.equipment.read", module: "eps", section: "equipment", action: "READ", name: "Просмотр оборудования", description: "Просмотр реестра оборудования, паспортов и спецификаций" },
+    { code: "eps.equipment.create", module: "eps", section: "equipment", action: "CREATE", name: "Создание оборудования", description: "Регистрация новых единиц оборудования" },
+    { code: "eps.equipment.update", module: "eps", section: "equipment", action: "UPDATE", name: "Редактирование оборудования", description: "Изменение характеристик и атрибутов оборудования" },
+    { code: "eps.equipment.delete", module: "eps", section: "equipment", action: "DELETE", name: "Списание оборудования", description: "Списание и вывод оборудования из эксплуатации" },
+    { code: "eps.documents.manage", module: "eps", section: "documents", action: "UPDATE", name: "Управление документами", description: "Прикрепление чертежей, паспортов и инструкций" },
+    { code: "eps.approvals.decide", module: "eps", section: "approvals", action: "APPROVE", name: "Утверждение согласований", description: "Согласование и отклонение версий оборудования и актов" },
+    { code: "eps.reports.export", module: "eps", section: "reports", action: "EXPORT", name: "Экспорт отчётов EPS", description: "Выгрузка сводных отчетов по оборудованию" },
+
+    // WMS Permissions
+    { code: "wms.items.read", module: "wms", section: "items", action: "READ", name: "Просмотр ТМЦ", description: "Просмотр остатков материалов, ЗИП и СИЗ" },
+    { code: "wms.items.create", module: "wms", section: "items", action: "CREATE", name: "Создание номенклатуры ТМЦ", description: "Добавление новых материалов в каталоге" },
+    { code: "wms.items.update", module: "wms", section: "items", action: "UPDATE", name: "Редактирование ТМЦ", description: "Корректировка пороговых остатков и цен" },
+    { code: "wms.movements.execute", module: "wms", section: "movements", action: "EXECUTE", name: "Проведение движений ТМЦ", description: "Оформление прихода, расхода и корректировок" },
+    { code: "wms.personal_cards.manage", module: "wms", section: "personal_cards", action: "EXECUTE", name: "Выдача СИЗ по карточкам", description: "Выдача и возврат СИЗ сотрудникам" },
+    { code: "wms.transfers.manage", module: "wms", section: "transfers", action: "EXECUTE", name: "Межскладские трансферы", description: "Оформление и утверждение перемещений со складов" },
+    { code: "wms.writeoffs.manage", module: "wms", section: "writeoffs", action: "EXECUTE", name: "Списание ТМЦ", description: "Оформление актов списания непригодных ТМЦ" },
+    { code: "wms.topology.manage", module: "wms", section: "topology", action: "UPDATE", name: "Топология складов", description: "Управление ячейками, зонами и стеллажами" },
+
+    // Admin Permissions
+    { code: "admin.roles.manage", module: "admin", section: "rbac", action: "UPDATE", name: "Управление ролями и RBAC", description: "Доступ к Конструктору ролей и назначению прав" },
+    { code: "admin.audit.read", module: "admin", section: "audit", action: "READ", name: "Просмотр аудита", description: "Доступ к системному журналу безопасности" },
+    { code: "admin.settings.manage", module: "admin", section: "settings", action: "UPDATE", name: "Системные настройки", description: "Конфигурирование общих параметров EMS" },
+  ];
+
+  const dbPermissions: Record<string, string> = {};
+  for (const perm of permissionsList) {
+    const p = await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: { name: perm.name, description: perm.description },
+      create: perm,
+    });
+    dbPermissions[perm.code] = p.id;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // БЛОК 1: EPS — РОЛИ И ПОЛЬЗОВАТЕЛИ
+  // ══════════════════════════════════════════════════════
+  console.log("► Шаг 1: Создание Динамических Ролей и Пользователей...");
+
+  const roleAdmin = await prisma.role.upsert({
+    where: { key: "ADMIN" },
+    update: { name: "Суперадминистратор EMS", isSystem: true },
+    create: {
+      key: "ADMIN",
+      name: "Суперадминистратор EMS",
+      description: "Полный доступ ко всем модулям и настройкам системы",
+      isSystem: true,
+    },
+  });
+
+  const roleEditor = await prisma.role.upsert({
+    where: { key: "eps_engineer" },
+    update: { name: "Инженер-паспортист EPS" },
+    create: {
+      key: "eps_engineer",
+      name: "Инженер-паспортист EPS",
+      description: "Ведение реестра оборудования, паспортов и документов",
+      isSystem: false,
+    },
+  });
+
+  const roleApprover = await prisma.role.upsert({
+    where: { key: "eps_approver" },
+    update: { name: "Согласующий (Нач. цеха)" },
+    create: {
+      key: "eps_approver",
+      name: "Согласующий (Нач. цеха)",
+      description: "Утверждение паспортов оборудования и согласование актов",
+      isSystem: false,
+    },
+  });
+
+  const roleStorekeeper = await prisma.role.upsert({
+    where: { key: "wms_storekeeper" },
+    update: { name: "Кладовщик WMS" },
+    create: {
+      key: "wms_storekeeper",
+      name: "Кладовщик WMS",
+      description: "Операционный учет ТМЦ, выдача СИЗ и трансферы",
+      isSystem: false,
+    },
+  });
 
   const roleViewer = await prisma.role.upsert({
-    where: { key: RoleKey.VIEWER },
-    update: {},
-    create: { key: RoleKey.VIEWER, name: "Просмотр" },
+    where: { key: "viewer_readonly" },
+    update: { name: "Наблюдатель (Чтение)" },
+    create: {
+      key: "viewer_readonly",
+      name: "Наблюдатель (Чтение)",
+      description: "Просмотр карточек оборудования и складских остатков",
+      isSystem: false,
+    },
   });
-  const roleEditor = await prisma.role.upsert({
-    where: { key: RoleKey.EDITOR },
-    update: {},
-    create: { key: RoleKey.EDITOR, name: "Редактор" },
-  });
-  const roleApprover = await prisma.role.upsert({
-    where: { key: RoleKey.APPROVER },
-    update: {},
-    create: { key: RoleKey.APPROVER, name: "Согласующий" },
-  });
-  const roleAdmin = await prisma.role.upsert({
-    where: { key: RoleKey.ADMIN },
-    update: {},
-    create: { key: RoleKey.ADMIN, name: "Администратор" },
-  });
+
+  // Привязка разрешений к ролям (RolePermission)
+  const rolePermissionsMap: Record<string, string[]> = {
+    [roleAdmin.id]: Object.values(dbPermissions),
+    [roleEditor.id]: [
+      dbPermissions["eps.equipment.read"],
+      dbPermissions["eps.equipment.create"],
+      dbPermissions["eps.equipment.update"],
+      dbPermissions["eps.documents.manage"],
+      dbPermissions["eps.reports.export"],
+      dbPermissions["wms.items.read"],
+    ],
+    [roleApprover.id]: [
+      dbPermissions["eps.equipment.read"],
+      dbPermissions["eps.approvals.decide"],
+      dbPermissions["eps.reports.export"],
+      dbPermissions["wms.items.read"],
+      dbPermissions["wms.transfers.manage"],
+    ],
+    [roleStorekeeper.id]: [
+      dbPermissions["wms.items.read"],
+      dbPermissions["wms.items.create"],
+      dbPermissions["wms.items.update"],
+      dbPermissions["wms.movements.execute"],
+      dbPermissions["wms.personal_cards.manage"],
+      dbPermissions["wms.transfers.manage"],
+      dbPermissions["wms.writeoffs.manage"],
+      dbPermissions["wms.topology.manage"],
+      dbPermissions["eps.equipment.read"],
+    ],
+    [roleViewer.id]: [
+      dbPermissions["eps.equipment.read"],
+      dbPermissions["wms.items.read"],
+    ],
+  };
+
+  for (const [roleId, permIds] of Object.entries(rolePermissionsMap)) {
+    for (const permissionId of permIds) {
+      if (permissionId) {
+        await prisma.rolePermission.upsert({
+          where: { roleId_permissionId: { roleId, permissionId } },
+          update: {},
+          create: { roleId, permissionId },
+        });
+      }
+    }
+  }
+
+  const adminHash = "$2b$12$LLCRC8Ypsy3CG/Gdq/lYvOHT2vjj4JZT1JkTTk8KpKJDBpd4uNxr6";
+  const editorHash = "$2b$12$rPgKsnH1kjrsNGFBcbzGL.3PBebYEU4f2TjFLdHscPiZh34DYmZoi";
+  const approverHash = "$2b$12$Mq2i2O/RoMDQiXi2/W0r..Hwx0CrUnXix4hfxC64iafiWQl0U.tSK";
+  const storekeeperHash = "$2b$12$d6P8ic7MF/FY3W.je8sl3.FoOmvI6mFGcFoB4LkKRrR2mC5FLet/S";
+  const viewerHash = "$2b$12$rF6ZNxeOx.hgwhi2fNNQSuPX/YtFBilrMdIcZ51voFyrTBMnu65I6";
 
   const userAdmin = await prisma.user.upsert({
     where: { email: "admin@ems.local" },
-    update: { displayName: "Администратор EMS" },
-    create: { email: "admin@ems.local", displayName: "Администратор EMS", isActive: true },
+    update: { displayName: "Администратор EMS", passwordHash: adminHash },
+    create: { email: "admin@ems.local", displayName: "Администратор EMS", passwordHash: adminHash, isActive: true },
   });
   const userEditor = await prisma.user.upsert({
     where: { email: "editor@ems.local" },
-    update: { displayName: "Иванов Иван Петрович (Инженер)" },
-    create: { email: "editor@ems.local", displayName: "Иванов Иван Петрович (Инженер)", isActive: true },
+    update: { displayName: "Иванов Иван Петрович (Инженер)", passwordHash: editorHash },
+    create: { email: "editor@ems.local", displayName: "Иванов Иван Петрович (Инженер)", passwordHash: editorHash, isActive: true },
   });
   const userApprover = await prisma.user.upsert({
     where: { email: "approver@ems.local" },
-    update: { displayName: "Смирнов Дмитрий Олегович (Нач. цеха)" },
-    create: { email: "approver@ems.local", displayName: "Смирнов Дмитрий Олегович (Нач. цеха)", isActive: true },
+    update: { displayName: "Смирнов Дмитрий Олегович (Нач. цеха)", passwordHash: approverHash },
+    create: { email: "approver@ems.local", displayName: "Смирнов Дмитрий Олегович (Нач. цеха)", passwordHash: approverHash, isActive: true },
+  });
+  const userStorekeeper = await prisma.user.upsert({
+    where: { email: "storekeeper@ems.local" },
+    update: { displayName: "Сидоров И.К. (Кладовщик WMS)", passwordHash: storekeeperHash },
+    create: { email: "storekeeper@ems.local", displayName: "Сидоров И.К. (Кладовщик WMS)", passwordHash: storekeeperHash, isActive: true },
   });
   const userViewer = await prisma.user.upsert({
     where: { email: "viewer@ems.local" },
-    update: {},
-    create: { email: "viewer@ems.local", displayName: "Наблюдатель (Viewer)", isActive: true },
+    update: { passwordHash: viewerHash },
+    create: { email: "viewer@ems.local", displayName: "Наблюдатель (Viewer)", passwordHash: viewerHash, isActive: true },
   });
 
   for (const [userId, roleId] of [
     [userAdmin.id, roleAdmin.id],
     [userEditor.id, roleEditor.id],
     [userApprover.id, roleApprover.id],
+    [userStorekeeper.id, roleStorekeeper.id],
     [userViewer.id, roleViewer.id],
   ]) {
     await prisma.userRole.upsert({

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { EquipmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
@@ -197,8 +198,8 @@ export async function POST(request: Request) {
           }
         });
 
-        const ALLOWED_PREDECESSORS: EquipmentStatus[] = ["DRAFT", "PENDING_APPROVAL"];
-        if (targetEquipment && ALLOWED_PREDECESSORS.includes(targetEquipment.status as EquipmentStatus)) {
+        const ALLOWED_PREDECESSORS: string[] = ["DRAFT", "PENDING_APPROVAL", "INACTIVE"];
+        if (targetEquipment && ALLOWED_PREDECESSORS.includes(targetEquipment.status)) {
           await tx.equipment.update({
             where: { id: targetEquipment.id },
             data: { status: "ACTIVE" }

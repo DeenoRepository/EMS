@@ -31,6 +31,7 @@ export interface SearchableSelectProps {
 
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function SearchableSelect({
@@ -41,7 +42,8 @@ export function SearchableSelect({
   value,
   onChange,
   placeholder = "Введите для поиска...",
-  className
+  className,
+  disabled = false
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -124,19 +126,25 @@ export function SearchableSelect({
         <input
           ref={inputRef}
           type="text"
+          disabled={disabled}
           value={searchQuery}
           onChange={(e) => {
+            if (disabled) return;
             setSearchQuery(e.target.value);
             if (!isOpen) setIsOpen(true);
           }}
           onFocus={() => {
+            if (disabled) return;
             setIsOpen(true);
             if (selectedItem && searchQuery === selectedItem.name) {
               inputRef.current?.select();
             }
           }}
           placeholder={placeholder}
-          className="w-full rounded-lg border border-slate-300 bg-white pl-8 pr-8 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs font-medium"
+          className={cn(
+            "w-full rounded-lg border border-slate-300 bg-white pl-8 pr-8 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 shadow-2xs font-medium",
+            disabled && "cursor-not-allowed opacity-50 bg-slate-100"
+          )}
         />
         {searchQuery ? (
           <button

@@ -1,8 +1,9 @@
 # Step 1: Base image
 FROM node:20-alpine AS base
 
-# Install libc6-compat for Prisma compatibility on alpine
-RUN apk add --no-libc-compat libc6-compat
+# Install libc6-compat & openssl for Prisma compatibility on alpine
+RUN apk add --no-cache libc6-compat openssl
+ENV PRISMA_CLI_BINARY_TARGETS="linux-musl-openssl-3.0.x"
 WORKDIR /app
 
 # Step 2: Dependencies
@@ -20,8 +21,10 @@ COPY . .
 # Generate Prisma Client & Build Next.js app in Standalone mode
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
+ARG BUILD_TIME=1
 RUN npx prisma generate
 RUN npm run build
+RUN cp -r node_modules/.prisma .next/standalone/node_modules/.prisma
 
 # Step 4: Runner
 FROM base AS runner
@@ -39,6 +42,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 USER nextjs
