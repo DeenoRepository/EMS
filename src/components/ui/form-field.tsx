@@ -8,19 +8,89 @@ export interface FormFieldProps {
   hint?: string;
   className?: string;
   children: React.ReactNode;
+  id?: string;
 }
 
-export function FormField({ label, required, error, hint, className, children }: FormFieldProps) {
+export function FormField({
+  label,
+  required,
+  error,
+  hint,
+  className,
+  children,
+  id: providedId,
+}: FormFieldProps) {
+  const generatedId = React.useId();
+  const id = providedId || generatedId;
+  const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+
+  // Inject id and aria attributes into single child, or wrap multiple children
+  const enhancedChildren = React.Children.map(children, (child) => {
+    if (!React.isValidElement(child)) return child;
+
+    const childProps = child.props as Record<string, unknown>;
+    const isInputElement =
+      typeof child.type === "string" ||
+      (typeof child.type === "function" && (child.type as { displayName?: string }).displayName);
+
+    if (isInputElement) {
+      return React.cloneElement(
+        child as React.ReactElement<{
+          id?: string;
+          "aria-invalid"?: boolean;
+          "aria-describedby"?: string;
+          "aria-required"?: boolean;
+        }>,
+        {
+          id,
+          "aria-invalid": error ? true : undefined,
+          "aria-describedby": [
+            error ? errorId : null,
+            hint && !error ? hintId : null,
+          ]
+            .filter(Boolean)
+            .join(" ") || undefined,
+          "aria-required": required ? true : undefined,
+          ...childProps,
+        }
+      );
+    }
+    return child;
+  });
+
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label className="font-semibold text-slate-600 dark:text-slate-300 text-[11px] block">
-          {label} {required && <span className="text-rose-500">*</span>}
+        <label
+          htmlFor={id}
+          className="block text-sm font-medium text-foreground"
+        >
+          {label}
+          {required && (
+            <span className="text-destructive ml-0.5" aria-hidden="true">
+              *
+            </span>
+          )}
+          {required && <span className="sr-only"> (обязательное поле)</span>}
         </label>
       )}
-      {children}
-      {error && <p className="text-[10px] font-medium text-rose-500">{error}</p>}
-      {hint && !error && <p className="text-[10px] text-slate-400">{hint}</p>}
+      {enhancedChildren}
+      {error && (
+        <p
+          id={errorId}
+          role="alert"
+          className="text-xs font-medium text-destructive flex items-center gap-1"
+        >
+          <span aria-hidden="true">⚠</span>
+          {error}
+        </p>
+      )}
+      {hint && !error && (
+        <p id={hintId} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

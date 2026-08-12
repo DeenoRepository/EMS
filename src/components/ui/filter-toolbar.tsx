@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { SlidersHorizontal, RotateCcw } from "lucide-react";
+import { SlidersHorizontal, RotateCcw, X } from "lucide-react";
 import { SearchInput } from "./search-input";
 import { ColumnToggle, ColumnOption } from "./column-toggle";
 import { FilterChip } from "./filter-chip";
+import { Button } from "./button";
+import { Select } from "./select";
 import { cn } from "@/lib/utils";
 
 export interface FilterOption {
@@ -49,10 +51,10 @@ export function FilterToolbar<K extends string = string>({
   className,
 }: FilterToolbarProps<K>) {
   return (
-    <div className={cn("space-y-2.5", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-[0_2px_8px_rgba(15,23,42,.025)]">
+    <div className={cn("space-y-3", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
         {onSearchChange !== undefined && searchQuery !== undefined && (
-          <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
+          <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md">
             <SearchInput
               value={searchQuery}
               onChange={onSearchChange}
@@ -61,32 +63,34 @@ export function FilterToolbar<K extends string = string>({
           </div>
         )}
 
-        <div className="flex items-center gap-2 flex-wrap text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
           {filters.length > 0 && (
-            <div className="flex items-center gap-1 text-[#3473d4] dark:text-blue-400">
-              <SlidersHorizontal size={13} />
-              <span className="font-semibold text-[11px]">Фильтры:</span>
+            <div className="flex items-center gap-1.5 text-primary">
+              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="text-xs font-semibold">Фильтры:</span>
             </div>
           )}
 
-          {filters.map((f) => (
-            <select
-              key={f.key}
-              value={f.value}
-              onChange={(e) => f.onChange(e.target.value)}
-              className={`h-8 rounded-lg border px-2.5 text-[10px] outline-none transition ${
-                f.value !== "ALL" && f.value !== ""
-                  ? "border-[#3c82ed] bg-blue-50/50 text-[#3473d4] font-semibold dark:bg-blue-950/40 dark:text-blue-400"
-                  : "border-slate-200 dark:border-slate-800 bg-[#f8fafc] dark:bg-slate-900 text-slate-600 dark:text-slate-300 focus:border-[#3c82ed]"
-              }`}
-            >
-              {f.options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          ))}
+          {filters.map((f) => {
+            const isActive = f.value !== "ALL" && f.value !== "";
+            return (
+              <Select
+                key={f.key}
+                value={f.value}
+                onChange={(e) => f.onChange(e.target.value)}
+                inputSize="sm"
+                active={isActive}
+                aria-label={f.label}
+                className="min-w-[140px]"
+              >
+                {f.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            );
+          })}
 
           {columns && onColumnToggle && (
             <ColumnToggle
@@ -101,19 +105,24 @@ export function FilterToolbar<K extends string = string>({
       </div>
 
       {activeChips.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap text-xs px-1">
-          <span className="text-[10px] font-semibold text-slate-400">Активные фильтры:</span>
+        <div className="flex items-center gap-2 flex-wrap px-1">
+          <span className="text-xs font-semibold text-muted-foreground">
+            Активные фильтры:
+          </span>
           {activeChips.map((chip) => (
             <FilterChip key={chip.id} label={chip.label} onRemove={chip.onRemove} />
           ))}
           {onResetAll && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={onResetAll}
-              className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition ml-1"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
-              <RotateCcw size={10} /> Сбросить все
-            </button>
+              <RotateCcw className="h-3 w-3 mr-1" aria-hidden="true" />
+              Сбросить все
+            </Button>
           )}
         </div>
       )}

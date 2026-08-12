@@ -7,31 +7,68 @@ export interface SearchInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  inputSize?: "sm" | "md" | "lg";
+  onSubmit?: () => void;
 }
+
+const sizeClasses = {
+  sm: "h-9 pl-8 pr-8 text-sm",
+  md: "h-10 pl-9 pr-9 text-sm",
+  lg: "h-11 pl-10 pr-10 text-base",
+};
+
+const iconSizeClasses = {
+  sm: "h-3.5 w-3.5 left-2.5",
+  md: "h-4 w-4 left-3",
+  lg: "h-5 w-5 left-3.5",
+};
 
 export function SearchInput({
   value,
   onChange,
   placeholder = "Поиск…",
   className,
+  inputSize = "md",
+  onSubmit,
 }: SearchInputProps) {
   return (
     <div className={cn("relative w-full", className)}>
-      <Search size={14} className="absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
+      <Search
+        className={cn(
+          "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+          iconSizeClasses[inputSize]
+        )}
+        aria-hidden="true"
+      />
       <input
-        type="text"
+        type="search"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-[#f8fafc] dark:bg-slate-900 pl-9 pr-8 text-[11px] outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 text-slate-800 dark:text-slate-200 focus:border-[#3c82ed] focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 transition"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && onSubmit) {
+            onSubmit();
+          }
+        }}
+        aria-label={placeholder}
+        className={cn(
+          "w-full rounded-lg border border-input bg-background text-foreground",
+          "outline-none transition-colors duration-200",
+          "placeholder:text-muted-foreground",
+          "focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20",
+          sizeClasses[inputSize]
+        )}
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
+          aria-label="Очистить поиск"
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 right-2.5 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          )}
         >
-          <X size={13} />
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       )}
     </div>
