@@ -63,14 +63,6 @@ export function getAdminSettingsNavItems(): NavItem[] {
           keywords: ["основные", "параметры", "платформа", "general", "settings", "общие"],
           iconName: "SlidersHorizontal"
         },
-        {
-          id: "nav-admin-rbac",
-          title: "Доступ (RBAC)",
-          href: "/admin/rbac",
-          category: "Администрирование",
-          keywords: ["rbac", "безопасность", "роли", "права", "пользователи", "security", "roles", "users", "доступ"],
-          iconName: "ShieldCheck"
-        },
         ...moduleSettingsItems,
         {
           id: "nav-admin-audit",

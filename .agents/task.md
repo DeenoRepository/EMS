@@ -17,24 +17,20 @@
 
 ## Фаза 4: Улучшение бизнес-логики и CRUD функций (P3)
 - [ ] Добавить валидацию переходов статусов в Requisitions (`src/app/api/modules/wms/requisitions/route.ts`)
-- [ ] Добавить API отмены/снятия резервов в WMS Reservations (`src/app/api/modules/wms/reservations/route.ts`)
 - [ ] Добавить создание `EquipmentVersion` и `EquipmentEvent` при создании оборудования (`src/app/api/modules/eps/equipment/route.ts`)
 
 ## Фаза 6: Эпик "Конструктор ролей для RBAC в Настройках"
-- [x] **`postgres-prisma-engineer`**: Изменение `prisma/schema.prisma` (модели `Role`, `Permission`, `RolePermission`, `RoleScope`) и расширение `prisma/seed.ts`
-- [x] **`backend-api-architect`**: Создание реестра `src/lib/auth/permissions-registry.ts`, обновление `rbac.ts`, `authorization-matrix.ts` и эндпоинтов `/api/admin/roles`, `/api/admin/permissions`
-- [x] **`nextjs-frontend-architect`**: Реализация двухвкладочной консоли в `src/app/admin/rbac/page.tsx` и компонента `src/components/admin/role-constructor-modal.tsx`
-- [x] **`qa-code-reviewer`**: Прогон миграций/сидирования, проверочная сборка `npm run build` и верификация в Docker контейнерах
+- [x] **`postgres-prisma-engineer`**: Изменение `prisma/schema.prisma` и расширение `prisma/seed.ts`
+- [x] **`backend-api-architect`**: Создание реестра `permissions-registry.ts` и эндпоинтов `/api/admin/roles`
+- [x] **`nextjs-frontend-architect`**: Консоль в `src/app/admin/rbac/page.tsx` и `RoleConstructorModal`
+- [x] **`qa-code-reviewer`**: Прогон миграций, сборка и верификация
 
-## Фаза 7: Переработка страницы Настроек Shell и Приложения (`/admin/settings`)
-- [x] **`backend-api-architect`**: Создать `src/app/api/admin/settings/route.ts` (GET / POST API настроек Shell: заголовок платформы, часовой пояс, язык, тема, баннеры обслуживания, безопасность сессий, лимиты хранилища S3/локального, реестр модулей EPS/WMS)
-- [x] **`nextjs-frontend-architect`**: Полностью переработать `src/app/admin/settings/page.tsx` с нуля (Общие настройки Shell, Оформление/Брендинг, Уведомления, Безопасность, Хранилище, Реестр модулей)
-- [x] **`qa-code-reviewer`**: Проверка типов `npm run typecheck` и сборка `npm run build`
+## Фаза 7: Переработка страницы Настроек Shell (`/admin/settings`)
+- [x] **`backend-api-architect`**: API настроек `/api/admin/settings`
+- [x] **`nextjs-frontend-architect`**: Настройки Shell `src/app/admin/settings/page.tsx`
+- [x] **`qa-code-reviewer`**: Проверка типов и сборка
 
-
-
-
-## Фаза 5: Верификация и QA
-- [x] Проверить сборку `npm run build`
-- [x] Проверить работу авторизации в Docker контейнерах (`ems-app`)
+## Фаза 9: Единый стилистический дизайн Shell, Настроек и Аудита
+- [ ] **`nextjs-frontend-architect`**: Пересмотр дизайна Настроек Shell (`src/app/admin/settings/page.tsx`), Настроек модулей (`src/app/admin/settings/[moduleId]/page.tsx`) и Страницы аудита (`src/app/admin/audit/page.tsx`) в едином стиле корпоративного шелла
+- [ ] **`qa-code-reviewer`**: Проверка сборки и типов `npm run typecheck`
 

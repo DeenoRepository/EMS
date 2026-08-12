@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function EpsAttributesRedirect() {
-  redirect("/admin/settings/eps/attributes");
+  redirect("/admin/settings/eps");
 }
