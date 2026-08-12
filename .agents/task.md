@@ -57,5 +57,7 @@
 - [x] **`nextjs-frontend-architect`**: Связывание модернизированных компонентов со всеми страницами (`src/app/modules/wms/page.tsx`, `topology/page.tsx`, `requisitions/page.tsx`, `personal-cards/page.tsx`)
 - [x] **`qa-code-reviewer`**: Проверка типов `npm run typecheck`, сборка и финальная верификация
 
-
+## Фаза 12: Очистка неиспользуемых файлов и артефактов проекта
+- [x] **`backend-api-architect`**: Удаление `.playwright-mcp/`, `ems-production-audit.html`, `CLAUDE.md`, `prisma/seed-eps.ts`, `prisma/verify-seed.ts` и очистка `package.json`
+- [x] **`qa-code-reviewer`**: Проверка сборки и отсутствие ломающих изменений
 
