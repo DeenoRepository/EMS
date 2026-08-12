@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import ShellLayout from "@/components/layout/shell-layout";
 import { ArrowLeftRight, Plus, RefreshCw, Send, CheckCircle, Clock, Bell, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { PageHeader, DataTable, StatusBadge, Modal, ModalHeader, SearchableSelect } from "@/components/ui";
+import { RequisitionModal } from "@/components/wms/modals";
 import { useShell } from "@/components/layout/shell-context";
+
 
 interface WmsItem {
   id: string;
@@ -347,124 +349,15 @@ function WmsRequisitionsPageContent() {
           keyExtractor={(row) => row.id}
         />
 
-        <Modal open={showRequisitionModal} onClose={() => setShowRequisitionModal(false)} size="xl">
-          <ModalHeader
-            icon={<Send size={16} />}
-            title="Запрос ТМЦ у другого склада"
-            subtitle="Формирование заявки для ответственного кладовщика (МОЛ) склада-поставщика"
-            onClose={() => setShowRequisitionModal(false)}
-          />
-          <form onSubmit={handleCreateRequisition} className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Получатель *</label>
-                <select
-                  value={reqHeader.fromWarehouse}
-                  onChange={(e) => setReqHeader({ ...reqHeader, fromWarehouse: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                >
-                  {warehousesList.map((w) => (
-                    <option key={w.id} value={w.name}>{w.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Склад-Поставщик *</label>
-                <select
-                  value={reqHeader.toWarehouse}
-                  onChange={(e) => setReqHeader({ ...reqHeader, toWarehouse: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                >
-                  {warehousesList.map((w) => (
-                    <option key={w.id} value={w.name}>{w.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        <RequisitionModal
+          isOpen={showRequisitionModal}
+          onClose={() => setShowRequisitionModal(false)}
+          onSuccess={fetchData}
+          items={items as any}
+          warehouses={warehousesList as any}
+        />
 
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2 pt-2">
-              <span className="text-xs font-semibold text-slate-700">Запрашиваемые позиции ТМЦ ({reqItemsRows.length}):</span>
-              <button
-                type="button"
-                onClick={addReqRow}
-                className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
-              >
-                <Plus size={13} /> Добавить позицию
-              </button>
-            </div>
 
-            <div className="space-y-3 p-1 overflow-visible">
-              {reqItemsRows.map((row, idx) => (
-                <div key={row.id} className="grid grid-cols-12 gap-3 items-center rounded-lg border border-slate-200 bg-slate-50/60 p-3">
-                  <div className="col-span-8">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Выберите ТМЦ #{idx + 1} *</label>
-                    <SearchableSelect
-                      items={items}
-                      selectedId={row.selectedItemId}
-                      onSelect={(selectedItem) => {
-                        setReqItemsRows(reqItemsRows.map((r) => (r.id === row.id ? { ...r, selectedItemId: selectedItem.id } : r)));
-                      }}
-                      placeholder="Поиск по названию или SKU..."
-                    />
-                  </div>
-
-                  <div className="col-span-3">
-                    <label className="block text-[10px] font-semibold text-slate-500 mb-1">Количество *</label>
-                    <input
-                      required
-                      type="number"
-                      min="1"
-                      value={row.quantity}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setReqItemsRows(reqItemsRows.map((r) => (r.id === row.id ? { ...r, quantity: val } : r)));
-                      }}
-                      className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="col-span-1 flex items-center justify-center pt-4">
-                    <button
-                      type="button"
-                      disabled={reqItemsRows.length <= 1}
-                      onClick={() => removeReqRow(row.id)}
-                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Примечание / Обоснование</label>
-              <input
-                type="text"
-                value={reqHeader.note}
-                onChange={(e) => setReqHeader({ ...reqHeader, note: e.target.value })}
-                placeholder="Для закрытия аварийной заявки ТОИР"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowRequisitionModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 shadow-sm"
-              >
-                Отправить запрос кладовщику
-              </button>
-            </div>
-          </form>
-        </Modal>
       </main>
   );
 }
