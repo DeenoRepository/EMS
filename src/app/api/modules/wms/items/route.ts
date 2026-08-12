@@ -1,36 +1,73 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
 import { createWmsItemSchema } from "@/lib/validations/wms";
 import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
+const wmsItemsQuerySchema = z.object({
+  query: z.string().optional(),
+  warehouse: z.string().optional(),
+  warehouseId: z.string().optional(),
+  category: z.string().optional(),
+  status: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * GET /api/modules/wms/items
+ *
+ * Получить список ТМЦ с фильтрацией по складу, категории и поисковому запросу.
+ * Применяется scope-based фильтрация по ответственным складам пользователя.
+ *
+ * @requires Permission: wms.items.read
+ * @returns {Promise<{ items: WmsItem[], total: number, limit: number, offset: number }>}
+ */
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get("query");
-  const warehouse = searchParams.get("warehouse");
-  const warehouseId = searchParams.get("warehouseId");
-  const category = searchParams.get("category");
-  const status = searchParams.get("status");
+  const parseResult = wmsItemsQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parseResult.success) {
+    return createErrorResponse(
+      "VALIDATION_ERROR",
+      "Некорректные параметры запроса",
+      parseResult.error.flatten(),
+      400,
+      request
+    );
+  }
+
+  const { query, warehouse, warehouseId, category, status, limit, offset } = parseResult.data;
 
   try {
     const responsibleWarehouses = await getUserResponsibleWarehouses();
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
-    // Ограничение видимости по складам МОЛ
+    // SEC-09: Scope-based фильтрация по складам МОЛ
     if (responsibleWarehouses !== null) {
       if (responsibleWarehouses.length === 0) {
-        return NextResponse.json({ items: [], total: 0 });
+        return createSuccessResponse({ items: [], total: 0, limit, offset }, request);
       }
       where.OR = [
         { warehouse: { in: responsibleWarehouses } },
-        { warehouseId: { in: responsibleWarehouses } }
+        { warehouseId: { in: responsibleWarehouses } },
       ];
     }
 
     if (query) {
       where.AND = [
-        ...(where.AND || []),
+        ...((where.AND as unknown[]) || []),
         {
           OR: [
             { name: { contains: query, mode: "insensitive" } },
@@ -38,68 +75,109 @@ export async function GET(request: Request) {
             { batchNumber: { contains: query, mode: "insensitive" } },
             { serialNumber: { contains: query, mode: "insensitive" } },
             { category: { contains: query, mode: "insensitive" } },
-            { cell: { contains: query, mode: "insensitive" } }
-          ]
-        }
+            { cell: { contains: query, mode: "insensitive" } },
+          ],
+        },
       ];
     }
     if (warehouseId) {
       where.warehouseId = warehouseId;
     } else if (warehouse) {
       if (responsibleWarehouses !== null && !responsibleWarehouses.includes(warehouse)) {
-        return NextResponse.json({ items: [], total: 0 });
+        return createSuccessResponse({ items: [], total: 0, limit, offset }, request);
       }
       where.warehouse = warehouse;
     }
     if (category) where.category = category;
     if (status) where.status = status;
 
-    const items = await prisma.wmsItem.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-      include: {
-        warehouseRef: { select: { id: true, name: true, code: true } },
-        zoneRef: { select: { id: true, name: true, code: true } },
-        cellRef: { select: { id: true, code: true } },
-        equipment: { select: { id: true, name: true, equipmentCode: true } }
-      }
-    });
+    const [items, total] = await Promise.all([
+      prisma.wmsItem.findMany({
+        where,
+        orderBy: { updatedAt: "desc" },
+        take: limit,
+        skip: offset,
+        include: {
+          warehouseRef: { select: { id: true, name: true, code: true } },
+          zoneRef: { select: { id: true, name: true, code: true } },
+          cellRef: { select: { id: true, code: true } },
+          equipment: { select: { id: true, name: true, equipmentCode: true } },
+        },
+      }),
+      prisma.wmsItem.count({ where }),
+    ]);
 
-    return NextResponse.json({ items, total: items.length });
+    return createSuccessResponse({ items, total, limit, offset }, request);
   } catch (err) {
     console.error("WMS Items query failed:", err);
-    return NextResponse.json({ items: [], total: 0 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "ITEMS_LIST_FAILED",
+      userId: session.id,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения списка ТМЦ",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
+/**
+ * POST /api/modules/wms/items
+ *
+ * Приход номенклатурной единицы (создание или пополнение существующей).
+ * Публикует доменное событие через Transactional Outbox.
+ *
+ * @requires Permission: wms.items.create
+ * @returns {Promise<{ success: true, item: WmsItem, isExisting: boolean }>}
+ */
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
     const rawBody = await request.json();
     const parseResult = createWmsItemSchema.safeParse(rawBody);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          error: "Некорректные параметры запроса ТМЦ (SEC-03)",
-          details: parseResult.error.flatten()
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные параметры запроса ТМЦ (SEC-03)",
+        parseResult.error.flatten(),
+        400,
+        request
       );
     }
 
     const body = parseResult.data;
 
-    // Права на склад
+    // SEC-09: Проверка прав на склад
     const responsibleWarehouses = await getUserResponsibleWarehouses();
     if (responsibleWarehouses !== null && !responsibleWarehouses.includes(body.warehouse)) {
-      return NextResponse.json(
-        { error: `Отказано в доступе. Вы являетесь ответственным только за склады: ${responsibleWarehouses.join(", ")}` },
-        { status: 403 }
+      logEvent({
+        level: "warn",
+        module: "WMS",
+        action: "ITEM_CREATE_DENIED_SCOPE",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { warehouse: body.warehouse, allowed: responsibleWarehouses },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        `Отказано в доступе. Вы являетесь ответственным только за склады: ${responsibleWarehouses.join(", ")}`,
+        undefined,
+        403,
+        request
       );
     }
 
@@ -111,9 +189,9 @@ export async function POST(request: Request) {
       where: {
         OR: [
           { name: body.warehouse },
-          { id: rawBody.warehouseId || "" }
-        ]
-      }
+          { id: rawBody.warehouseId || "" },
+        ],
+      },
     });
 
     const targetWarehouseId = targetWarehouseObj?.id || rawBody.warehouseId || null;
@@ -124,14 +202,19 @@ export async function POST(request: Request) {
         sku: body.sku,
         OR: [
           { warehouse: body.warehouse },
-          ...(targetWarehouseId ? [{ warehouseId: targetWarehouseId }] : [])
-        ]
-      }
+          ...(targetWarehouseId ? [{ warehouseId: targetWarehouseId }] : []),
+        ],
+      },
     });
 
     if (existingNomenclature) {
       const updatedQty = existingNomenclature.quantity + incomingQty;
-      const updatedStatus = updatedQty <= 0 ? "OUT_OF_STOCK" : updatedQty <= existingNomenclature.minQuantity ? "LOW_STOCK" : "IN_STOCK";
+      const updatedStatus =
+        updatedQty <= 0
+          ? "OUT_OF_STOCK"
+          : updatedQty <= existingNomenclature.minQuantity
+            ? "LOW_STOCK"
+            : "IN_STOCK";
 
       const updatedItem = await prisma.$transaction(async (tx) => {
         const item = await tx.wmsItem.update({
@@ -143,8 +226,8 @@ export async function POST(request: Request) {
             warehouseId: targetWarehouseId || existingNomenclature.warehouseId,
             equipmentId: rawBody.equipmentId || existingNomenclature.equipmentId,
             status: updatedStatus,
-            updatedAt: new Date()
-          }
+            updatedAt: new Date(),
+          },
         });
 
         const movement = await tx.wmsMovement.create({
@@ -158,7 +241,7 @@ export async function POST(request: Request) {
             toLocation: body.cell || existingNomenclature.cell || "Склад",
             performedBy: sessionUser,
             reason: `Приход номенклатурной единицы (${incomingQty} ${existingNomenclature.unit})`,
-          }
+          },
         });
 
         await recordWmsOutboxEvent(tx, {
@@ -172,13 +255,32 @@ export async function POST(request: Request) {
             totalQuantity: updatedQty,
             movementId: movement.id,
             performedBy: sessionUser,
-          }
+          },
         });
 
         return item;
       });
 
-      return NextResponse.json({ item: updatedItem, isExisting: true, success: true }, { status: 200 });
+      logEvent({
+        level: "audit",
+        module: "WMS",
+        action: "ITEM_STOCK_RECEIVED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: {
+          itemId: updatedItem.id,
+          sku: updatedItem.sku,
+          quantity: incomingQty,
+          totalQuantity: updatedQty,
+        },
+      });
+
+      return createSuccessResponse(
+        { success: true, item: updatedItem, isExisting: true },
+        request,
+        200
+      );
     }
 
     // 2. Создание новой номенклатурной единицы в каталоге
@@ -204,7 +306,7 @@ export async function POST(request: Request) {
           status: incomingQty <= body.minQuantity ? "LOW_STOCK" : "IN_STOCK",
           supplier: body.supplier || "Поставщик",
           description: body.description || null,
-        }
+        },
       });
 
       const movement = await tx.wmsMovement.create({
@@ -218,7 +320,7 @@ export async function POST(request: Request) {
           toLocation: body.cell || "Яч-01",
           performedBy: sessionUser,
           reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit})`,
-        }
+        },
       });
 
       await recordWmsOutboxEvent(tx, {
@@ -234,18 +336,47 @@ export async function POST(request: Request) {
           quantity: incomingQty,
           movementId: movement.id,
           performedBy: sessionUser,
-        }
+        },
       });
 
       return item;
     });
 
-    return NextResponse.json({ item: newItem, isExisting: false, success: true }, { status: 201 });
-  } catch (err: any) {
+    logEvent({
+      level: "audit",
+      module: "WMS",
+      action: "ITEM_CREATED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: {
+        itemId: newItem.id,
+        sku: newItem.sku,
+        warehouse: newItem.warehouse,
+        quantity: incomingQty,
+      },
+    });
+
+    return createSuccessResponse(
+      { success: true, item: newItem, isExisting: false },
+      request,
+      201
+    );
+  } catch (err) {
     console.error("Failed to process WMS item receiving:", err);
-    return NextResponse.json(
-      { error: "Не удалось провести приход номенклатурной единицы" },
-      { status: 500 }
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "ITEM_CREATE_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Не удалось провести приход номенклатурной единицы",
+      undefined,
+      500,
+      request
     );
   }
 }

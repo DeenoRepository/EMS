@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
@@ -6,95 +5,212 @@ import { positiveIntSchema, wmsIdSchema } from "@/lib/validations/wms";
 import { isValidTransferTransition } from "@/lib/wms/state-machine";
 import { WmsTransferStatus } from "@prisma/client";
 import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
+const transfersQuerySchema = z.object({
+  status: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+const createTransferSchema = z.object({
+  itemId: z.string().min(1),
+  quantity: z.coerce.number().int().positive(),
+  toWarehouse: z.string().min(1, "Укажите склад-получатель"),
+  reason: z.string().optional(),
+  targetMolUser: z.string().optional(),
+});
+
+const decideTransferSchema = z.object({
+  action: z.enum(["APPROVE", "REJECT"]),
+  requestId: z.string().min(1),
+  comment: z.string().optional(),
+});
+
+/**
+ * GET /api/modules/wms/transfers
+ *
+ * Получить список заявок на межскладское перемещение.
+ * Применяется scope-based фильтрация по ответственным складам.
+ *
+ * @requires Permission: wms.transfers.manage
+ * @returns {Promise<{ requests: WmsTransferRequest[], total: number, limit: number, offset: number }>}
+ */
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status");
+  const parseResult = transfersQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parseResult.success) {
+    return createErrorResponse(
+      "VALIDATION_ERROR",
+      "Некорректные параметры запроса",
+      parseResult.error.flatten(),
+      400,
+      request
+    );
+  }
+
+  const { status, limit, offset } = parseResult.data;
 
   try {
-    const session = await getSession();
     const responsibleWarehouses = await getUserResponsibleWarehouses();
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (status) where.status = status;
 
     // Если пользователь МОЛ, показываем заявки где он отправитель ИЛИ получатель
     if (responsibleWarehouses !== null) {
       if (responsibleWarehouses.length === 0) {
-        return NextResponse.json({ requests: [], total: 0 });
+        return createSuccessResponse({ requests: [], total: 0, limit, offset }, request);
       }
       where.OR = [
         { fromWarehouse: { in: responsibleWarehouses } },
-        { toWarehouse: { in: responsibleWarehouses } }
+        { toWarehouse: { in: responsibleWarehouses } },
       ];
     }
 
-    const requests = await prisma.wmsTransferRequest.findMany({
-      where,
-      orderBy: { createdAt: "desc" }
-    });
+    const [requests, total] = await Promise.all([
+      prisma.wmsTransferRequest.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.wmsTransferRequest.count({ where }),
+    ]);
 
-    return NextResponse.json({ requests, total: requests.length });
+    return createSuccessResponse({ requests, total, limit, offset }, request);
   } catch (err) {
     console.error("WMS Transfer requests GET failed:", err);
-    return NextResponse.json({ requests: [], total: 0 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "TRANSFERS_LIST_FAILED",
+      userId: session.id,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения списка заявок на перемещение",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
+/**
+ * POST /api/modules/wms/transfers
+ *
+ * Создать новую заявку на перемещение или принять решение по существующей (APPROVE/REJECT).
+ * Публикует доменные события через Transactional Outbox.
+ *
+ * @requires Permission: wms.transfers.manage
+ * @returns {Promise<{ success: true, request: WmsTransferRequest }>}
+ */
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
-    const body = await request.json();
-    const { action, requestId, itemId, quantity, toWarehouse, reason } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
     const sessionUser = session.displayName || session.username;
+    const bodyObj = body as Record<string, unknown>;
 
     // Сценарий 1: Подтверждение / Отклонение заявки (Приемка МОЛ-получателем)
-    if (action === "APPROVE" || action === "REJECT") {
-      const idParse = wmsIdSchema.safeParse(requestId);
-      if (!idParse.success) {
-        return NextResponse.json({ error: "Не указан или некорректен ID заявки" }, { status: 400 });
+    if (bodyObj.action === "APPROVE" || bodyObj.action === "REJECT") {
+      const decideParse = decideTransferSchema.safeParse(bodyObj);
+      if (!decideParse.success) {
+        return createErrorResponse(
+          "VALIDATION_ERROR",
+          "Не указан или некорректен ID заявки",
+          decideParse.error.flatten(),
+          400,
+          request
+        );
       }
 
+      const { action, requestId, comment } = decideParse.data;
       const targetStatus: WmsTransferStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
 
       const transferReq = await prisma.wmsTransferRequest.findUnique({
-        where: { id: idParse.data },
-        include: { item: true }
+        where: { id: requestId },
+        include: { item: true },
       });
 
       if (!transferReq) {
-        return NextResponse.json({ error: "Заявка на перемещение не найдена" }, { status: 404 });
+        return createErrorResponse(
+          "NOT_FOUND",
+          "Заявка на перемещение не найдена",
+          undefined,
+          404,
+          request
+        );
       }
 
       // SEC-04: Идемпотентность статусов — запрет повторной обработки
       if (!isValidTransferTransition(transferReq.status, targetStatus)) {
-        return NextResponse.json(
-          {
-            error: `Заявка на перемещение уже находится в конечном статусе "${transferReq.status}" (SEC-04)`,
-            currentStatus: transferReq.status,
-          },
-          { status: 409 }
+        return createErrorResponse(
+          "CONFLICT",
+          `Заявка на перемещение уже находится в конечном статусе "${transferReq.status}" (SEC-04)`,
+          { currentStatus: transferReq.status },
+          409,
+          request
         );
       }
 
       // Проверка прав МОЛ целевого склада
       const responsibleWarehouses = await getUserResponsibleWarehouses();
       if (responsibleWarehouses !== null && !responsibleWarehouses.includes(transferReq.toWarehouse)) {
-        return NextResponse.json(
-          { error: `Отказано в доступе. Только МОЛ склада "${transferReq.toWarehouse}" может подтвердить прием.` },
-          { status: 403 }
+        logEvent({
+          level: "warn",
+          module: "WMS",
+          action: "TRANSFER_DECIDE_DENIED_SCOPE",
+          userId: session.id,
+          userEmail: session.email,
+          requestId: correlationId,
+          details: { toWarehouse: transferReq.toWarehouse, allowed: responsibleWarehouses },
+        });
+        return createErrorResponse(
+          "FORBIDDEN",
+          `Отказано в доступе. Только МОЛ склада "${transferReq.toWarehouse}" может подтвердить прием.`,
+          undefined,
+          403,
+          request
         );
       }
 
       if (action === "REJECT") {
         const updatedReq = await prisma.$transaction(async (tx) => {
           const updatedCount = await tx.wmsTransferRequest.updateMany({
-            where: { id: idParse.data, status: "PENDING" },
-            data: { status: "REJECTED", comment: body.comment || "Отклонено получателем" }
+            where: { id: requestId, status: "PENDING" },
+            data: { status: "REJECTED", comment: comment || "Отклонено получателем" },
           });
 
           if (updatedCount.count === 0) {
@@ -104,28 +220,38 @@ export async function POST(request: Request) {
           await recordWmsOutboxEvent(tx, {
             eventName: "wms.transfer.rejected",
             aggregateType: "WmsTransferRequest",
-            aggregateId: idParse.data,
+            aggregateId: requestId,
             payload: {
-              requestId: idParse.data,
+              requestId,
               fromWarehouse: transferReq.fromWarehouse,
               toWarehouse: transferReq.toWarehouse,
               performedBy: sessionUser,
-              comment: body.comment || "Отклонено получателем",
-            }
+              comment: comment || "Отклонено получателем",
+            },
           });
 
-          return await tx.wmsTransferRequest.findUnique({ where: { id: idParse.data } });
+          return await tx.wmsTransferRequest.findUnique({ where: { id: requestId } });
         });
 
-        return NextResponse.json({ request: updatedReq, success: true });
+        logEvent({
+          level: "audit",
+          module: "WMS",
+          action: "TRANSFER_REJECTED",
+          userId: session.id,
+          userEmail: session.email,
+          requestId: correlationId,
+          details: { requestId, fromWarehouse: transferReq.fromWarehouse, toWarehouse: transferReq.toWarehouse },
+        });
+
+        return createSuccessResponse({ success: true, request: updatedReq }, request);
       }
 
       // APPROVE: Перемещение остатка из склада-отправителя на склад-получатель
       const result = await prisma.$transaction(async (tx) => {
         // 1. Изменяем статус трансфера с PENDING на APPROVED
         const reqUpdate = await tx.wmsTransferRequest.updateMany({
-          where: { id: idParse.data, status: "PENDING" },
-          data: { status: "APPROVED" }
+          where: { id: requestId, status: "PENDING" },
+          data: { status: "APPROVED" },
         });
 
         if (reqUpdate.count === 0) {
@@ -136,11 +262,11 @@ export async function POST(request: Request) {
         const itemUpdate = await tx.wmsItem.updateMany({
           where: {
             id: transferReq.itemId,
-            quantity: { gte: transferReq.quantity }
+            quantity: { gte: transferReq.quantity },
           },
           data: {
-            quantity: { decrement: transferReq.quantity }
-          }
+            quantity: { decrement: transferReq.quantity },
+          },
         });
 
         if (itemUpdate.count === 0) {
@@ -151,8 +277,8 @@ export async function POST(request: Request) {
         const targetItem = await tx.wmsItem.findFirst({
           where: {
             sku: transferReq.itemSku,
-            warehouse: transferReq.toWarehouse
-          }
+            warehouse: transferReq.toWarehouse,
+          },
         });
 
         if (targetItem) {
@@ -160,8 +286,8 @@ export async function POST(request: Request) {
             where: { id: targetItem.id },
             data: {
               quantity: { increment: transferReq.quantity },
-              lastIncomingDate: new Date()
-            }
+              lastIncomingDate: new Date(),
+            },
           });
         } else {
           await tx.wmsItem.create({
@@ -181,8 +307,8 @@ export async function POST(request: Request) {
               status: transferReq.quantity <= transferReq.item.minQuantity ? "LOW_STOCK" : "IN_STOCK",
               supplier: transferReq.item.supplier,
               description: transferReq.item.description,
-              lastIncomingDate: new Date()
-            }
+              lastIncomingDate: new Date(),
+            },
           });
         }
 
@@ -197,58 +323,82 @@ export async function POST(request: Request) {
             toLocation: transferReq.toWarehouse,
             performedBy: sessionUser,
             reason: `Межскладской трансфер (Заявка ${transferReq.id.slice(-6)})`,
-          }
+          },
         });
 
         await recordWmsOutboxEvent(tx, {
           eventName: "wms.transfer.approved",
           aggregateType: "WmsTransferRequest",
-          aggregateId: idParse.data,
+          aggregateId: requestId,
           payload: {
-            requestId: idParse.data,
+            requestId,
             itemId: transferReq.itemId,
             quantity: transferReq.quantity,
             fromWarehouse: transferReq.fromWarehouse,
             toWarehouse: transferReq.toWarehouse,
             movementId: movement.id,
             performedBy: sessionUser,
-          }
+          },
         });
 
-        return await tx.wmsTransferRequest.findUnique({ where: { id: idParse.data } });
+        return await tx.wmsTransferRequest.findUnique({ where: { id: requestId } });
       });
 
-      return NextResponse.json({ request: result, success: true });
+      logEvent({
+        level: "audit",
+        module: "WMS",
+        action: "TRANSFER_APPROVED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { requestId, fromWarehouse: transferReq.fromWarehouse, toWarehouse: transferReq.toWarehouse },
+      });
+
+      return createSuccessResponse({ success: true, request: result }, request);
     }
 
     // Сценарий 2: Создание новой заявки на перемещение МОЛ-отправителем
-    const qtyParse = positiveIntSchema.safeParse(Number(quantity));
-    const itemParse = wmsIdSchema.safeParse(itemId);
-
-    if (!itemParse.success || !qtyParse.success || !toWarehouse) {
-      return NextResponse.json(
-        {
-          error: "Некорректные параметры перемещения ТМЦ (SEC-03)",
-          details: {
-            itemId: itemParse.success ? undefined : itemParse.error.flatten(),
-            quantity: qtyParse.success ? undefined : qtyParse.error.flatten(),
-            toWarehouse: toWarehouse ? undefined : "Укажите склад-получатель"
-          }
-        },
-        { status: 400 }
+    const createParse = createTransferSchema.safeParse(bodyObj);
+    if (!createParse.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные параметры перемещения ТМЦ (SEC-03)",
+        createParse.error.flatten(),
+        400,
+        request
       );
     }
 
-    const item = await prisma.wmsItem.findUnique({ where: { id: itemParse.data } });
+    const { itemId, quantity, toWarehouse, reason, targetMolUser } = createParse.data;
+
+    const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
     if (!item) {
-      return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Позиция ТМЦ не найдена",
+        undefined,
+        404,
+        request
+      );
     }
 
     const responsibleWarehouses = await getUserResponsibleWarehouses();
     if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
-      return NextResponse.json(
-        { error: `Вы не являетесь МОЛ склада "${item.warehouse}" для отправки заявки.` },
-        { status: 403 }
+      logEvent({
+        level: "warn",
+        module: "WMS",
+        action: "TRANSFER_CREATE_DENIED_SCOPE",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { warehouse: item.warehouse, allowed: responsibleWarehouses },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        `Вы не являетесь МОЛ склада "${item.warehouse}" для отправки заявки.`,
+        undefined,
+        403,
+        request
       );
     }
 
@@ -258,15 +408,15 @@ export async function POST(request: Request) {
           itemId: item.id,
           itemSku: item.sku,
           itemName: item.name,
-          quantity: qtyParse.data,
+          quantity,
           fromWarehouse: item.warehouse,
-          toWarehouse: toWarehouse,
+          toWarehouse,
           requestedBy: sessionUser,
           requestedByUsername: session.username,
-          targetMolUser: body.targetMolUser || "МОЛ " + toWarehouse,
+          targetMolUser: targetMolUser || `МОЛ ${toWarehouse}`,
           reason: reason || "Межскладская потребность",
-          status: "PENDING"
-        }
+          status: "PENDING",
+        },
       });
 
       await recordWmsOutboxEvent(tx, {
@@ -277,31 +427,68 @@ export async function POST(request: Request) {
           requestId: req.id,
           itemId: item.id,
           sku: item.sku,
-          quantity: qtyParse.data,
+          quantity,
           fromWarehouse: item.warehouse,
-          toWarehouse: toWarehouse,
+          toWarehouse,
           requestedBy: sessionUser,
-        }
+        },
       });
 
       return req;
     });
 
-    return NextResponse.json({ request: created, success: true }, { status: 201 });
-  } catch (err: any) {
-    if (err.message === "ALREADY_PROCESSED") {
-      return NextResponse.json(
-        { error: "Заявка на перемещение уже была обработана (SEC-04)" },
-        { status: 409 }
+    logEvent({
+      level: "audit",
+      module: "WMS",
+      action: "TRANSFER_REQUESTED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: {
+        requestId: created.id,
+        itemId: item.id,
+        sku: item.sku,
+        quantity,
+        fromWarehouse: item.warehouse,
+        toWarehouse,
+      },
+    });
+
+    return createSuccessResponse({ success: true, request: created }, request, 201);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg === "ALREADY_PROCESSED") {
+      return createErrorResponse(
+        "CONFLICT",
+        "Заявка на перемещение уже была обработана (SEC-04)",
+        undefined,
+        409,
+        request
       );
     }
-    if (err.message === "INSUFFICIENT_STOCK") {
-      return NextResponse.json(
-        { error: "Недостаточно остатка на складе отправителя (SEC-16)" },
-        { status: 409 }
+    if (errMsg === "INSUFFICIENT_STOCK") {
+      return createErrorResponse(
+        "CONFLICT",
+        "Недостаточно остатка на складе отправителя (SEC-16)",
+        undefined,
+        409,
+        request
       );
     }
     console.error("WMS Transfer request POST failed:", err);
-    return NextResponse.json({ error: "Ошибка обработки межскладского перемещения" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "TRANSER_REQUEST_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка обработки межскладского перемещения",
+      undefined,
+      500,
+      request
+    );
   }
 }

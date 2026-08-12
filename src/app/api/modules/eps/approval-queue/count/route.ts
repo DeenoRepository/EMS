@@ -1,21 +1,38 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/shell/api-response";
 
-export async function GET() {
+/**
+ * GET /api/modules/eps/approval-queue/count
+ *
+ * Получить количество заявок на согласование в статусе PENDING.
+ *
+ * @requires Permission: eps.approvals.decide
+ * @returns {Promise<{ count: number, timestamp: number }>}
+ */
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ count: 0, error: "Необходима авторизация" }, { status: 401 });
-    }
-
     const pendingCount = await prisma.approvalRequest.count({
-      where: { status: "PENDING" }
+      where: { status: "PENDING" },
     });
 
-    return NextResponse.json({ count: pendingCount, timestamp: Date.now() });
+    return createSuccessResponse({ count: pendingCount, timestamp: Date.now() }, request);
   } catch (error) {
     console.error("[EPS Approval Queue Count] DB error:", error);
-    return NextResponse.json({ count: 0, error: "Ошибка получения очереди согласований" }, { status: 500 });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения очереди согласований",
+      undefined,
+      500,
+      request
+    );
   }
 }

@@ -1,76 +1,139 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions, canManageEquipment } from "@/lib/auth/eps-rbac";
 import { logEvent } from "@/lib/telemetry/logger";
+import { ShellEventBus } from "@/lib/shell/event-bus";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
+const rollbackSchema = z.object({
+  targetVersion: z.number().int().positive("targetVersion обязателен"),
+});
+
+/**
+ * POST /api/modules/eps/equipment/[id]/rollback
+ *
+ * Откатить паспорт оборудования к указанной версии.
+ *
+ * @requires Permission: eps.equipment.update
+ * @returns {Promise<{ success: true, message: string, item: Equipment }>}
+ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
-  }
-
-  const permissions = await getUserEpsPermissions();
-  if (!permissions.canEdit) {
-    return NextResponse.json(
-      { error: "Отказано в доступе. Откат версий доступен только редакторам и администраторам." },
-      { status: 403 }
-    );
-  }
-
-  const { id } = await params;
-
-  let body: { targetVersion?: number } = {};
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Неверный формат JSON в теле запроса" }, { status: 400 });
-  }
-
-  const targetVersionNumber = body.targetVersion;
-  if (!targetVersionNumber || typeof targetVersionNumber !== "number") {
-    return NextResponse.json(
-      { error: "Необходимо указать целевой номер версии в поле targetVersion" },
-      { status: 400 }
-    );
-  }
+  const correlationId = getCorrelationId(request);
 
   try {
+    const session = await getSession();
+    if (!session) {
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+    }
+
+    const permissions = await getUserEpsPermissions();
+    if (!permissions.canEdit) {
+      logEvent({
+        level: "warn",
+        module: "EPS",
+        action: "EQUIPMENT_ROLLBACK_DENIED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Откат версий доступен только редакторам и администраторам.",
+        undefined,
+        403,
+        request
+      );
+    }
+
+    const { id } = await params;
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    const validation = rollbackSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Необходимо указать целевой номер версии в поле targetVersion",
+        validation.error.flatten(),
+        400,
+        request
+      );
+    }
+
+    const { targetVersion: targetVersionNumber } = validation.data;
+
     const existing = await prisma.equipment.findFirst({
-      where: { OR: [{ id }, { equipmentCode: id }] }
+      where: { OR: [{ id }, { equipmentCode: id }] },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Оборудование не найдено" }, { status: 404 });
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Оборудование не найдено",
+        undefined,
+        404,
+        request
+      );
     }
 
     // SEC-01: Proactive RBAC check
     const canManage = await canManageEquipment(existing.id);
     if (!canManage) {
-      return NextResponse.json(
-        { error: "Отказано в доступе. Вы не являетесь ответственным лицом для данного оборудования." },
-        { status: 403 }
+      logEvent({
+        level: "warn",
+        module: "EPS",
+        action: "EQUIPMENT_ROLLBACK_DENIED_RESPONSIBILITY",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { equipmentId: existing.id },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Вы не являетесь ответственным лицом для данного оборудования.",
+        undefined,
+        403,
+        request
       );
     }
 
     const targetVersionRecord = await prisma.equipmentVersion.findFirst({
       where: {
         equipmentId: existing.id,
-        versionNumber: targetVersionNumber
-      }
+        versionNumber: targetVersionNumber,
+      },
     });
 
     if (!targetVersionRecord) {
-      return NextResponse.json(
-        { error: `Версия v${targetVersionNumber} не найдена в истории данного оборудования` },
-        { status: 404 }
+      return createErrorResponse(
+        "NOT_FOUND",
+        `Версия v${targetVersionNumber} не найдена в истории данного оборудования`,
+        undefined,
+        404,
+        request
       );
     }
 
-    const snapshot = targetVersionRecord.snapshot as Record<string, any>;
+    const snapshot = targetVersionRecord.snapshot as Record<string, unknown>;
 
     const updated = await prisma.$transaction(async (tx) => {
       // 1. Сохраняем перед откатом текущее состояние как отдельную историческую версию
@@ -80,8 +143,8 @@ export async function POST(
           versionNumber: existing.currentVersion,
           changeSummary: `Автоматическое сохранение перед откатом к версии v${targetVersionNumber}`,
           snapshot: JSON.parse(JSON.stringify(existing)),
-          createdById: session.id
-        }
+          createdById: session.id,
+        },
       });
 
       // 2. Обновляем паспорт оборудования данными из выбранного снапшота
@@ -97,21 +160,21 @@ export async function POST(
           department: snapshot.department ?? existing.department,
           location: snapshot.location ?? existing.location,
           status: snapshot.status ?? existing.status,
-          criticality: snapshot.criticality ?? (existing as any).criticality,
+          criticality: snapshot.criticality ?? (existing as Record<string, unknown>).criticality,
           manufacturer: snapshot.manufacturer ?? existing.manufacturer,
           supplier: snapshot.supplier ?? existing.supplier,
-          countryOfOrigin: snapshot.countryOfOrigin ?? (existing as any).countryOfOrigin,
-          isImported: snapshot.isImported ?? (existing as any).isImported,
-          isUnique: snapshot.isUnique ?? (existing as any).isUnique,
+          countryOfOrigin: snapshot.countryOfOrigin ?? (existing as Record<string, unknown>).countryOfOrigin,
+          isImported: snapshot.isImported ?? (existing as Record<string, unknown>).isImported,
+          isUnique: snapshot.isUnique ?? (existing as Record<string, unknown>).isUnique,
           productionDate: snapshot.productionDate ?? existing.productionDate,
           deliveryDate: snapshot.deliveryDate ?? existing.deliveryDate,
           commissioningDate: snapshot.commissioningDate ?? existing.commissioningDate,
           warrantyExpiration: snapshot.warrantyExpiration ?? existing.warrantyExpiration,
           serviceDueDate: snapshot.serviceDueDate ?? existing.serviceDueDate,
           notes: `[Откат к v${targetVersionNumber}] ${snapshot.notes || ""}`,
-          techSpecs: snapshot.techSpecs ?? (existing as any).techSpecs,
-          currentVersion: existing.currentVersion + 1
-        } as any
+          techSpecs: snapshot.techSpecs ?? (existing as Record<string, unknown>).techSpecs,
+          currentVersion: existing.currentVersion + 1,
+        },
       });
 
       return restored;
@@ -123,16 +186,52 @@ export async function POST(
       action: "EQUIPMENT_ROLLBACK",
       userId: session.id,
       userEmail: session.email,
-      details: { equipmentId: existing.id, restoredFromVersion: targetVersionNumber, newVersion: updated.currentVersion }
+      requestId: correlationId,
+      details: {
+        equipmentId: existing.id,
+        restoredFromVersion: targetVersionNumber,
+        newVersion: updated.currentVersion,
+      },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: `Паспорт успешно откачен к состоянию версии v${targetVersionNumber}`,
-      item: updated
-    });
+    await ShellEventBus.publish(
+      "eps.equipment.updated",
+      "EPS",
+      {
+        equipmentId: existing.id,
+        equipmentCode: existing.equipmentCode,
+        action: "ROLLBACK",
+        restoredFromVersion: targetVersionNumber,
+        newVersion: updated.currentVersion,
+        performedBy: session.id,
+        performedByEmail: session.email,
+      },
+      correlationId
+    );
+
+    return createSuccessResponse(
+      {
+        success: true,
+        message: `Паспорт успешно откачен к состоянию версии v${targetVersionNumber}`,
+        item: updated,
+      },
+      request
+    );
   } catch (err) {
     console.error("EPS Equipment Rollback failed:", err);
-    return NextResponse.json({ error: "Ошибка базы данных при выполнении отката версии" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "EPS",
+      action: "EQUIPMENT_ROLLBACK_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка базы данных при выполнении отката версии",
+      undefined,
+      500,
+      request
+    );
   }
 }

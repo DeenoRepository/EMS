@@ -1,7 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { getSession } from "@/lib/auth/session";
+import { hasRole } from "@/lib/auth/rbac";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
-export async function GET() {
+const createFieldSchema = z.object({
+  key: z.string().min(1, "key обязателен"),
+  label: z.string().min(1, "label обязателен"),
+  description: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+/**
+ * GET /api/reference/options
+ *
+ * Получить опции справочников в формате key → [{id, value, label}].
+ *
+ * @returns {Promise<{ options: Record<string, Array>, fields: ReferenceField[] }>}
+ */
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
   try {
     const fields = await prisma.referenceField.findMany({
       where: { isActive: true },
@@ -9,9 +36,9 @@ export async function GET() {
       include: {
         values: {
           where: { isActive: true },
-          orderBy: [{ sortOrder: "asc" }, { label: "asc" }]
-        }
-      }
+          orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
+        },
+      },
     });
 
     const options: Record<string, Array<{ id: string; value: string; label: string }>> = {};
@@ -19,41 +46,115 @@ export async function GET() {
       options[field.key] = field.values.map((v) => ({ id: v.id, value: v.value, label: v.label }));
     }
 
-    return NextResponse.json({ options, fields });
-  } catch {
-    // Fallback options
-    return NextResponse.json({
-      options: {
-        category: [
-          { id: "c1", value: "Металлообработка", label: "Металлообработка" },
-          { id: "c2", value: "Энергетика", label: "Энергетика" }
-        ],
-        department: [
-          { id: "d1", value: "Цех №1", label: "Цех №1" },
-          { id: "d2", value: "Цех №3", label: "Цех №3" }
-        ]
-      },
-      fields: []
+    return createSuccessResponse({ options, fields }, request);
+  } catch (err) {
+    console.error("GET /api/reference/options failed:", err);
+    logEvent({
+      level: "error",
+      module: "REFERENCE",
+      action: "OPTIONS_LIST_FAILED",
+      userId: session.id,
+      error: String(err),
     });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения опций справочников",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
-export async function POST(req: NextRequest) {
+/**
+ * POST /api/reference/options
+ *
+ * Создать новое справочное поле (только ADMIN/EDITOR).
+ *
+ * @requires Role: ADMIN или EDITOR
+ * @returns {Promise<{ success: true, field: ReferenceField }>}
+ */
+export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
-    const body = await req.json();
+    const session = await getSession();
+    if (!session) {
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+    }
+
+    if (!hasRole(session, ["ADMIN", "EDITOR"])) {
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе",
+        undefined,
+        403,
+        request
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    const validation = createFieldSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные параметры справочника",
+        validation.error.format(),
+        400,
+        request
+      );
+    }
+
+    const { key, label, description, sortOrder } = validation.data;
+
     const createdField = await prisma.referenceField.create({
       data: {
         entityType: "EQUIPMENT",
-        key: body.key.trim().toLowerCase(),
-        label: body.label.trim(),
-        description: body.description?.trim(),
+        key: key.trim().toLowerCase(),
+        label: label.trim(),
+        description: description?.trim(),
         isActive: true,
-        sortOrder: body.sortOrder ?? 0
-      }
+        sortOrder: sortOrder ?? 0,
+      },
     });
 
-    return NextResponse.json(createdField, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Ошибка создания справочника" }, { status: 400 });
+    logEvent({
+      level: "audit",
+      module: "REFERENCE",
+      action: "OPTION_FIELD_CREATED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: { fieldId: createdField.id, key: createdField.key },
+    });
+
+    return createSuccessResponse({ success: true, field: createdField }, request, 201);
+  } catch (err) {
+    console.error("POST /api/reference/options failed:", err);
+    logEvent({
+      level: "error",
+      module: "REFERENCE",
+      action: "OPTION_FIELD_CREATE_FAILED",
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка создания справочника",
+      undefined,
+      500,
+      request
+    );
   }
 }

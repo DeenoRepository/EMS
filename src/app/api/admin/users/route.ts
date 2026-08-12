@@ -1,15 +1,44 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import { hasPermission } from "@/lib/auth/rbac";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
-// GET /api/admin/users — Получение списка пользователей с привязанными ролями
-export async function GET() {
+const updateUserRolesSchema = z.object({
+  userId: z.string().min(1, "userId обязателен"),
+  roleKeys: z.array(z.string()),
+});
+
+/**
+ * GET /api/admin/users
+ *
+ * Получить список пользователей с привязанными ролями.
+ *
+ * @requires Permission: admin.roles.manage
+ * @returns {Promise<{ users: User[] }>}
+ */
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
+  if (!hasPermission(session, "admin.roles.manage")) {
+    return createErrorResponse(
+      "FORBIDDEN",
+      "Доступ запрещен: требуется разрешение admin.roles.manage",
+      undefined,
+      403,
+      request
+    );
+  }
+
   try {
-    const session = await getSession();
-    if (!session || (!session.roles.includes("ADMIN") && !session.permissions?.includes("admin.roles.manage"))) {
-      return NextResponse.json({ error: "Доступ запрещен" }, { status: 403 });
-    }
-
     const users = await prisma.user.findMany({
       include: {
         userRoles: {
@@ -39,31 +68,88 @@ export async function GET() {
       createdAt: u.createdAt,
     }));
 
-    return NextResponse.json({ success: true, users: formatted });
+    return createSuccessResponse({ users: formatted }, request);
   } catch (err) {
     console.error("[GET /api/admin/users] error:", err);
-    return NextResponse.json({ error: "Ошибка получения списка пользователей" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "ADMIN",
+      action: "USERS_LIST_FAILED",
+      userId: session.id,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения списка пользователей",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
-// PUT /api/admin/users — Обновление назначенных ролей пользователя
+/**
+ * PUT /api/admin/users
+ *
+ * Обновить назначенные роли пользователя.
+ *
+ * @requires Permission: admin.roles.manage
+ * @returns {Promise<{ success: true, user: User }>}
+ */
 export async function PUT(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
-    if (!session || (!session.roles.includes("ADMIN") && !session.permissions?.includes("admin.roles.manage"))) {
-      return NextResponse.json({ error: "Доступ запрещен" }, { status: 403 });
+    if (!session) {
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
-    const body = await request.json();
-    const { userId, roleKeys } = body;
-
-    if (!userId || !Array.isArray(roleKeys)) {
-      return NextResponse.json({ error: "Неверные параметры запроса" }, { status: 400 });
+    if (!hasPermission(session, "admin.roles.manage")) {
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Доступ запрещен: требуется разрешение admin.roles.manage",
+        undefined,
+        403,
+        request
+      );
     }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    const validation = updateUserRolesSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Неверные параметры запроса",
+        validation.error.format(),
+        400,
+        request
+      );
+    }
+
+    const { userId, roleKeys } = validation.data;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Пользователь не найден",
+        undefined,
+        404,
+        request
+      );
     }
 
     // Находим сущности ролей по ключам или id
@@ -91,18 +177,47 @@ export async function PUT(request: Request) {
       include: { userRoles: { include: { role: true } } },
     });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: updatedUser?.id,
-        name: updatedUser?.displayName,
-        email: updatedUser?.email,
-        roles: updatedUser?.userRoles.map((ur) => ({ id: ur.role.id, key: ur.role.key, name: ur.role.name })),
-        roleKeys: updatedUser?.userRoles.map((ur) => ur.role.key),
+    logEvent({
+      level: "audit",
+      module: "ADMIN",
+      action: "USER_ROLES_UPDATED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: {
+        targetUserId: userId,
+        targetUserEmail: user.email,
+        assignedRoles: roles.map((r) => r.key),
       },
     });
+
+    return createSuccessResponse(
+      {
+        success: true,
+        user: {
+          id: updatedUser?.id,
+          name: updatedUser?.displayName,
+          email: updatedUser?.email,
+          roles: updatedUser?.userRoles.map((ur) => ({ id: ur.role.id, key: ur.role.key, name: ur.role.name })),
+        },
+      },
+      request
+    );
   } catch (err) {
     console.error("[PUT /api/admin/users] error:", err);
-    return NextResponse.json({ error: "Ошибка при обновлении ролей пользователя" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "ADMIN",
+      action: "USER_ROLES_UPDATE_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка обновления ролей пользователя",
+      undefined,
+      500,
+      request
+    );
   }
 }

@@ -1,30 +1,96 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { WmsItemType, WmsItemStatus } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
+import { logEvent } from "@/lib/telemetry/logger";
+import { ShellEventBus } from "@/lib/shell/event-bus";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
+const updateItemSchema = z.object({
+  name: z.string().optional(),
+  sku: z.string().optional(),
+  category: z.string().optional(),
+  type: z.string().optional(),
+  unit: z.string().optional(),
+  warehouse: z.string().optional(),
+  zone: z.string().optional(),
+  cell: z.string().optional(),
+  batchNumber: z.string().optional(),
+  serialNumber: z.string().optional(),
+  quantity: z.coerce.number().int().optional(),
+  minQuantity: z.coerce.number().int().optional(),
+  maxQuantity: z.coerce.number().int().optional(),
+  unitPrice: z.coerce.number().optional(),
+  currency: z.string().optional(),
+  isEps: z.boolean().optional(),
+  supplier: z.string().optional(),
+  description: z.string().optional(),
+  barcode: z.string().optional(),
+});
+
+/**
+ * PUT /api/modules/wms/items/[id]
+ *
+ * Обновить номенклатурную единицу ТМЦ с проверкой scope.
+ * Публикует доменное событие `wms.stock.adjusted` при изменении количества/ячейки.
+ *
+ * @requires Permission: wms.items.update
+ * @returns {Promise<{ success: true, item: WmsItem }>}
+ */
 export async function PUT(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
     const { id } = await context.params;
-    const body = await request.json();
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    const validation = updateItemSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные параметры обновления ТМЦ",
+        validation.error.flatten(),
+        400,
+        request
+      );
+    }
 
     const existingItem = await prisma.wmsItem.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!existingItem) {
-      return NextResponse.json(
-        { error: "Номенклатурная единица ТМЦ не найдена" },
-        { status: 404 }
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Номенклатурная единица ТМЦ не найдена",
+        undefined,
+        404,
+        request
       );
     }
 
@@ -33,32 +99,44 @@ export async function PUT(
       responsibleWarehouses !== null &&
       !responsibleWarehouses.includes(existingItem.warehouse)
     ) {
-      return NextResponse.json(
-        {
-          error: `Отказано в доступе. Вы являетесь ответственным только за склады: ${responsibleWarehouses.join(
-            ", "
-          )}`
-        },
-        { status: 403 }
+      logEvent({
+        level: "warn",
+        module: "WMS",
+        action: "ITEM_UPDATE_DENIED_SCOPE",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { warehouse: existingItem.warehouse, allowed: responsibleWarehouses },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        `Отказано в доступе. Вы являетесь ответственным только за склады: ${responsibleWarehouses.join(", ")}`,
+        undefined,
+        403,
+        request
       );
     }
 
-    const targetWarehouse = body.warehouse || existingItem.warehouse;
+    const targetWarehouse = validation.data.warehouse || existingItem.warehouse;
     if (
       responsibleWarehouses !== null &&
       !responsibleWarehouses.includes(targetWarehouse)
     ) {
-      return NextResponse.json(
-        {
-          error: `Отказано в доступе к целевому складу: ${targetWarehouse}`
-        },
-        { status: 403 }
+      return createErrorResponse(
+        "FORBIDDEN",
+        `Отказано в доступе к целевому складу: ${targetWarehouse}`,
+        undefined,
+        403,
+        request
       );
     }
 
-    const newQuantity = body.quantity !== undefined ? Number(body.quantity) : existingItem.quantity;
-    const minQty = body.minQuantity !== undefined ? Number(body.minQuantity) : existingItem.minQuantity;
-    const maxQty = body.maxQuantity !== undefined ? Number(body.maxQuantity) : existingItem.maxQuantity;
+    const newQuantity =
+      validation.data.quantity !== undefined ? validation.data.quantity : existingItem.quantity;
+    const minQty =
+      validation.data.minQuantity !== undefined ? validation.data.minQuantity : existingItem.minQuantity;
+    const maxQty =
+      validation.data.maxQuantity !== undefined ? validation.data.maxQuantity : existingItem.maxQuantity;
 
     let computedStatus: WmsItemStatus = existingItem.status;
     if (newQuantity <= 0) {
@@ -69,43 +147,55 @@ export async function PUT(
       computedStatus = "IN_STOCK";
     }
 
-    const cellChanged = body.cell !== undefined && body.cell !== existingItem.cell;
-    const zoneChanged = body.zone !== undefined && body.zone !== existingItem.zone;
-    const warehouseChanged = body.warehouse !== undefined && body.warehouse !== existingItem.warehouse;
+    const cellChanged =
+      validation.data.cell !== undefined && validation.data.cell !== existingItem.cell;
+    const zoneChanged =
+      validation.data.zone !== undefined && validation.data.zone !== existingItem.zone;
+    const warehouseChanged =
+      validation.data.warehouse !== undefined && validation.data.warehouse !== existingItem.warehouse;
     const qtyChanged = newQuantity !== existingItem.quantity;
 
-    const updateData: any = {
-      name: body.name || existingItem.name,
-      sku: body.sku || existingItem.sku,
-      category: body.category || existingItem.category,
-      type: (body.type as WmsItemType) || existingItem.type,
-      unit: body.unit || existingItem.unit,
+    const updateData = {
+      name: validation.data.name || existingItem.name,
+      sku: validation.data.sku || existingItem.sku,
+      category: validation.data.category || existingItem.category,
+      type: (validation.data.type as WmsItemType) || existingItem.type,
+      unit: validation.data.unit || existingItem.unit,
       warehouse: targetWarehouse,
-      zone: body.zone !== undefined ? body.zone : existingItem.zone,
-      cell: body.cell !== undefined ? body.cell : existingItem.cell,
-      batchNumber: body.batchNumber !== undefined ? body.batchNumber : existingItem.batchNumber,
-      serialNumber: body.serialNumber !== undefined ? body.serialNumber : existingItem.serialNumber,
+      zone: validation.data.zone !== undefined ? validation.data.zone : existingItem.zone,
+      cell: validation.data.cell !== undefined ? validation.data.cell : existingItem.cell,
+      batchNumber:
+        validation.data.batchNumber !== undefined ? validation.data.batchNumber : existingItem.batchNumber,
+      serialNumber:
+        validation.data.serialNumber !== undefined
+          ? validation.data.serialNumber
+          : existingItem.serialNumber,
       quantity: newQuantity,
       minQuantity: minQty,
       maxQuantity: maxQty,
-      unitPrice: body.unitPrice !== undefined ? Number(body.unitPrice) : existingItem.unitPrice,
-      currency: body.currency || existingItem.currency,
+      unitPrice:
+        validation.data.unitPrice !== undefined ? validation.data.unitPrice : existingItem.unitPrice,
+      currency: validation.data.currency || existingItem.currency,
       status: computedStatus,
-      isEps: body.isEps !== undefined ? Boolean(body.isEps) : existingItem.isEps,
-      supplier: body.supplier !== undefined ? body.supplier : existingItem.supplier,
-      description: body.description !== undefined ? body.description : existingItem.description,
-      barcode: body.barcode !== undefined ? body.barcode : existingItem.barcode,
-      updatedAt: new Date()
+      isEps: validation.data.isEps !== undefined ? validation.data.isEps : existingItem.isEps,
+      supplier:
+        validation.data.supplier !== undefined ? validation.data.supplier : existingItem.supplier,
+      description:
+        validation.data.description !== undefined
+          ? validation.data.description
+          : existingItem.description,
+      barcode: validation.data.barcode !== undefined ? validation.data.barcode : existingItem.barcode,
+      updatedAt: new Date(),
     };
 
     if (cellChanged || zoneChanged || warehouseChanged || qtyChanged) {
       const locationFrom = `${existingItem.warehouse} / ${existingItem.zone || ""}-${existingItem.cell || ""}`;
       const locationTo = `${targetWarehouse} / ${updateData.zone || ""}-${updateData.cell || ""}`;
-      
+
       const [updatedItem] = await prisma.$transaction([
         prisma.wmsItem.update({
           where: { id },
-          data: updateData
+          data: updateData,
         }),
         prisma.wmsMovement.create({
           data: {
@@ -117,25 +207,74 @@ export async function PUT(
             fromLocation: locationFrom,
             toLocation: locationTo,
             performedBy: session.displayName || session.username,
-            reason: `Корректировка позиции ТМЦ / Ячейки хранения (${locationFrom} -> ${locationTo})`
-          }
-        })
+            reason: `Корректировка позиции ТМЦ / Ячейки хранения (${locationFrom} -> ${locationTo})`,
+          },
+        }),
       ]);
 
-      return NextResponse.json({ item: updatedItem, success: true });
-    } else {
-      const updatedItem = await prisma.wmsItem.update({
-        where: { id },
-        data: updateData
+      logEvent({
+        level: "audit",
+        module: "WMS",
+        action: "ITEM_UPDATED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: {
+          itemId: updatedItem.id,
+          sku: updatedItem.sku,
+          qtyChanged,
+          locationChanged: cellChanged || zoneChanged || warehouseChanged,
+        },
       });
 
-      return NextResponse.json({ item: updatedItem, success: true });
+      await ShellEventBus.publish(
+        "wms.stock.adjusted",
+        "WMS",
+        {
+          itemId: updatedItem.id,
+          sku: updatedItem.sku,
+          name: updatedItem.name,
+          newQuantity: updatedItem.quantity,
+          performedBy: session.id,
+          performedByEmail: session.email,
+        },
+        correlationId
+      );
+
+      return createSuccessResponse({ success: true, item: updatedItem }, request);
     }
-  } catch (err: any) {
+
+    const updatedItem = await prisma.wmsItem.update({
+      where: { id },
+      data: updateData,
+    });
+
+    logEvent({
+      level: "audit",
+      module: "WMS",
+      action: "ITEM_UPDATED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: { itemId: updatedItem.id, sku: updatedItem.sku },
+    });
+
+    return createSuccessResponse({ success: true, item: updatedItem }, request);
+  } catch (err) {
     console.error("Failed to update WMS item:", err);
-    return NextResponse.json(
-      { error: "Не удалось обновить позицию ТМЦ" },
-      { status: 500 }
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "ITEM_UPDATE_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Не удалось обновить позицию ТМЦ",
+      undefined,
+      500,
+      request
     );
   }
 }

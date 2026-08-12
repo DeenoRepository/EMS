@@ -3,9 +3,21 @@ import type { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/auth/session";
 import { hasRole, hasModuleAccess } from "@/lib/auth/rbac";
 import { MODULES_CONFIG } from "@/lib/config/modules";
+import { createErrorResponse } from "@/lib/shell/api-response";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
 
+/**
+ * Edge Middleware — первый уровень защиты (Defense in Depth).
+ *
+ * Логика:
+ * 1. Публичные пути — пропускаем
+ * 2. Извлечение JWT из cookie `ems_session`
+ * 3. Верификация токена через `verifySessionToken()`
+ * 4. RBAC для `/admin/*` и `/api/admin/*`
+ * 5. Проверка доступа к модулю через `hasModuleAccess()`
+ * 6. Специфичные правила для отдельных страниц
+ */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -17,7 +29,13 @@ export async function middleware(request: NextRequest) {
 
   if (!token) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse(
+        "UNAUTHORIZED",
+        "Необходима авторизация",
+        undefined,
+        401,
+        request as unknown as Request
+      );
     }
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
@@ -26,7 +44,13 @@ export async function middleware(request: NextRequest) {
   const session = await verifySessionToken(token);
   if (!session) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Сессия недействительна или истекла" }, { status: 401 });
+      return createErrorResponse(
+        "UNAUTHORIZED",
+        "Сессия недействительна или истекла",
+        undefined,
+        401,
+        request as unknown as Request
+      );
     }
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
@@ -40,7 +64,13 @@ export async function middleware(request: NextRequest) {
 
   // RBAC protection for API admin routes
   if (pathname.startsWith("/api/admin") && !hasRole(session, ["ADMIN"])) {
-    return NextResponse.json({ error: "Доступ запрещен: требуется роль Администратора" }, { status: 403 });
+    return createErrorResponse(
+      "FORBIDDEN",
+      "Доступ запрещен: требуется роль Администратора",
+      undefined,
+      403,
+      request as unknown as Request
+    );
   }
 
   // Dynamic RBAC Protection for Business Modules (/modules/[moduleId])

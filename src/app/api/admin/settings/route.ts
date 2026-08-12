@@ -1,5 +1,12 @@
-import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import { hasPermission } from "@/lib/auth/rbac";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
 export interface ShellSettingsData {
   // Shell General Settings
@@ -76,49 +83,151 @@ let currentSettings: ShellSettingsData = {
   defaultStartupRoute: "/eps/dashboard",
 };
 
-export async function GET() {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
-    }
+const settingsUpdateSchema = z.object({
+  systemTitle: z.string().optional(),
+  organizationName: z.string().optional(),
+  timezone: z.string().optional(),
+  defaultLocale: z.string().optional(),
+  dateFormat: z.string().optional(),
+  logLevel: z.enum(["ERROR", "WARN", "INFO", "DEBUG"]).optional(),
+  theme: z.enum(["SYSTEM", "LIGHT", "DARK"]).optional(),
+  primaryColor: z.string().optional(),
+  compactNav: z.boolean().optional(),
+  showHeaderLogo: z.boolean().optional(),
+  maintenanceBanner: z.string().optional(),
+  maintenanceLevel: z.enum(["INFO", "WARNING", "CRITICAL"]).optional(),
+  enableGlobalNotifications: z.boolean().optional(),
+  sessionTimeoutMinutes: z.number().int().positive().optional(),
+  enforce2FA: z.boolean().optional(),
+  rateLimitStrict: z.boolean().optional(),
+  storageDriver: z.enum(["LOCAL", "MINIO", "S3"]).optional(),
+  maxUploadMB: z.number().int().positive().optional(),
+  allowedExtensions: z.string().optional(),
+  activeModules: z
+    .object({
+      eps: z.boolean(),
+      wms: z.boolean(),
+      audit: z.boolean(),
+      rbac: z.boolean(),
+    })
+    .optional(),
+  defaultStartupRoute: z.string().optional(),
+});
 
-    return NextResponse.json({
-      success: true,
-      settings: currentSettings,
-    });
-  } catch (error) {
-    console.error("GET /api/admin/settings error:", error);
-    return NextResponse.json({ error: "Ошибка загрузки настроек" }, { status: 500 });
+/**
+ * GET /api/admin/settings
+ *
+ * Получить текущие настройки Shell.
+ *
+ * @requires Permission: admin.settings.manage
+ * @returns {Promise<{ settings: ShellSettingsData }>}
+ */
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
   }
+
+  return createSuccessResponse({ settings: currentSettings }, request);
 }
 
+/**
+ * POST /api/admin/settings
+ *
+ * Обновить настройки Shell (только ADMIN).
+ *
+ * @requires Permission: admin.settings.manage
+ * @returns {Promise<{ success: true, settings: ShellSettingsData, message: string }>}
+ */
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
-    // RBAC check: ADMIN role or admin.settings.manage permission
-    const isAdmin = session.roles.includes("ADMIN") || session.permissions?.includes("*") || session.permissions?.includes("admin.settings.manage");
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Недостаточно прав для изменения системных настроек" }, { status: 403 });
+    if (!hasPermission(session, "admin.settings.manage")) {
+      logEvent({
+        level: "warn",
+        module: "ADMIN",
+        action: "SETTINGS_UPDATE_DENIED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Недостаточно прав для изменения системных настроек",
+        undefined,
+        403,
+        request
+      );
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    const validation = settingsUpdateSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные параметры настроек",
+        validation.error.format(),
+        400,
+        request
+      );
+    }
+
     currentSettings = {
       ...currentSettings,
-      ...body,
+      ...validation.data,
     };
 
-    return NextResponse.json({
-      success: true,
-      settings: currentSettings,
-      message: "Конфигурация Shell и приложения успешно сохранена",
+    logEvent({
+      level: "audit",
+      module: "ADMIN",
+      action: "SETTINGS_UPDATED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: { updatedFields: Object.keys(validation.data) },
     });
+
+    return createSuccessResponse(
+      {
+        success: true,
+        settings: currentSettings,
+        message: "Конфигурация Shell и приложения успешно сохранена",
+      },
+      request
+    );
   } catch (error) {
     console.error("POST /api/admin/settings error:", error);
-    return NextResponse.json({ error: "Ошибка сохранения настроек" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "ADMIN",
+      action: "SETTINGS_UPDATE_FAILED",
+      requestId: correlationId,
+      error: String(error),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка сохранения настроек",
+      undefined,
+      500,
+      request
+    );
   }
 }

@@ -1,21 +1,69 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { canReturnPersonalCard } from "@/lib/wms/state-machine";
+import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
+const personalCardsQuerySchema = z.object({
+  employee: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+const issueCardSchema = z.object({
+  itemId: z.string().min(1, "Позиция ТМЦ обязательна"),
+  employeeName: z.string().min(1, "ФИО сотрудника обязательно"),
+  employeePosition: z.string().optional(),
+  employeeNumber: z.string().optional(),
+  department: z.string().optional(),
+  quantity: z.coerce.number().int().positive("Количество должно быть целым положительным числом"),
+  notes: z.string().optional(),
+});
+
+const returnCardSchema = z.object({
+  cardId: z.string().min(1, "ID карточки обязателен"),
+  returnCondition: z.enum(["GOOD", "REPAIR", "DAMAGE"]),
+});
+
+/**
+ * GET /api/modules/wms/personal-cards
+ *
+ * Получить список записей личных карточек СИЗ с фильтрацией по сотруднику.
+ * Применяется scope-based фильтрация по ответственным складам.
+ *
+ * @requires Permission: wms.personal_cards.manage
+ * @returns {Promise<{ cards: WmsPersonalCard[], total: number, limit: number, offset: number }>}
+ */
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
   }
 
   const { searchParams } = new URL(request.url);
-  const employee = searchParams.get("employee");
+  const parseResult = personalCardsQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parseResult.success) {
+    return createErrorResponse(
+      "VALIDATION_ERROR",
+      "Некорректные параметры запроса",
+      parseResult.error.flatten(),
+      400,
+      request
+    );
+  }
+
+  const { employee, limit, offset } = parseResult.data;
 
   try {
     const responsibleWarehouses = await getUserResponsibleWarehouses();
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (employee) {
       where.OR = [
         { employeeName: { contains: employee, mode: "insensitive" } },
@@ -27,43 +75,88 @@ export async function GET(request: Request) {
 
     if (responsibleWarehouses !== null) {
       if (responsibleWarehouses.length === 0) {
-        return NextResponse.json({ cards: [], total: 0 });
+        return createSuccessResponse({ cards: [], total: 0, limit, offset }, request);
       }
       where.item = {
-        warehouse: { in: responsibleWarehouses }
+        warehouse: { in: responsibleWarehouses },
       };
     }
 
-    const cards = await prisma.wmsPersonalCard.findMany({
-      where,
-      orderBy: { issuedAt: "desc" },
-      include: { item: true }
-    });
+    const [cards, total] = await Promise.all([
+      prisma.wmsPersonalCard.findMany({
+        where,
+        orderBy: { issuedAt: "desc" },
+        include: { item: true },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.wmsPersonalCard.count({ where }),
+    ]);
 
-    return NextResponse.json({ cards, total: cards.length });
+    return createSuccessResponse({ cards, total, limit, offset }, request);
   } catch (err) {
     console.error("WMS Personal cards GET failed:", err);
-    return NextResponse.json({ cards: [], total: 0 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "PERSONAL_CARDS_LIST_FAILED",
+      userId: session.id,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения списка личных карточек",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
+/**
+ * POST /api/modules/wms/personal-cards
+ *
+ * Выдать СИЗ/инструмент сотруднику в личную карточку.
+ * Публикует доменное событие `wms.personal_card.issued` через Transactional Outbox.
+ *
+ * @requires Permission: wms.personal_cards.manage
+ * @returns {Promise<{ success: true, card: WmsPersonalCard }>}
+ */
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
-    const body = await request.json();
-    const { itemId, employeeName, employeePosition, employeeNumber, department, quantity, notes } = body;
-
-    const parsedQty = Number(quantity);
-    if (!itemId || !employeeName || isNaN(parsedQty) || !Number.isInteger(parsedQty) || parsedQty <= 0) {
-      return NextResponse.json(
-        { error: "Поля Позиция ТМЦ и ФИО обязательны, а количество должно быть целым положительным числом" },
-        { status: 400 }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
       );
     }
+
+    const validation = issueCardSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Поля Позиция ТМЦ и ФИО обязательны, а количество должно быть целым положительным числом",
+        validation.error.flatten(),
+        400,
+        request
+      );
+    }
+
+    const { itemId, employeeName, employeePosition, employeeNumber, department, quantity, notes } =
+      validation.data;
 
     const responsibleWarehouses = await getUserResponsibleWarehouses();
 
@@ -77,7 +170,7 @@ export async function POST(request: Request) {
         throw new Error("FORBIDDEN");
       }
 
-      if (item.quantity < parsedQty) {
+      if (item.quantity < quantity) {
         throw new Error(`INSUFFICIENT_STOCK:${item.quantity}:${item.unit}`);
       }
 
@@ -90,21 +183,26 @@ export async function POST(request: Request) {
           employeePosition: employeePosition || null,
           employeeNumber: employeeNumber || null,
           department: department || null,
-          issuedQuantity: parsedQty,
+          issuedQuantity: quantity,
           notes: notes || null,
           createdById: session.id,
-        }
+        },
       });
 
-      const updatedQty = item.quantity - parsedQty;
-      const newStatus = updatedQty <= 0 ? "OUT_OF_STOCK" : updatedQty <= item.minQuantity ? "LOW_STOCK" : "IN_STOCK";
+      const updatedQty = item.quantity - quantity;
+      const newStatus =
+        updatedQty <= 0
+          ? "OUT_OF_STOCK"
+          : updatedQty <= item.minQuantity
+            ? "LOW_STOCK"
+            : "IN_STOCK";
 
       await tx.wmsItem.update({
         where: { id: item.id },
         data: {
           quantity: updatedQty,
           status: newStatus,
-        }
+        },
       });
 
       await tx.wmsMovement.create({
@@ -113,88 +211,191 @@ export async function POST(request: Request) {
           itemSku: item.sku,
           itemName: item.name,
           type: "PERSONAL_CARD",
-          quantity: parsedQty,
+          quantity,
           fromLocation: item.cell,
           toLocation: `Личная карточка: ${employeeName} (Таб. №${employeeNumber || "Б/Н"})`,
           performedBy: session.displayName || session.username,
           reason: `Выдача СИЗ/Инструмента сотруднику ${employeeName}`,
-        }
+        },
+      });
+
+      await recordWmsOutboxEvent(tx, {
+        eventName: "wms.personal_card.issued",
+        aggregateType: "WmsPersonalCard",
+        aggregateId: card.id,
+        payload: {
+          cardId: card.id,
+          itemId: item.id,
+          sku: item.sku,
+          employeeName,
+          quantity,
+          performedBy: session.displayName || session.username,
+        },
       });
 
       return card;
     });
 
-    return NextResponse.json({ card: result, success: true }, { status: 201 });
-  } catch (err: any) {
-    if (err.message === "NOT_FOUND") {
-      return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
+    logEvent({
+      level: "audit",
+      module: "WMS",
+      action: "PERSONAL_CARD_ISSUED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: {
+        cardId: result.id,
+        itemId,
+        employeeName,
+        quantity,
+      },
+    });
+
+    return createSuccessResponse({ success: true, card: result }, request, 201);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg === "NOT_FOUND") {
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Позиция ТМЦ не найдена",
+        undefined,
+        404,
+        request
+      );
     }
-    if (err.message === "FORBIDDEN") {
-      return NextResponse.json({ error: "Отказано в доступе. Вы не являетесь МОЛ данного склада" }, { status: 403 });
+    if (errMsg === "FORBIDDEN") {
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Вы не являетесь МОЛ данного склада",
+        undefined,
+        403,
+        request
+      );
     }
-    if (err.message?.startsWith("INSUFFICIENT_STOCK")) {
-      const [, avail, unit] = err.message.split(":");
-      return NextResponse.json(
-        { error: `Недостаточно остатка на складе. Доступно: ${avail} ${unit}` },
-        { status: 400 }
+    if (errMsg.startsWith("INSUFFICIENT_STOCK")) {
+      const [, avail, unit] = errMsg.split(":");
+      return createErrorResponse(
+        "INSUFFICIENT_STOCK",
+        `Недостаточно остатка на складе. Доступно: ${avail} ${unit}`,
+        { available: Number(avail), unit },
+        400,
+        request
       );
     }
     console.error("WMS Personal card POST failed:", err);
-    return NextResponse.json({ error: "Ошибка при выдаче ТМЦ в личную карточку" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "PERSONAL_CARD_ISSUE_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка при выдаче ТМЦ в личную карточку",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
+/**
+ * PUT /api/modules/wms/personal-cards
+ *
+ * Оформить возврат СИЗ/инструмента из личной карточки.
+ */
 export async function PUT(request: Request) {
   return handleReturn(request);
 }
 
+/**
+ * PATCH /api/modules/wms/personal-cards
+ *
+ * Оформить возврат СИЗ/инструмента из личной карточки (альтернативный метод).
+ */
 export async function PATCH(request: Request) {
   return handleReturn(request);
 }
 
 async function handleReturn(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
-    const body = await request.json();
-    const cardId = body.cardId || body.id;
-    const { returnCondition } = body;
-
-    if (!cardId || !returnCondition) {
-      return NextResponse.json(
-        { error: "Укажите ID карточки и техническое состояние при возврате" },
-        { status: 400 }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
       );
     }
 
+    const validation = returnCardSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Укажите ID карточки и техническое состояние при возврате",
+        validation.error.format(),
+        400,
+        request
+      );
+    }
+
+    const { cardId, returnCondition } = validation.data;
+
     const card = await prisma.wmsPersonalCard.findUnique({
       where: { id: cardId },
-      include: { item: true }
+      include: { item: true },
     });
 
     if (!card) {
-      return NextResponse.json({ error: "Запись в личной карточке не найдена" }, { status: 404 });
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Запись в личной карточке не найдена",
+        undefined,
+        404,
+        request
+      );
     }
 
     // SEC-05: Идемпотентность — проверка, что личная карточка еще не возвращена
     if (!canReturnPersonalCard(card.returnedAt)) {
-      return NextResponse.json(
-        {
-          error: "Данная позиция личной карточки уже была возвращена ранее (SEC-05)",
-          returnedAt: card.returnedAt,
-        },
-        { status: 409 }
+      return createErrorResponse(
+        "CONFLICT",
+        "Данная позиция личной карточки уже была возвращена ранее (SEC-05)",
+        { returnedAt: card.returnedAt },
+        409,
+        request
       );
     }
 
     const responsibleWarehouses = await getUserResponsibleWarehouses();
     if (responsibleWarehouses !== null && !responsibleWarehouses.includes(card.item.warehouse)) {
-      return NextResponse.json(
-        { error: `Отказано в доступе. Вы не являетесь МОЛ склада "${card.item.warehouse}"` },
-        { status: 403 }
+      logEvent({
+        level: "warn",
+        module: "WMS",
+        action: "PERSONAL_CARD_RETURN_DENIED_SCOPE",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { warehouse: card.item.warehouse, allowed: responsibleWarehouses },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        `Отказано в доступе. Вы не являетесь МОЛ склада "${card.item.warehouse}"`,
+        undefined,
+        403,
+        request
       );
     }
 
@@ -207,8 +408,8 @@ async function handleReturn(request: Request) {
         where: { id: cardId, returnedAt: null },
         data: {
           returnedAt: new Date(),
-          returnCondition
-        }
+          returnCondition,
+        },
       });
 
       if (cardUpdate.count === 0) {
@@ -220,8 +421,11 @@ async function handleReturn(request: Request) {
           where: { id: card.itemId },
           data: {
             quantity: { increment: card.issuedQuantity },
-            status: (card.item.quantity + card.issuedQuantity) <= card.item.minQuantity ? "LOW_STOCK" : "IN_STOCK"
-          }
+            status:
+              card.item.quantity + card.issuedQuantity <= card.item.minQuantity
+                ? "LOW_STOCK"
+                : "IN_STOCK",
+          },
         });
 
         await tx.wmsMovement.create({
@@ -235,7 +439,7 @@ async function handleReturn(request: Request) {
             toLocation: card.item.cell,
             performedBy: session.displayName || session.username,
             reason: `Возврат из личной карточки (${employeeConditionLabel(returnCondition)})`,
-          }
+          },
         });
       } else {
         await tx.wmsWriteOff.create({
@@ -246,8 +450,8 @@ async function handleReturn(request: Request) {
             quantity: card.issuedQuantity,
             reason: writeOffReason,
             performedBy: session.displayName || session.username,
-            comments: `Возврат из личной карточки ${card.employeeName} в непригодном состоянии (${employeeConditionLabel(returnCondition)})`
-          }
+            comments: `Возврат из личной карточки ${card.employeeName} в непригодном состоянии (${employeeConditionLabel(returnCondition)})`,
+          },
         });
 
         await tx.wmsMovement.create({
@@ -261,23 +465,68 @@ async function handleReturn(request: Request) {
             toLocation: "Утиль / Ремонт",
             performedBy: session.displayName || session.username,
             reason: `Списание при возврате из личной карточки (${employeeConditionLabel(returnCondition)})`,
-          }
+          },
         });
       }
+
+      await recordWmsOutboxEvent(tx, {
+        eventName: "wms.personal_card.returned",
+        aggregateType: "WmsPersonalCard",
+        aggregateId: cardId,
+        payload: {
+          cardId,
+          itemId: card.itemId,
+          sku: card.itemSku,
+          employeeName: card.employeeName,
+          returnCondition,
+          performedBy: session.displayName || session.username,
+        },
+      });
 
       return await tx.wmsPersonalCard.findUnique({ where: { id: cardId } });
     });
 
-    return NextResponse.json({ card: result, success: true });
-  } catch (err: any) {
-    if (err.message === "ALREADY_RETURNED") {
-      return NextResponse.json(
-        { error: "Данная позиция личной карточки уже была возвращена (SEC-05)" },
-        { status: 409 }
+    logEvent({
+      level: "audit",
+      module: "WMS",
+      action: "PERSONAL_CARD_RETURNED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: {
+        cardId,
+        returnCondition,
+        employeeName: card.employeeName,
+      },
+    });
+
+    return createSuccessResponse({ success: true, card: result }, request);
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg === "ALREADY_RETURNED") {
+      return createErrorResponse(
+        "CONFLICT",
+        "Данная позиция личной карточки уже была возвращена (SEC-05)",
+        undefined,
+        409,
+        request
       );
     }
     console.error("WMS Personal card return failed:", err);
-    return NextResponse.json({ error: "Ошибка при оформлении возврата" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "PERSONAL_CARD_RETURN_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка при оформлении возврата",
+      undefined,
+      500,
+      request
+    );
   }
 }
 

@@ -1,10 +1,15 @@
-import { NextResponse } from "next/server";
 import { EquipmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions } from "@/lib/auth/eps-rbac";
 import { logEvent } from "@/lib/telemetry/logger";
-import { randomUUID } from "crypto";
+import { ShellEventBus } from "@/lib/shell/event-bus";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
 async function ensureDbUser(session: { id: string; email?: string; displayName?: string; username?: string }) {
   try {
@@ -30,10 +35,26 @@ async function ensureDbUser(session: { id: string; email?: string; displayName?:
   }
 }
 
-export async function GET() {
+const approvalActionSchema = z.object({
+  id: z.string().optional(),
+  action: z.enum(["CREATE", "APPROVE", "APPROVED", "REJECT", "REJECTED"]),
+  targetCode: z.string().optional(),
+  title: z.string().optional(),
+  comments: z.string().optional(),
+});
+
+/**
+ * GET /api/modules/eps/approvals
+ *
+ * Получить список заявок на согласование.
+ *
+ * @requires Permission: eps.approvals.decide
+ * @returns {Promise<{ items: ApprovalRequest[] }>}
+ */
+export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
   }
 
   try {
@@ -62,47 +83,98 @@ export async function GET() {
       decidedBy: req.decidedBy ? req.decidedBy.email || req.decidedBy.displayName : undefined,
     }));
 
-    return NextResponse.json({ items });
+    return createSuccessResponse({ items }, request);
   } catch (error) {
-    const requestId = randomUUID();
-    console.error(`[EPS Approvals GET] DB Error [requestId=${requestId}]:`, error);
-    return NextResponse.json(
-      { error: "Ошибка получения заявок на согласование", requestId },
-      { status: 500 }
+    console.error("[EPS Approvals GET] DB Error:", error);
+    logEvent({
+      level: "error",
+      module: "EPS",
+      action: "APPROVALS_LIST_FAILED",
+      userId: session.id,
+      error: String(error),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения заявок на согласование",
+      undefined,
+      500,
+      request
     );
   }
 }
 
-const ALLOWED_ACTIONS = new Set(["CREATE", "APPROVE", "APPROVED", "REJECT", "REJECTED"]);
-
+/**
+ * POST /api/modules/eps/approvals
+ *
+ * Создать заявку на согласование или принять решение по существующей.
+ *
+ * @requires Permission: eps.approvals.decide (для APPROVE/REJECT) или eps.equipment.create (для CREATE)
+ * @returns {Promise<{ success: true, item: ApprovalRequest }>}
+ */
 export async function POST(request: Request) {
-  const requestId = randomUUID();
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
     const permissions = await getUserEpsPermissions();
-    const body = await request.json();
-    const { id, action, targetCode, title, comments } = body;
 
-    // SEC-12: Strict validation of approval action enum
-    if (!action || typeof action !== "string" || !ALLOWED_ACTIONS.has(action)) {
-      return NextResponse.json(
-        { error: `Недопустимое действие согласования. Разрешены: CREATE, APPROVE, REJECT` },
-        { status: 400 }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
       );
     }
 
+    const validation = approvalActionSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Недопустимое действие согласования. Разрешены: CREATE, APPROVE, REJECT",
+        validation.error.format(),
+        400,
+        request
+      );
+    }
+
+    const { id, action, targetCode, title, comments } = validation.data;
     const actorId = await ensureDbUser(session);
 
     if (action === "CREATE") {
       if (!permissions.canEdit) {
-        return NextResponse.json({ error: "Отказано в доступе. Подача заявок доступна только редакторам." }, { status: 403 });
+        logEvent({
+          level: "warn",
+          module: "EPS",
+          action: "APPROVAL_CREATE_DENIED",
+          userId: session.id,
+          userEmail: session.email,
+          requestId: correlationId,
+        });
+        return createErrorResponse(
+          "FORBIDDEN",
+          "Отказано в доступе. Подача заявок доступна только редакторам.",
+          undefined,
+          403,
+          request
+        );
       }
       if (!targetCode || !title) {
-        return NextResponse.json({ error: "Необходимы targetCode и title" }, { status: 400 });
+        return createErrorResponse(
+          "VALIDATION_ERROR",
+          "Необходимы targetCode и title",
+          undefined,
+          400,
+          request
+        );
       }
 
       const newApproval = await prisma.approvalRequest.create({
@@ -124,10 +196,25 @@ export async function POST(request: Request) {
         action: "APPROVAL_CREATED",
         userId: session.id,
         userEmail: session.email,
+        requestId: correlationId,
         details: { approvalId: newApproval.id, targetCode },
       });
 
-      return NextResponse.json(
+      await ShellEventBus.publish(
+        "eps.approval.submitted",
+        "EPS",
+        {
+          approvalId: newApproval.id,
+          targetType: newApproval.targetType,
+          targetId: newApproval.targetId,
+          title,
+          requestedBy: session.id,
+          requestedByEmail: session.email,
+        },
+        correlationId
+      );
+
+      return createSuccessResponse(
         {
           success: true,
           item: {
@@ -141,17 +228,38 @@ export async function POST(request: Request) {
             submittedAt: newApproval.submittedAt.toISOString(),
           },
         },
-        { status: 201 }
+        request,
+        201
       );
     }
 
     // Разрешение заявки (APPROVE / REJECT)
     if (!permissions.canApprove) {
-      return NextResponse.json({ error: "Отказано в доступе. Согласование доступно только согласующим и администраторам." }, { status: 403 });
+      logEvent({
+        level: "warn",
+        module: "EPS",
+        action: "APPROVAL_DECIDE_DENIED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Согласование доступно только согласующим и администраторам.",
+        undefined,
+        403,
+        request
+      );
     }
 
     if (!id) {
-      return NextResponse.json({ error: "Необходим ID заявки для согласования" }, { status: 400 });
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Необходим ID заявки для согласования",
+        undefined,
+        400,
+        request
+      );
     }
 
     const existing = await prisma.approvalRequest.findUnique({
@@ -159,17 +267,23 @@ export async function POST(request: Request) {
     });
 
     if (!existing) {
-      return NextResponse.json(
-        { error: `Заявка на согласование с ID "${id}" не найдена в базе данных` },
-        { status: 404 }
+      return createErrorResponse(
+        "NOT_FOUND",
+        `Заявка на согласование с ID "${id}" не найдена в базе данных`,
+        undefined,
+        404,
+        request
       );
     }
 
     // SEC-12: Validate state transitions — only allow transition if currently PENDING
     if (existing.status !== "PENDING") {
-      return NextResponse.json(
-        { error: `Заявка уже переведена в статус "${existing.status}"` },
-        { status: 409 }
+      return createErrorResponse(
+        "CONFLICT",
+        `Заявка уже переведена в статус "${existing.status}"`,
+        { currentStatus: existing.status },
+        409,
+        request
       );
     }
 
@@ -194,15 +308,15 @@ export async function POST(request: Request) {
       if (newStatus === "APPROVED" && app.targetId) {
         const targetEquipment = await tx.equipment.findFirst({
           where: {
-            OR: [{ id: app.targetId }, { equipmentCode: app.targetId }]
-          }
+            OR: [{ id: app.targetId }, { equipmentCode: app.targetId }],
+          },
         });
 
         const ALLOWED_PREDECESSORS: string[] = ["DRAFT", "PENDING_APPROVAL", "INACTIVE"];
         if (targetEquipment && ALLOWED_PREDECESSORS.includes(targetEquipment.status)) {
           await tx.equipment.update({
             where: { id: targetEquipment.id },
-            data: { status: "ACTIVE" }
+            data: { status: EquipmentStatus.ACTIVE },
           });
         }
       }
@@ -216,10 +330,26 @@ export async function POST(request: Request) {
       action: newStatus === "APPROVED" ? "APPROVAL_RESOLVED_APPROVED" : "APPROVAL_RESOLVED_REJECTED",
       userId: session.id,
       userEmail: session.email,
+      requestId: correlationId,
       details: { approvalId: updated.id, targetId: updated.targetId },
     });
 
-    return NextResponse.json({
+    await ShellEventBus.publish(
+      "eps.approval.resolved",
+      "EPS",
+      {
+        approvalId: updated.id,
+        targetType: updated.targetType,
+        targetId: updated.targetId,
+        decision: newStatus,
+        comments: updated.comments,
+        decidedBy: session.id,
+        decidedByEmail: session.email,
+      },
+      correlationId
+    );
+
+    return createSuccessResponse({
       success: true,
       item: {
         id: updated.id,
@@ -233,16 +363,22 @@ export async function POST(request: Request) {
         decidedAt: updated.decidedAt?.toISOString(),
         decidedBy: updated.decidedBy?.email || updated.decidedBy?.displayName || session.email,
       },
-    });
-  } catch (error: any) {
+    }, request);
+  } catch (error) {
     // SEC-13: Stable error response with requestId, internal stack kept in server log only
-    console.error(`[EPS Approvals POST] Error [requestId=${requestId}]:`, error);
-    return NextResponse.json(
-      {
-        error: "Ошибка обработки согласования в БД",
-        requestId,
-      },
-      { status: 500 }
+    console.error("[EPS Approvals POST] Error:", error);
+    logEvent({
+      level: "error",
+      module: "EPS",
+      action: "APPROVAL_PROCESS_FAILED",
+      error: String(error),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка обработки согласования в БД",
+      undefined,
+      500,
+      request
     );
   }
 }

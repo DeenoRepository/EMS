@@ -1,30 +1,41 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/shell/api-response";
 
+/**
+ * GET /api/modules/sidebar-counters
+ *
+ * Получить счётчики для пунктов sidebar (EPS + WMS).
+ * Используется для отображения бейджей с количеством непрочитанных/необработанных элементов.
+ *
+ * @returns {Promise<{ counters: Record<string, number>, timestamp: number }>}
+ */
 export async function GET(request: Request) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
+  const { searchParams } = new URL(request.url);
+
+  // Функция для получения даты последнего просмотра пользователем подраздела
+  const getSeenDate = (subId: string): Date => {
+    const param = searchParams.get(`seen_${subId}`);
+    if (param && !isNaN(Number(param))) {
+      return new Date(Number(param));
     }
+    // По умолчанию берем прошлые 24 часа
+    return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  };
 
-    const { searchParams } = new URL(request.url);
+  const epsReportsSeen = getSeenDate("nav-eps-reports");
+  const epsHistorySeen = getSeenDate("nav-eps-history");
+  const wmsMovementsSeen = getSeenDate("nav-wms-movements");
 
-    // Функция для получения даты последнего просмотра пользователем подраздела
-    const getSeenDate = (subId: string): Date => {
-      const param = searchParams.get(`seen_${subId}`);
-      if (param && !isNaN(Number(param))) {
-        return new Date(Number(param));
-      }
-      // По умолчанию берем прошлые 24 часа
-      return new Date(Date.now() - 24 * 60 * 60 * 1000);
-    };
-
-    const epsReportsSeen = getSeenDate("nav-eps-reports");
-    const epsHistorySeen = getSeenDate("nav-eps-history");
-    const wmsMovementsSeen = getSeenDate("nav-wms-movements");
-
+  try {
     // Параллельные запросы для подразделов EPS и WMS
     const [
       // EPS Counters
@@ -61,7 +72,7 @@ export async function GET(request: Request) {
         })
         .catch(() => 0),
 
-      // EPS: Непросмотренные отчёты и события оборудования (созданные ПОСЛЕ времени последнего просмотра)
+      // EPS: Непросмотренные отчёты и события оборудования
       prisma.equipmentEvent
         .count({
           where: {
@@ -77,7 +88,7 @@ export async function GET(request: Request) {
         })
         .catch(() => 0),
 
-      // EPS: Непросмотренная история изменений (записи аудита ПОСЛЕ просмотра)
+      // EPS: Непросмотренная история изменений
       prisma.auditLog
         .count({
           where: {
@@ -95,7 +106,7 @@ export async function GET(request: Request) {
         })
         .catch(() => 0),
 
-      // WMS: Непросмотренные движения ТМЦ (созданные ПОСЛЕ просмотра)
+      // WMS: Непросмотренные движения ТМЦ
       prisma.wmsMovement
         .count({
           where: {
@@ -155,18 +166,21 @@ export async function GET(request: Request) {
       "nav-wms-toir": wmsActiveReservationsCount,
     };
 
-    return NextResponse.json({
-      counters,
-      timestamp: Date.now(),
-    });
+    return createSuccessResponse(
+      {
+        counters,
+        timestamp: Date.now(),
+      },
+      request
+    );
   } catch (error) {
     console.error("[Sidebar Counters API Error]:", error);
-    return NextResponse.json(
-      {
-        counters: {},
-        error: "Ошибка получения счетчиков сайдбара",
-      },
-      { status: 500 }
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения счетчиков сайдбара",
+      undefined,
+      500,
+      request
     );
   }
 }

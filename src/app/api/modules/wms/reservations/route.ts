@@ -1,92 +1,191 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
 import { createReservationSchema } from "@/lib/validations/wms";
+import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
+import { logEvent } from "@/lib/telemetry/logger";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
+import { z } from "zod";
 
+const reservationsQuerySchema = z.object({
+  itemId: z.string().optional(),
+  equipmentId: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+/**
+ * GET /api/modules/wms/reservations
+ *
+ * Получить список активных резервов ТМЦ с фильтрацией.
+ * Применяется scope-based фильтрация по ответственным складам.
+ *
+ * @requires Permission: wms.items.read
+ * @returns {Promise<{ reservations: WmsReservation[], total: number, limit: number, offset: number }>}
+ */
 export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
   const { searchParams } = new URL(request.url);
-  const itemId = searchParams.get("itemId");
-  const equipmentId = searchParams.get("equipmentId");
+  const parseResult = reservationsQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parseResult.success) {
+    return createErrorResponse(
+      "VALIDATION_ERROR",
+      "Некорректные параметры запроса",
+      parseResult.error.flatten(),
+      400,
+      request
+    );
+  }
+
+  const { itemId, equipmentId, limit, offset } = parseResult.data;
 
   try {
     const responsibleWarehouses = await getUserResponsibleWarehouses();
-    const where: any = { isActive: true };
+    const where: Record<string, unknown> = { isActive: true };
     if (itemId) where.itemId = itemId;
     if (equipmentId) where.equipmentId = equipmentId;
 
     if (responsibleWarehouses !== null) {
       if (responsibleWarehouses.length === 0) {
-        return NextResponse.json({ reservations: [] });
+        return createSuccessResponse({ reservations: [], total: 0, limit, offset }, request);
       }
       where.item = {
-        warehouse: { in: responsibleWarehouses }
+        warehouse: { in: responsibleWarehouses },
       };
     }
 
-    const reservations = await prisma.wmsReservation.findMany({
-      where,
-      include: {
-        item: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const [reservations, total] = await Promise.all([
+      prisma.wmsReservation.findMany({
+        where,
+        include: { item: true },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.wmsReservation.count({ where }),
+    ]);
 
-    return NextResponse.json({ reservations });
+    return createSuccessResponse({ reservations, total, limit, offset }, request);
   } catch (err) {
     console.error("Failed to fetch WMS reservations:", err);
-    return NextResponse.json({ reservations: [] }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "RESERVATIONS_LIST_FAILED",
+      userId: session.id,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения списка резервов",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
+/**
+ * POST /api/modules/wms/reservations
+ *
+ * Зарезервировать ТМЦ под ТОИР/ППР.
+ * Публикует доменное событие `wms.stock.reserved` через Transactional Outbox.
+ *
+ * @requires Permission: wms.items.update
+ * @returns {Promise<{ success: true, reservation: WmsReservation }>}
+ */
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
 
-    const rawBody = await request.json();
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON в теле запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    const body = rawBody as Record<string, unknown>;
     const parseResult = createReservationSchema.safeParse({
-      itemId: rawBody.itemId,
-      quantity: Number(rawBody.reservedQuantity ?? rawBody.quantity),
+      itemId: body.itemId,
+      quantity: Number(body.reservedQuantity ?? body.quantity),
       reservedBy: session.displayName || session.username,
-      purpose: rawBody.reason || rawBody.purpose,
-      notes: rawBody.notes,
+      purpose: body.reason || body.purpose,
+      notes: body.notes,
     });
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          error: "Некорректные параметры резервирования ТМЦ (SEC-03)",
-          details: parseResult.error.flatten(),
-        },
-        { status: 400 }
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные параметры резервирования ТМЦ (SEC-03)",
+        parseResult.error.flatten(),
+        400,
+        request
       );
     }
 
     const { itemId, quantity: reservedQuantity, purpose: reason } = parseResult.data;
-    const { equipmentId, equipmentName, maintenancePlanDate } = rawBody;
+    const { equipmentId, equipmentName, maintenancePlanDate } = body;
 
     // Проверка остатка ТМЦ
     const item = await prisma.wmsItem.findUnique({ where: { id: itemId } });
     if (!item) {
-      return NextResponse.json({ error: "Позиция ТМЦ не найдена" }, { status: 404 });
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Позиция ТМЦ не найдена",
+        undefined,
+        404,
+        request
+      );
     }
 
     const responsibleWarehouses = await getUserResponsibleWarehouses();
     if (responsibleWarehouses !== null && !responsibleWarehouses.includes(item.warehouse)) {
-      return NextResponse.json(
-        { error: `Отказано в доступе. Вы не являетесь МОЛ склада "${item.warehouse}"` },
-        { status: 403 }
+      logEvent({
+        level: "warn",
+        module: "WMS",
+        action: "RESERVATION_DENIED_SCOPE",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { warehouse: item.warehouse, allowed: responsibleWarehouses },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        `Отказано в доступе. Вы не являетесь МОЛ склада "${item.warehouse}"`,
+        undefined,
+        403,
+        request
       );
     }
 
     const availableQty = item.quantity - item.reservedQuantity;
     if (reservedQuantity > availableQty) {
-      return NextResponse.json(
-        { error: `Недостаточно свободного остатка для резерва. Доступно: ${availableQty} ${item.unit}` },
-        { status: 400 }
+      return createErrorResponse(
+        "INSUFFICIENT_STOCK",
+        `Недостаточно свободного остатка для резерва. Доступно: ${availableQty} ${item.unit}`,
+        { available: availableQty, unit: item.unit },
+        400,
+        request
       );
     }
 
@@ -97,9 +196,10 @@ export async function POST(request: Request) {
       prisma.wmsReservation.create({
         data: {
           itemId,
-          equipmentId: equipmentId || null,
-          equipmentName: equipmentName || null,
-          maintenancePlanDate: maintenancePlanDate ? new Date(maintenancePlanDate) : null,
+          equipmentId: typeof equipmentId === "string" ? equipmentId : null,
+          equipmentName: typeof equipmentName === "string" ? equipmentName : null,
+          maintenancePlanDate:
+            typeof maintenancePlanDate === "string" ? new Date(maintenancePlanDate) : null,
           reservedQuantity,
           reservedBy,
           reason: reason || "Резерв под ППР в ТОИР",
@@ -113,9 +213,37 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    return NextResponse.json({ reservation, success: true }, { status: 201 });
+    logEvent({
+      level: "audit",
+      module: "WMS",
+      action: "RESERVATION_CREATED",
+      userId: session.id,
+      userEmail: session.email,
+      requestId: correlationId,
+      details: {
+        reservationId: reservation.id,
+        itemId,
+        sku: item.sku,
+        reservedQuantity,
+      },
+    });
+
+    return createSuccessResponse({ success: true, reservation }, request, 201);
   } catch (err) {
     console.error("Failed to create WMS reservation:", err);
-    return NextResponse.json({ error: "Ошибка при резервировании ТМЦ под ТОИР" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "WMS",
+      action: "RESERVATION_CREATE_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка при резервировании ТМЦ под ТОИР",
+      undefined,
+      500,
+      request
+    );
   }
 }

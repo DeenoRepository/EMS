@@ -1,20 +1,37 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/session";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/shell/api-response";
 
-export async function GET() {
+/**
+ * GET /api/modules/wms/requisitions/count
+ *
+ * Получить количество межскладских запросов в статусе REQUESTED.
+ *
+ * @requires Permission: wms.transfers.manage
+ * @returns {Promise<{ count: number }>}
+ */
+export async function GET(request: Request) {
+  const session = await getSession();
+  if (!session) {
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+  }
+
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
-    }
-
     const count = await prisma.wmsRequisition.count({
-      where: { status: "REQUESTED" }
+      where: { status: "REQUESTED" },
     });
-    return NextResponse.json({ count });
+    return createSuccessResponse({ count }, request);
   } catch (err) {
     console.error("Failed to count pending WMS requisitions:", err);
-    return NextResponse.json({ count: 0 }, { status: 500 });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка получения количества запросов",
+      undefined,
+      500,
+      request
+    );
   }
 }

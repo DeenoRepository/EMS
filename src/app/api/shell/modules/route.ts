@@ -1,8 +1,18 @@
-import { NextResponse } from "next/server";
 import { MODULES_CONFIG, ModuleManifest } from "@/lib/config/modules";
 import { getSession } from "@/lib/auth/session";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "@/lib/shell/api-response";
 
-export async function GET() {
+/**
+ * GET /api/shell/modules
+ *
+ * Получить реестр зарегистрированных модулей платформы.
+ *
+ * @returns {Promise<{ modules: ModuleManifest[], userSession: { id, roles } | null }>}
+ */
+export async function GET(request: Request) {
   try {
     const session = await getSession();
 
@@ -19,14 +29,22 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      modules,
-      userSession: session ? { id: session.id, roles: session.roles } : null,
-    });
+    return createSuccessResponse(
+      {
+        timestamp: new Date().toISOString(),
+        modules,
+        userSession: session ? { id: session.id, roles: session.roles } : null,
+      },
+      request
+    );
   } catch (error) {
     console.error("[Shell API] Error fetching module registry:", error);
-    return NextResponse.json({ error: "Ошибка загрузки реестра модулей" }, { status: 500 });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка загрузки реестра модулей",
+      undefined,
+      500,
+      request
+    );
   }
 }

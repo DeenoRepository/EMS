@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/auth/session";
 import { getUserEpsPermissions, canManageEquipment } from "@/lib/auth/eps-rbac";
 import { logEvent } from "@/lib/telemetry/logger";
+import { ShellEventBus } from "@/lib/shell/event-bus";
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  getCorrelationId,
+} from "@/lib/shell/api-response";
 import { z } from "zod";
 
 // SEC-02: Strict Zod validation schema for updating equipment passports
@@ -34,13 +39,21 @@ const equipmentUpdateSchema = z.object({
   changeSummary: z.string().optional(),
 });
 
+/**
+ * GET /api/modules/eps/equipment/[id]
+ *
+ * Получить детальную информацию об оборудовании по ID или коду.
+ *
+ * @requires Permission: eps.equipment.read
+ * @returns {Promise<{ item: Equipment }>}
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
+    return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
   }
 
   const { id } = await params;
@@ -48,79 +61,146 @@ export async function GET(
   try {
     const item = await prisma.equipment.findFirst({
       where: {
-        OR: [{ id: id }, { equipmentCode: id }]
-      }
+        OR: [{ id: id }, { equipmentCode: id }],
+      },
     });
 
     if (item) {
-      return NextResponse.json({ item });
+      return createSuccessResponse({ item }, request);
     }
 
-    return NextResponse.json({ error: "Оборудование не найдено" }, { status: 404 });
+    return createErrorResponse(
+      "NOT_FOUND",
+      "Оборудование не найдено",
+      undefined,
+      404,
+      request
+    );
   } catch (err) {
     console.error("EPS Equipment GET failed:", err);
-    return NextResponse.json({ error: "Ошибка базы данных при получении оборудования" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "EPS",
+      action: "EQUIPMENT_GET_FAILED",
+      userId: session.id,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка базы данных при получении оборудования",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
+/**
+ * PUT /api/modules/eps/equipment/[id]
+ *
+ * Обновить паспорт оборудования с созданием новой версии.
+ *
+ * @requires Permission: eps.equipment.update
+ * @returns {Promise<{ success: true, item: Equipment }>}
+ */
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
-  }
+  const correlationId = getCorrelationId(request);
 
-  const permissions = await getUserEpsPermissions();
-  if (!permissions.canEdit) {
-    return NextResponse.json(
-      { error: "Отказано в доступе. Редактирование паспорта оборудования доступно только редакторам и администраторам." },
-      { status: 403 }
-    );
-  }
-
-  const { id } = await params;
-
-  // 1. Поиск существующего оборудования
-  const existing = await prisma.equipment.findFirst({
-    where: {
-      OR: [{ id: id }, { equipmentCode: id }]
+  try {
+    const session = await getSession();
+    if (!session) {
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
     }
-  });
 
-  if (!existing) {
-    return NextResponse.json({ error: "Оборудование не найдено" }, { status: 404 });
-  }
+    const permissions = await getUserEpsPermissions();
+    if (!permissions.canEdit) {
+      logEvent({
+        level: "warn",
+        module: "EPS",
+        action: "EQUIPMENT_UPDATE_DENIED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Редактирование паспорта оборудования доступно только редакторам и администраторам.",
+        undefined,
+        403,
+        request
+      );
+    }
 
-  // SEC-01: Proactive RBAC check for equipment responsibility
-  const canManage = await canManageEquipment(existing.id);
-  if (!canManage) {
-    return NextResponse.json(
-      { error: "Отказано в доступе. Вы не являетесь ответственным лицом или назначенным администратором для данного оборудования." },
-      { status: 403 }
-    );
-  }
+    const { id } = await params;
 
-  let body: any = {};
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Неверный формат JSON тела запроса" }, { status: 400 });
-  }
+    // 1. Поиск существующего оборудования
+    const existing = await prisma.equipment.findFirst({
+      where: {
+        OR: [{ id: id }, { equipmentCode: id }],
+      },
+    });
 
-  // SEC-02: Zod validation
-  const validation = equipmentUpdateSchema.safeParse(body);
-  if (!validation.success) {
-    return NextResponse.json(
-      { error: "Некорректные данные запроса", details: validation.error.format() },
-      { status: 400 }
-    );
-  }
+    if (!existing) {
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Оборудование не найдено",
+        undefined,
+        404,
+        request
+      );
+    }
 
-  const data = validation.data;
+    // SEC-01: Proactive RBAC check for equipment responsibility
+    const canManage = await canManageEquipment(existing.id);
+    if (!canManage) {
+      logEvent({
+        level: "warn",
+        module: "EPS",
+        action: "EQUIPMENT_UPDATE_DENIED_RESPONSIBILITY",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+        details: { equipmentId: existing.id },
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Вы не являетесь ответственным лицом или назначенным администратором для данного оборудования.",
+        undefined,
+        403,
+        request
+      );
+    }
 
-  try {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return createErrorResponse(
+        "INVALID_JSON",
+        "Неверный формат JSON тела запроса",
+        undefined,
+        400,
+        request
+      );
+    }
+
+    // SEC-02: Zod validation
+    const validation = equipmentUpdateSchema.safeParse(body);
+    if (!validation.success) {
+      return createErrorResponse(
+        "VALIDATION_ERROR",
+        "Некорректные данные запроса",
+        validation.error.format(),
+        400,
+        request
+      );
+    }
+
+    const data = validation.data;
+
     const result = await prisma.$transaction(async (tx) => {
       // 1. Создаем историческую версию оборудования со снапшотом текущего состояния
       await tx.equipmentVersion.create({
@@ -129,8 +209,8 @@ export async function PUT(
           versionNumber: existing.currentVersion,
           changeSummary: data.changeSummary || `Обновление паспорта оборудования (v${existing.currentVersion + 1})`,
           snapshot: JSON.parse(JSON.stringify(existing)),
-          createdById: session.id
-        }
+          createdById: session.id,
+        },
       });
 
       // 2. Обновляем паспорт оборудования и увеличиваем номер версии
@@ -160,7 +240,7 @@ export async function PUT(
           notes: data.notes ?? existing.notes,
           techSpecs: data.techSpecs ?? (existing as Record<string, unknown>).techSpecs,
           currentVersion: existing.currentVersion + 1,
-        } as unknown as Prisma.EquipmentUpdateInput
+        } as unknown as Prisma.EquipmentUpdateInput,
       });
 
       return updated;
@@ -172,43 +252,96 @@ export async function PUT(
       action: "EQUIPMENT_UPDATED",
       userId: session.id,
       userEmail: session.email,
-      details: { equipmentId: existing.id, newVersion: result.currentVersion }
+      requestId: correlationId,
+      details: { equipmentId: existing.id, newVersion: result.currentVersion },
     });
 
-    return NextResponse.json({ success: true, item: result });
+    await ShellEventBus.publish(
+      "eps.equipment.updated",
+      "EPS",
+      {
+        equipmentId: existing.id,
+        equipmentCode: existing.equipmentCode,
+        newVersion: result.currentVersion,
+        performedBy: session.id,
+        performedByEmail: session.email,
+      },
+      correlationId
+    );
+
+    return createSuccessResponse({ success: true, item: result }, request);
   } catch (err) {
     console.error("EPS Equipment update failed:", err);
-    return NextResponse.json({ error: "Ошибка базы данных при обновлении паспорта" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "EPS",
+      action: "EQUIPMENT_UPDATE_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка базы данных при обновлении паспорта",
+      undefined,
+      500,
+      request
+    );
   }
 }
 
-// LOG-04: Soft Delete / Safe Decommissioning endpoint
+/**
+ * DELETE /api/modules/eps/equipment/[id]
+ *
+ * LOG-04: Soft Delete / Safe Decommissioning — переводит оборудование в DECOMMISSIONED.
+ *
+ * @requires Permission: eps.equipment.delete (только ADMIN)
+ * @returns {Promise<{ success: true, message: string, item: Equipment }>}
+ */
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 });
-  }
-
-  const permissions = await getUserEpsPermissions();
-  if (!permissions.isUnrestricted) {
-    return NextResponse.json(
-      { error: "Отказано в доступе. Вывод оборудования из эксплуатации доступен только администраторам." },
-      { status: 403 }
-    );
-  }
-
-  const { id } = await params;
+  const correlationId = getCorrelationId(request);
 
   try {
+    const session = await getSession();
+    if (!session) {
+      return createErrorResponse("UNAUTHORIZED", "Необходима авторизация", undefined, 401, request);
+    }
+
+    const permissions = await getUserEpsPermissions();
+    if (!permissions.isUnrestricted) {
+      logEvent({
+        level: "warn",
+        module: "EPS",
+        action: "EQUIPMENT_DECOMMISSION_DENIED",
+        userId: session.id,
+        userEmail: session.email,
+        requestId: correlationId,
+      });
+      return createErrorResponse(
+        "FORBIDDEN",
+        "Отказано в доступе. Вывод оборудования из эксплуатации доступен только администраторам.",
+        undefined,
+        403,
+        request
+      );
+    }
+
+    const { id } = await params;
+
     const existing = await prisma.equipment.findFirst({
-      where: { OR: [{ id }, { equipmentCode: id }] }
+      where: { OR: [{ id }, { equipmentCode: id }] },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Оборудование не найдено" }, { status: 404 });
+      return createErrorResponse(
+        "NOT_FOUND",
+        "Оборудование не найдено",
+        undefined,
+        404,
+        request
+      );
     }
 
     const decommissioned = await prisma.$transaction(async (tx) => {
@@ -219,8 +352,8 @@ export async function DELETE(
           versionNumber: existing.currentVersion,
           changeSummary: "Архивация паспорта оборудования перед выводом из эксплуатации",
           snapshot: JSON.parse(JSON.stringify(existing)),
-          createdById: session.id
-        }
+          createdById: session.id,
+        },
       });
 
       // 2. Переводим статус оборудования в DECOMMISSIONED и lifecycleStage в RETIRED
@@ -229,8 +362,8 @@ export async function DELETE(
         data: {
           status: "DECOMMISSIONED",
           lifecycleStage: "RETIRED",
-          currentVersion: existing.currentVersion + 1
-        }
+          currentVersion: existing.currentVersion + 1,
+        },
       });
 
       return updated;
@@ -242,16 +375,46 @@ export async function DELETE(
       action: "EQUIPMENT_DECOMMISSIONED",
       userId: session.id,
       userEmail: session.email,
-      details: { equipmentId: existing.id, code: existing.equipmentCode }
+      requestId: correlationId,
+      details: { equipmentId: existing.id, code: existing.equipmentCode },
     });
 
-    return NextResponse.json({
-      success: true,
-      message: "Оборудование успешно выведено из эксплуатации и переведено в архив",
-      item: decommissioned
-    });
+    await ShellEventBus.publish(
+      "eps.equipment.status_changed",
+      "EPS",
+      {
+        equipmentId: existing.id,
+        equipmentCode: existing.equipmentCode,
+        newStatus: "DECOMMISSIONED",
+        performedBy: session.id,
+        performedByEmail: session.email,
+      },
+      correlationId
+    );
+
+    return createSuccessResponse(
+      {
+        success: true,
+        message: "Оборудование успешно выведено из эксплуатации и переведено в архив",
+        item: decommissioned,
+      },
+      request
+    );
   } catch (err) {
     console.error("EPS Equipment DELETE error:", err);
-    return NextResponse.json({ error: "Ошибка базы данных при списании оборудования" }, { status: 500 });
+    logEvent({
+      level: "error",
+      module: "EPS",
+      action: "EQUIPMENT_DECOMMISSION_FAILED",
+      requestId: correlationId,
+      error: String(err),
+    });
+    return createErrorResponse(
+      "INTERNAL_ERROR",
+      "Ошибка базы данных при списании оборудования",
+      undefined,
+      500,
+      request
+    );
   }
 }
