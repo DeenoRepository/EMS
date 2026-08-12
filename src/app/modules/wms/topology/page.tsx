@@ -22,6 +22,8 @@ import {
   ModalHeader,
   FilterToolbar
 } from "@/components/ui";
+import { AddCellModal } from "@/components/wms/modals";
+
 
 interface StorageCell {
   id: string;
@@ -323,67 +325,15 @@ export default function WmsTopologyPage() {
         </div>
 
         {/* ADD CELL MODAL */}
-        <Modal open={showAddCellModal} onClose={() => setShowAddCellModal(false)} size="md">
-          <ModalHeader
-            icon={<MapPin size={16} />}
-            title="Новая ячейка адресного хранения"
-            subtitle="Присвоение уникального кода ячейки складу"
-            onClose={() => setShowAddCellModal(false)}
-          />
-          <form onSubmit={handleAddCell} className="p-6 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Склад *</label>
-              <select
-                value={selectedWarehouseId}
-                onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-              >
-                {warehousesList.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
+        <AddCellModal
+          isOpen={showAddCellModal}
+          onClose={() => setShowAddCellModal(false)}
+          onSuccess={fetchTopology}
+          warehouses={warehousesList as any}
+          initialWarehouseId={selectedWarehouseId}
+        />
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Код ячейки *</label>
-              <input
-                required
-                type="text"
-                value={cellCode}
-                onChange={(e) => setCellCode(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none"
-                placeholder="С-01-А3"
-              />
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Описание / Стеллаж</label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                placeholder="Стеллаж крупногабарита №1"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowAddCellModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
-              >
-                Добавить ячейку
-              </button>
-            </div>
-          </form>
-        </Modal>
       </main>
     </ShellLayout>
   );

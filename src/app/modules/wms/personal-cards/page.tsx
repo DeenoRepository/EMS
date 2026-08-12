@@ -26,6 +26,13 @@ import {
   FilterToolbar
 } from "@/components/ui";
 import { BarcodeLabelModal } from "@/components/wms/barcode-label-modal";
+import {
+  PersonalCardModal,
+  ReturnPersonalItemModal,
+  EmployeeDirectoryModal,
+  AddEmployeeModal
+} from "@/components/wms/modals";
+
 
 interface WmsPersonalCard {
   id: string;
@@ -477,344 +484,42 @@ export default function WmsPersonalCardsPage() {
           />
         </div>
 
-        {/* MODAL 1: ISSUE ITEM TO EMPLOYEE */}
-        <Modal open={showIssueModal} onClose={() => setShowIssueModal(false)} size="lg">
-          <ModalHeader
-            icon={<UserCheck size={16} />}
-            title="Выдача ТМЦ / СИЗ на личную карточку"
-            subtitle="Выбор сотрудника из реестра кладовщика или ввод нового"
-            onClose={() => setShowIssueModal(false)}
-          />
-          <form onSubmit={handleIssueSubmit} className="p-6 space-y-4">
-            {/* Quick Autocomplete Select from Roster */}
-            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
-              <label className="block text-xs font-semibold text-blue-900 mb-1">
-                Выберите сотрудника из сформированного Справочника:
-              </label>
-              <select
-                value={issueFormData.selectedEmployeeId}
-                onChange={(e) => handleSelectEmployee(e.target.value)}
-                className="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">-- Новое материально ответственное лицо / Ручной ввод --</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name} (Таб. №{emp.employeeNumber}) — {emp.position} ({emp.department})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">ФИО Сотрудника *</label>
-                <input
-                  required
-                  type="text"
-                  value={issueFormData.employeeName}
-                  onChange={(e) => setIssueFormData({ ...issueFormData, employeeName: e.target.value })}
-                  placeholder="Иванов Сергей Викторович"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Табельный номер *</label>
-                <input
-                  required
-                  type="text"
-                  value={issueFormData.employeeNumber}
-                  onChange={(e) => setIssueFormData({ ...issueFormData, employeeNumber: e.target.value })}
-                  placeholder="Т-0482"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Должность</label>
-                <input
-                  type="text"
-                  value={issueFormData.employeePosition}
-                  onChange={(e) => setIssueFormData({ ...issueFormData, employeePosition: e.target.value })}
-                  placeholder="Инженер-механик"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Подразделение / Цех</label>
-                <input
-                  type="text"
-                  value={issueFormData.department}
-                  onChange={(e) => setIssueFormData({ ...issueFormData, department: e.target.value })}
-                  placeholder="Цех №1"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Выдаваемый ТМЦ / СИЗ *</label>
-                <select
-                  required
-                  value={issueFormData.itemId}
-                  onChange={(e) => setIssueFormData({ ...issueFormData, itemId: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                >
-                  {items.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} ({i.sku}) - Склад: {i.warehouse} (Доступно: {i.quantity})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Количество *</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={issueFormData.quantity}
-                  onChange={(e) => setIssueFormData({ ...issueFormData, quantity: Number(e.target.value) })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Примечание / Основание</label>
-              <input
-                type="text"
-                value={issueFormData.notes}
-                onChange={(e) => setIssueFormData({ ...issueFormData, notes: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="saveToRoster"
-                checked={issueFormData.saveToRoster}
-                onChange={(e) => setIssueFormData({ ...issueFormData, saveToRoster: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="saveToRoster" className="text-xs font-medium text-slate-700 cursor-pointer">
-                Сохранить/Обновить данного сотрудника в Справочнике склада кладовщика
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowIssueModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-[#2f74df] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2565c8] disabled:opacity-50"
-              >
-                {submitting ? "Оформление..." : "Оформить выдачу"}
-              </button>
-            </div>
-          </form>
-        </Modal>
+        {/* MODAL 1: ISSUE ITEM TO PERSONAL CARD */}
+        <PersonalCardModal
+          isOpen={showIssueModal}
+          onClose={() => setShowIssueModal(false)}
+          onSuccess={fetchData}
+          items={items as any}
+          employees={employees as any}
+        />
 
         {/* MODAL 2: EMPLOYEE DIRECTORY ROSTER */}
-        <Modal open={showDirectoryModal} onClose={() => setShowDirectoryModal(false)} size="lg">
-          <ModalHeader
-            icon={<Users size={16} />}
-            title="Справочник сотрудников склада кладовщика"
-            subtitle="Перечень материально ответственных лиц, на которых заводятся карточки ТМЦ"
-            onClose={() => setShowDirectoryModal(false)}
-          />
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700">
-                Всего заведено сотрудников: <strong>{employees.length}</strong>
-              </span>
-              <button
-                onClick={() => setShowAddEmployeeModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
-              >
-                <UserPlus size={13} /> Добавить сотрудника в реестр
-              </button>
-            </div>
-
-            <DataTable
-              columns={[
-                {
-                  key: "name",
-                  header: "ФИО Сотрудника",
-                  cell: (row: WmsEmployeeOption) => (
-                    <span className="font-semibold text-slate-900 text-xs">{row.name}</span>
-                  )
-                },
-                {
-                  key: "employeeNumber",
-                  header: "Табельный номер",
-                  cell: (row: WmsEmployeeOption) => (
-                    <span className="rounded bg-indigo-50 px-2 py-0.5 font-mono text-xs font-bold text-indigo-700 border border-indigo-100">
-                      {row.employeeNumber}
-                    </span>
-                  )
-                },
-                {
-                  key: "position",
-                  header: "Должность",
-                  cell: (row: WmsEmployeeOption) => (
-                    <span className="text-xs text-slate-600">{row.position || "—"}</span>
-                  )
-                },
-                {
-                  key: "department",
-                  header: "Цех / Подразделение",
-                  cell: (row: WmsEmployeeOption) => (
-                    <span className="text-xs text-slate-600">{row.department || "—"}</span>
-                  )
-                },
-                {
-                  key: "actions",
-                  header: "Действие",
-                  cell: (row: WmsEmployeeOption) => (
-                    <button
-                      onClick={() => {
-                        handleSelectEmployee(row.id);
-                        setShowDirectoryModal(false);
-                        setShowIssueModal(true);
-                      }}
-                      className="flex items-center gap-1 rounded bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
-                    >
-                      <Plus size={12} /> Выписать ТМЦ
-                    </button>
-                  )
-                }
-              ]}
-              data={employees}
-              keyExtractor={(row) => row.id}
-            />
-          </div>
-        </Modal>
+        <EmployeeDirectoryModal
+          isOpen={showDirectoryModal}
+          onClose={() => setShowDirectoryModal(false)}
+          employees={employees as any}
+          onAddEmployeeClick={() => setShowAddEmployeeModal(true)}
+          onIssueItemClick={(empId) => {
+            handleSelectEmployee(empId);
+            setShowIssueModal(true);
+          }}
+        />
 
         {/* MODAL 3: ADD NEW EMPLOYEE TO ROSTER */}
-        <Modal open={showAddEmployeeModal} onClose={() => setShowAddEmployeeModal(false)} size="md">
-          <ModalHeader
-            icon={<UserPlus size={16} />}
-            title="Новый сотрудник в Справочник склада"
-            subtitle="Заведение нового материально ответственного лица"
-            onClose={() => setShowAddEmployeeModal(false)}
-          />
-          <form onSubmit={handleAddEmployeeSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">ФИО Сотрудника *</label>
-              <input
-                required
-                type="text"
-                value={newEmployeeData.name}
-                onChange={(e) => setNewEmployeeData({ ...newEmployeeData, name: e.target.value })}
-                placeholder="Петров Алексей Сергеевич"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Табельный номер *</label>
-              <input
-                required
-                type="text"
-                value={newEmployeeData.employeeNumber}
-                onChange={(e) => setNewEmployeeData({ ...newEmployeeData, employeeNumber: e.target.value })}
-                placeholder="Т-0899"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Должность</label>
-                <input
-                  type="text"
-                  value={newEmployeeData.position}
-                  onChange={(e) => setNewEmployeeData({ ...newEmployeeData, position: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Цех / Подразделение</label>
-                <input
-                  type="text"
-                  value={newEmployeeData.department}
-                  onChange={(e) => setNewEmployeeData({ ...newEmployeeData, department: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowAddEmployeeModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {submitting ? "Сохранение..." : "Сохранить в Справочник"}
-              </button>
-            </div>
-          </form>
-        </Modal>
+        <AddEmployeeModal
+          isOpen={showAddEmployeeModal}
+          onClose={() => setShowAddEmployeeModal(false)}
+          onSuccess={fetchData}
+        />
 
         {/* MODAL 4: RETURN ITEM FROM PERSONAL CARD */}
-        <Modal open={showReturnModal} onClose={() => setShowReturnModal(false)} size="md">
-          <ModalHeader
-            icon={<RotateCcw size={16} />}
-            title="Оформление возврата имущества"
-            subtitle={selectedCard ? `${selectedCard.itemName} от ${selectedCard.employeeName} (Таб. №${selectedCard.employeeNumber || "Б/Н"})` : ""}
-            onClose={() => setShowReturnModal(false)}
-          />
-          <form onSubmit={handleReturnSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Состояние при возврате *</label>
-              <select
-                value={returnFormData.returnCondition}
-                onChange={(e) => setReturnFormData({ returnCondition: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"
-              >
-                <option value="GOOD">Исправно — вернуть на склад</option>
-                <option value="REPAIR">Требует ремонта — передать в ТОИР</option>
-                <option value="SCRAPPED">Списано в утиль / Непригодно</option>
-              </select>
-            </div>
+        <ReturnPersonalItemModal
+          isOpen={showReturnModal}
+          onClose={() => setShowReturnModal(false)}
+          onSuccess={fetchData}
+          card={selectedCard as any}
+        />
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => setShowReturnModal(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-              >
-                {submitting ? "Сохранение..." : "Подтвердить возврат"}
-              </button>
-            </div>
-          </form>
-        </Modal>
 
         {/* BARCODE PRINT MODAL */}
         {printCard && (

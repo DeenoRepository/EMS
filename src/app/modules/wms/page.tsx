@@ -35,8 +35,10 @@ import {
   EditItemModal,
   WriteOffModal,
   TransferModal,
-  RequisitionModal
+  RequisitionModal,
+  ItemCardDetailsModal
 } from "@/components/wms/modals";
+
 
 export default function WmsMainCatalogPage() {
   return (
@@ -460,50 +462,13 @@ function WmsMainCatalogPageContent() {
       </div>
 
       {/* MODAL: ITEM CARD PREVIEW */}
-      <Modal open={showCardModal} onClose={() => setShowCardModal(false)} size="md">
-        <ModalHeader
-          title={`Складская карточка ТМЦ: ${selectedCardItem?.name || ""}`}
-          onClose={() => setShowCardModal(false)}
-        />
-        {selectedCardItem && (
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs">
-              <div>
-                <span className="text-slate-500">Артикул / SKU:</span>
-                <div className="font-mono font-bold text-blue-600">{selectedCardItem.sku}</div>
-              </div>
-              <div>
-                <span className="text-slate-500">Категория:</span>
-                <div className="font-semibold text-slate-800">{selectedCardItem.category}</div>
-              </div>
-              <div>
-                <span className="text-slate-500">Склад:</span>
-                <div className="font-semibold text-slate-800">{selectedCardItem.warehouse}</div>
-              </div>
-              <div>
-                <span className="text-slate-500">Ячейка хранения:</span>
-                <div className="font-mono font-bold text-slate-800">
-                  {selectedCardItem.cell || "Обустройство"}
-                </div>
-              </div>
-              <div>
-                <span className="text-slate-500">Остаток:</span>
-                <div className="font-bold text-slate-900">
-                  {selectedCardItem.quantity} {selectedCardItem.unit}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setShowCardModal(false)}
-                className="rounded-lg bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-900"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <ItemCardDetailsModal
+        isOpen={showCardModal}
+        onClose={() => setShowCardModal(false)}
+        item={selectedCardItem}
+        onEdit={openEditModal}
+      />
+
 
       {/* MODAL: CREATE ITEM */}
       <CreateItemModal
