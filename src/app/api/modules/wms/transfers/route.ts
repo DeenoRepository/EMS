@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { positiveIntSchema, wmsIdSchema } from "@/lib/validations/wms";
 import { isValidTransferTransition } from "@/lib/wms/state-machine";
 import { WmsTransferStatus } from "@prisma/client";
+import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { action, requestId, itemId, quantity, toWarehouse, reason } = body;
+    const sessionUser = session.displayName || session.username;
 
     // Сценарий 1: Подтверждение / Отклонение заявки (Приемка МОЛ-получателем)
     if (action === "APPROVE" || action === "REJECT") {
@@ -89,25 +91,36 @@ export async function POST(request: Request) {
       }
 
       if (action === "REJECT") {
-        // Атомарный перевод статуса в REJECTED при условии, что текущий статус PENDING
-        const updatedCount = await prisma.wmsTransferRequest.updateMany({
-          where: { id: idParse.data, status: "PENDING" },
-          data: { status: "REJECTED", comment: body.comment || "Отклонено получателем" }
+        const updatedReq = await prisma.$transaction(async (tx) => {
+          const updatedCount = await tx.wmsTransferRequest.updateMany({
+            where: { id: idParse.data, status: "PENDING" },
+            data: { status: "REJECTED", comment: body.comment || "Отклонено получателем" }
+          });
+
+          if (updatedCount.count === 0) {
+            throw new Error("ALREADY_PROCESSED");
+          }
+
+          await recordWmsOutboxEvent(tx, {
+            eventName: "wms.transfer.rejected",
+            aggregateType: "WmsTransferRequest",
+            aggregateId: idParse.data,
+            payload: {
+              requestId: idParse.data,
+              fromWarehouse: transferReq.fromWarehouse,
+              toWarehouse: transferReq.toWarehouse,
+              performedBy: sessionUser,
+              comment: body.comment || "Отклонено получателем",
+            }
+          });
+
+          return await tx.wmsTransferRequest.findUnique({ where: { id: idParse.data } });
         });
 
-        if (updatedCount.count === 0) {
-          return NextResponse.json(
-            { error: "Заявка на перемещение уже была обработана другим запросом (SEC-04)" },
-            { status: 409 }
-          );
-        }
-
-        const updated = await prisma.wmsTransferRequest.findUnique({ where: { id: idParse.data } });
-        return NextResponse.json({ request: updated, success: true });
+        return NextResponse.json({ request: updatedReq, success: true });
       }
 
       // APPROVE: Перемещение остатка из склада-отправителя на склад-получатель
-      // SEC-16: Атомарное списывание у склада-отправителя с проверкой достаточного остатка
       const result = await prisma.$transaction(async (tx) => {
         // 1. Изменяем статус трансфера с PENDING на APPROVED
         const reqUpdate = await tx.wmsTransferRequest.updateMany({
@@ -173,7 +186,7 @@ export async function POST(request: Request) {
           });
         }
 
-        await tx.wmsMovement.create({
+        const movement = await tx.wmsMovement.create({
           data: {
             itemId: transferReq.itemId,
             itemSku: transferReq.itemSku,
@@ -182,8 +195,23 @@ export async function POST(request: Request) {
             quantity: transferReq.quantity,
             fromLocation: transferReq.fromWarehouse,
             toLocation: transferReq.toWarehouse,
-            performedBy: session.displayName || session.username,
+            performedBy: sessionUser,
             reason: `Межскладской трансфер (Заявка ${transferReq.id.slice(-6)})`,
+          }
+        });
+
+        await recordWmsOutboxEvent(tx, {
+          eventName: "wms.transfer.approved",
+          aggregateType: "WmsTransferRequest",
+          aggregateId: idParse.data,
+          payload: {
+            requestId: idParse.data,
+            itemId: transferReq.itemId,
+            quantity: transferReq.quantity,
+            fromWarehouse: transferReq.fromWarehouse,
+            toWarehouse: transferReq.toWarehouse,
+            movementId: movement.id,
+            performedBy: sessionUser,
           }
         });
 
@@ -224,20 +252,39 @@ export async function POST(request: Request) {
       );
     }
 
-    const created = await prisma.wmsTransferRequest.create({
-      data: {
-        itemId: item.id,
-        itemSku: item.sku,
-        itemName: item.name,
-        quantity: qtyParse.data,
-        fromWarehouse: item.warehouse,
-        toWarehouse: toWarehouse,
-        requestedBy: session.displayName || session.username,
-        requestedByUsername: session.username,
-        targetMolUser: body.targetMolUser || "МОЛ " + toWarehouse,
-        reason: reason || "Межскладская потребность",
-        status: "PENDING"
-      }
+    const created = await prisma.$transaction(async (tx) => {
+      const req = await tx.wmsTransferRequest.create({
+        data: {
+          itemId: item.id,
+          itemSku: item.sku,
+          itemName: item.name,
+          quantity: qtyParse.data,
+          fromWarehouse: item.warehouse,
+          toWarehouse: toWarehouse,
+          requestedBy: sessionUser,
+          requestedByUsername: session.username,
+          targetMolUser: body.targetMolUser || "МОЛ " + toWarehouse,
+          reason: reason || "Межскладская потребность",
+          status: "PENDING"
+        }
+      });
+
+      await recordWmsOutboxEvent(tx, {
+        eventName: "wms.transfer.requested",
+        aggregateType: "WmsTransferRequest",
+        aggregateId: req.id,
+        payload: {
+          requestId: req.id,
+          itemId: item.id,
+          sku: item.sku,
+          quantity: qtyParse.data,
+          fromWarehouse: item.warehouse,
+          toWarehouse: toWarehouse,
+          requestedBy: sessionUser,
+        }
+      });
+
+      return req;
     });
 
     return NextResponse.json({ request: created, success: true }, { status: 201 });

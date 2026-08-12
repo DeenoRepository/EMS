@@ -3,73 +3,49 @@ import { getSession } from "@/lib/auth/session";
 import { WmsRole } from "@prisma/client";
 
 export interface UserWarehouseAccess {
-  warehouses: string[];
+  warehouses: string[]; // Названия складов
+  warehouseIds: string[]; // ID складов
   isGlobalAdmin: boolean;
   rolesByWarehouse: Record<string, WmsRole>;
 }
 
 /**
- * Проверяет, привязан ли пользователь как МОЛ или Оператор к конкретным складам.
- * Если да — возвращает названия складов, за которые он отвечает.
- * Если пользователь ADMIN — возвращает null (нет ограничений, доступ ко всем складам).
+ * Проверяет, привязан ли пользователь как МОЛ, Оператор или через RoleScope к конкретным складам.
+ * Возвращает список названий складов. При ADMIN возвращает null (полный доступ).
  */
 export async function getUserResponsibleWarehouses(): Promise<string[] | null> {
-  try {
-    const session = await getSession();
-
-    if (!session) return []; // Если нет сессии — нет доступа
-    if (session.roles.includes("ADMIN")) return null; // ADMIN видит все склады
-
-    // 1. Поиск по новой модели N:M WarehouseKeeper
-    const keepers = await prisma.warehouseKeeper.findMany({
-      where: {
-        OR: [
-          { userId: session.id },
-          { username: { equals: session.username, mode: "insensitive" } }
-        ]
-      },
-      include: { warehouse: { select: { name: true } } }
-    });
-
-    if (keepers.length > 0) {
-      return Array.from(new Set(keepers.map((k) => k.warehouse.name)));
-    }
-
-    // 2. Фолбэк на старые поля Warehouse.responsibleUser/responsibleUsername
-    const legacyWarehouses = await prisma.warehouse.findMany({
-      where: {
-        OR: [
-          { responsibleUser: { equals: session.displayName, mode: "insensitive" } },
-          { responsibleUser: { equals: session.username, mode: "insensitive" } },
-          { responsibleUsername: { equals: session.username, mode: "insensitive" } }
-        ]
-      },
-      select: { name: true }
-    });
-
-    if (legacyWarehouses.length === 0) {
-      return [];
-    }
-
-    return legacyWarehouses.map((w) => w.name);
-  } catch (err) {
-    console.error("getUserResponsibleWarehouses failed:", err);
-    return [];
-  }
+  const access = await getUserWarehouseAccess();
+  if (access.isGlobalAdmin) return null;
+  return access.warehouses;
 }
 
 /**
- * Возвращает расширенную информацию о правах доступа пользователя ко всем складам WMS.
+ * Возвращает список ID разрешенных складов для пользователя. При ADMIN возвращает null.
+ */
+export async function getUserResponsibleWarehouseIds(): Promise<string[] | null> {
+  const access = await getUserWarehouseAccess();
+  if (access.isGlobalAdmin) return null;
+  return access.warehouseIds;
+}
+
+/**
+ * Возвращает расширенную информацию о правах доступа пользователя ко всем складам WMS
+ * с учетом моделей WarehouseKeeper, RoleScope из RBAC и legacy полей.
  */
 export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
   try {
     const session = await getSession();
-    if (!session) return { warehouses: [], isGlobalAdmin: false, rolesByWarehouse: {} };
+    if (!session) return { warehouses: [], warehouseIds: [], isGlobalAdmin: false, rolesByWarehouse: {} };
 
     if (session.roles.includes("ADMIN")) {
-      return { warehouses: [], isGlobalAdmin: true, rolesByWarehouse: {} };
+      return { warehouses: [], warehouseIds: [], isGlobalAdmin: true, rolesByWarehouse: {} };
     }
 
+    const warehouseNamesSet = new Set<string>();
+    const warehouseIdsSet = new Set<string>();
+    const rolesByWarehouse: Record<string, WmsRole> = {};
+
+    // 1. Поиск по N:M модели WarehouseKeeper
     const keepers = await prisma.warehouseKeeper.findMany({
       where: {
         OR: [
@@ -77,18 +53,90 @@ export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
           { username: { equals: session.username, mode: "insensitive" } }
         ]
       },
-      include: { warehouse: { select: { name: true } } }
+      include: { warehouse: { select: { id: true, name: true } } }
     });
 
-    const warehouses = Array.from(new Set(keepers.map(k => k.warehouse.name)));
-    const rolesByWarehouse = keepers.reduce((acc, k) => {
-      acc[k.warehouse.name] = k.role;
-      return acc;
-    }, {} as Record<string, WmsRole>);
+    for (const keeper of keepers) {
+      warehouseNamesSet.add(keeper.warehouse.name);
+      warehouseIdsSet.add(keeper.warehouse.id);
+      rolesByWarehouse[keeper.warehouse.name] = keeper.role;
+      rolesByWarehouse[keeper.warehouse.id] = keeper.role;
+    }
 
-    return { warehouses, isGlobalAdmin: false, rolesByWarehouse };
+    // 2. Поиск по RBAC RoleScope.allowedWarehouses
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: session.id },
+      include: { role: { include: { scope: true } } }
+    });
+
+    for (const ur of userRoles) {
+      if (ur.role.scope) {
+        if (ur.role.scope.isGlobal) {
+          return { warehouses: [], warehouseIds: [], isGlobalAdmin: true, rolesByWarehouse: {} };
+        }
+
+        const allowed = ur.role.scope.allowedWarehouses;
+        if (Array.isArray(allowed)) {
+          for (const item of allowed) {
+            if (typeof item === "string") {
+              warehouseNamesSet.add(item);
+              warehouseIdsSet.add(item);
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Фолбэк на старые поля Warehouse.responsibleUser/responsibleUsername
+    if (warehouseNamesSet.size === 0) {
+      const legacyWarehouses = await prisma.warehouse.findMany({
+        where: {
+          OR: [
+            { responsibleUser: { equals: session.displayName, mode: "insensitive" } },
+            { responsibleUser: { equals: session.username, mode: "insensitive" } },
+            { responsibleUsername: { equals: session.username, mode: "insensitive" } }
+          ]
+        },
+        select: { id: true, name: true }
+      });
+
+      for (const lw of legacyWarehouses) {
+        warehouseNamesSet.add(lw.name);
+        warehouseIdsSet.add(lw.id);
+      }
+    }
+
+    // Заполняем ID складов для найденных по имени
+    if (warehouseNamesSet.size > 0 && warehouseIdsSet.size === 0) {
+      const matchedWarehouses = await prisma.warehouse.findMany({
+        where: { name: { in: Array.from(warehouseNamesSet) } },
+        select: { id: true, name: true }
+      });
+      for (const w of matchedWarehouses) {
+        warehouseIdsSet.add(w.id);
+      }
+    }
+
+    return {
+      warehouses: Array.from(warehouseNamesSet),
+      warehouseIds: Array.from(warehouseIdsSet),
+      isGlobalAdmin: false,
+      rolesByWarehouse
+    };
   } catch (err) {
     console.error("getUserWarehouseAccess failed:", err);
-    return { warehouses: [], isGlobalAdmin: false, rolesByWarehouse: {} };
+    return { warehouses: [], warehouseIds: [], isGlobalAdmin: false, rolesByWarehouse: {} };
   }
+}
+
+/**
+ * Проверяет, доступен ли конкретный склад (по имени или по ID) текущему пользователю
+ */
+export async function canAccessWarehouse(warehouseNameOrId: string): Promise<boolean> {
+  const access = await getUserWarehouseAccess();
+  if (access.isGlobalAdmin) return true;
+  return (
+    access.warehouses.includes(warehouseNameOrId) ||
+    access.warehouseIds.includes(warehouseNameOrId)
+  );
 }
