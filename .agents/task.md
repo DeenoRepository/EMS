@@ -59,5 +59,10 @@
 
 ## Фаза 12: Очистка неиспользуемых файлов и артефактов проекта
 - [x] **`backend-api-architect`**: Удаление `.playwright-mcp/`, `ems-production-audit.html`, `CLAUDE.md`, `prisma/seed-eps.ts`, `prisma/verify-seed.ts` и очистка `package.json`
-- [x] **`qa-code-reviewer`**: Проверка сборки и отсутствие ломающих изменений
 
+## Фаза 13: Модернизация корпоративного Shell (RBAC Scope Guard, EventBus SSE, UI Slots Host, Circuit Breaker)
+- [x] **`backend-api-architect`**: Обновление `src/lib/shell/event-bus.ts` (поддержка SSE/вебхуков) и эндпоинта `/api/shell/events/sse/route.ts`
+- [x] **`security-auditor`**: Валидация RBAC Scope Guard утилит в `src/lib/auth/rbac.ts` и `src/lib/auth/wms-rbac.ts`
+- [x] **`nextjs-frontend-architect`**: Создание UI Slot Host компонентов `src/components/layout/ui-slot-host.tsx` и `src/components/layout/module-status-badge.tsx`
+- [x] **`nextjs-frontend-architect`**: Модернизация `src/components/layout/shell-context.tsx`, `app-sidebar.tsx` и `top-bar.tsx`
+- [x] **`qa-code-reviewer`**: Проверка типов и верификация внедрения новых компонентов Shell

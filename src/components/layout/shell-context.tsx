@@ -58,6 +58,7 @@ interface ShellContextType {
   markNotificationRead: (id: string) => void;
   searchModalOpen: boolean;
   setSearchModalOpen: (open: boolean) => void;
+  hasPermission: (permission: string) => boolean;
 }
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
@@ -355,6 +356,11 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
         markNotificationRead,
         searchModalOpen,
         setSearchModalOpen,
+        hasPermission: (permission: string) => {
+          if (!currentUser) return false;
+          if (currentUser.roles?.includes("ADMIN") || currentUser.permissions?.includes("*")) return true;
+          return Boolean(currentUser.permissions?.includes(permission));
+        },
       }}
     >
       {children}

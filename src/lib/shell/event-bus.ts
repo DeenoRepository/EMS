@@ -13,6 +13,17 @@ export type EventHandler<T = Record<string, unknown>> = (event: ShellEvent<T>) =
 
 class ShellEventBusManager {
   private handlers: Map<string, EventHandler<any>[]> = new Map();
+  private sseClients: Set<(event: ShellEvent) => void> = new Set();
+
+  /**
+   * Регистрация клиента SSE (Server-Sent Events)
+   */
+  public addSseClient(clientFn: (event: ShellEvent) => void): () => void {
+    this.sseClients.add(clientFn);
+    return () => {
+      this.sseClients.delete(clientFn);
+    };
+  }
 
   /**
    * Подписка на доменное событие платформы
@@ -63,6 +74,15 @@ class ShellEventBusManager {
       },
     });
 
+    // Оповещаем зарегистрированные SSE подключения в браузере
+    this.sseClients.forEach((clientFn) => {
+      try {
+        clientFn(event as ShellEvent);
+      } catch (err) {
+        console.error("[ShellEventBus] Error pushing to SSE client:", err);
+      }
+    });
+
     const eventHandlers = this.handlers.get(eventName) || [];
     const wildcardHandlers = this.handlers.get("*") || [];
 
@@ -89,3 +109,4 @@ class ShellEventBusManager {
 }
 
 export const ShellEventBus = new ShellEventBusManager();
+

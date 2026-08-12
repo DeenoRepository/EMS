@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, Bell, ChevronDown, X, Menu, LogOut, UserCheck, ShieldCheck, CheckCheck } from "lucide-react";
 import { useShell } from "./shell-context";
 import { BRAND_CONFIG } from "@/lib/config/brand";
+import { ModuleStatusBadge } from "./module-status-badge";
 
 export function TopBar() {
   const {
@@ -63,6 +64,11 @@ export function TopBar() {
             </div>
           </Link>
         )}
+
+        <div className="hidden lg:flex items-center gap-2 ml-4">
+          <ModuleStatusBadge moduleId="eps" />
+          <ModuleStatusBadge moduleId="wms" />
+        </div>
       </div>
 
       {/* Center: Search trigger button */}
