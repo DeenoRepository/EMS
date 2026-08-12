@@ -34,3 +34,12 @@
 - [ ] **`nextjs-frontend-architect`**: Пересмотр дизайна Настроек Shell (`src/app/admin/settings/page.tsx`), Настроек модулей (`src/app/admin/settings/[moduleId]/page.tsx`) и Страницы аудита (`src/app/admin/audit/page.tsx`) в едином стиле корпоративного шелла
 - [ ] **`qa-code-reviewer`**: Проверка сборки и типов `npm run typecheck`
 
+## Фаза 10: Архитектурная модернизация WMS под динамические изменения EMS
+- [x] **`postgres-prisma-engineer`**: Обновление `prisma/schema.prisma` (реляционная нормализация `WmsItem` с `warehouseId`, `zoneId`, `cellId`, добавление `WmsOutboxEvent`, связь с `Equipment`) и генерация Prisma Client
+- [x] **`backend-api-architect`**: Реализация Transactional Outbox обработчика (`src/lib/wms/outbox-processor.ts`), интеграция с `ShellEventBus`, создание эндпоинта `/api/modules/wms/outbox/process`
+- [x] **`security-auditor`**: Интеграция `RoleScope.allowedWarehouses` и `WarehouseKeeper` в `src/lib/auth/wms-rbac.ts` для проверки нормализованных полей складов
+- [x] **`backend-api-architect`**: Обновление API WMS эндпоинтов (`items`, `movements`, `transfers`, `write-offs`, `requisitions`) для транзакционной работы с `WmsOutboxEvent` и нормализованной топологией складов
+- [x] **`nextjs-frontend-architect`**: Обновление хуков `use-wms-catalog.ts`, `use-wms-topology.ts` и компонентов UI WMS для работы с нормализованной топологией складов и ячеек
+- [x] **`qa-code-reviewer`**: Проверка типов `npm run typecheck`, запуск тестов идемпотентности WMS и верификация сборки
+
+

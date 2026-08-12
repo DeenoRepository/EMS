@@ -191,6 +191,7 @@ model Equipment {
   documents      Document[]
   events         EquipmentEvent[]
   responsibleUser User?            @relation("ResponsibleEquipment", fields: [responsibleUserId], references: [id])
+  wmsItems       WmsItem[]
 
   @@index([name])
   @@index([status])
@@ -439,6 +440,7 @@ model Warehouse {
   keepers             WarehouseKeeper[]
   zones               WmsZone[]
   storageCells        StorageCell[]
+  wmsItems            WmsItem[]
 }
 
 model WmsZone {
@@ -452,6 +454,7 @@ model WmsZone {
 
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
   cells     StorageCell[]
+  wmsItems  WmsItem[]
 
   @@unique([warehouseId, code])
 }
@@ -468,6 +471,7 @@ model StorageCell {
 
   warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
   zone      WmsZone?  @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  wmsItems  WmsItem[]
 
   @@unique([warehouseId, code])
 }
@@ -482,6 +486,9 @@ model WmsItem {
   warehouse           String
   cell                String?
   zone                String?
+  warehouseId         String?
+  zoneId              String?
+  cellId              String?
   batchNumber         String?
   serialNumber        String?
   quantity            Int           @default(0)
@@ -510,10 +517,17 @@ model WmsItem {
   reservations        WmsReservation[]
   writeOffs           WmsWriteOff[]
 
+  warehouseRef Warehouse?   @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  zoneRef      WmsZone?     @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  cellRef      StorageCell? @relation(fields: [cellId], references: [id], onDelete: SetNull)
+  equipment    Equipment?   @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+
   @@unique([sku, warehouse])
   @@index([name])
   @@index([category])
   @@index([warehouse])
+  @@index([warehouseId])
+  @@index([equipmentId])
   @@index([status])
   @@index([batchNumber])
   @@index([serialNumber])
@@ -532,6 +546,7 @@ model WmsMovement {
   recipientUser    String?
   reason           String?
   relatedOrderOrEq String?
+  workOrderId      String?
   createdAt        DateTime        @default(now())
 
   item WmsItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -622,6 +637,7 @@ model WmsWriteOff {
   reason         WmsWriteOffReason @default(EQUIPMENT_REPAIR)
   equipmentId    String?
   equipmentName  String?
+  workOrderId    String?
   performedBy    String
   comments       String?
   createdAt      DateTime          @default(now())
@@ -691,4 +707,28 @@ model SystemModule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+enum WmsOutboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+model WmsOutboxEvent {
+  id            String          @id @default(cuid())
+  eventName     String
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  status        WmsOutboxStatus @default(PENDING)
+  retryCount    Int             @default(0)
+  lastError     String?
+  createdAt     DateTime        @default(now())
+  processedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([eventName])
+  @@index([aggregateId])
+}
+
 

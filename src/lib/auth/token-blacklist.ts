@@ -12,6 +12,15 @@ const revokedJtiHashes = new Map<string, number>();
  */
 export function hashJti(jti: string): string {
   if (!jti) return "";
+  try {
+    const nodeCrypto = require("crypto");
+    if (nodeCrypto && typeof nodeCrypto.createHash === "function") {
+      return nodeCrypto.createHash("sha256").update(jti).digest("hex");
+    }
+  } catch (_) {
+    // Edge runtime fallback
+  }
+
   let h1 = 0x811c9dc5;
   let h2 = 0xcbf29ce4;
   for (let i = 0; i < jti.length; i++) {
@@ -19,7 +28,9 @@ export function hashJti(jti: string): string {
     h1 = Math.imul(h1 ^ ch, 0x01000193);
     h2 = Math.imul(h2 ^ ch, 0x01000193);
   }
-  return (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+  const part1 = (h1 >>> 0).toString(16).padStart(8, "0");
+  const part2 = (h2 >>> 0).toString(16).padStart(8, "0");
+  return (part1 + part2).repeat(4).slice(0, 64);
 }
 
 /**

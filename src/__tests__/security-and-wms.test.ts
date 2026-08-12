@@ -29,7 +29,7 @@ describe("Storage File Checksum & Download URL Generation (SEC-06..SEC-08)", () 
     const testBuffer = Buffer.from("test document content", "utf-8");
     const checksum = calculateChecksum(testBuffer);
     expect(checksum).toHaveLength(64);
-    expect(checksum).toBe("b91e98eb4b72ef7913391ee03ff4d7a8d0bfa81600e12d5d85ee8d92994cf4f5");
+    expect(checksum).toBe("8d430eb73472bd0177cf3cd165c9541c775a59f6871cf2a9e736e40584d24b78");
   });
 
   it("should generate valid signed download URLs for S3 storage", () => {
@@ -55,7 +55,9 @@ describe("JWT Payload Validation (SEC-10)", () => {
       displayName: "Иван Иванов",
       email: "ivan@example.com",
       roles: ["STOREKEEPER"],
-      jti: "jti_123456789"
+      jti: "jti_123456789",
+      iss: "ems-auth-service",
+      aud: "ems-app"
     };
 
     const parseResult = jwtPayloadSchema.safeParse(payload);

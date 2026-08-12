@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { WmsMovementType } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
+import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       performedBy?: string;
       reason?: string;
       relatedOrderOrEq?: string;
+      workOrderId?: string;
     }> = Array.isArray(body.items) ? body.items : [body];
 
     if (itemsList.length === 0) {
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
 
     await prisma.$transaction(async (tx) => {
       for (const entry of itemsList) {
-        const { itemId, type, quantity, fromLocation, toLocation, reason, relatedOrderOrEq } = entry;
+        const { itemId, type, quantity, fromLocation, toLocation, reason, relatedOrderOrEq, workOrderId } = entry;
         const numQty = Number(quantity);
         if (!itemId || !type || !numQty || numQty <= 0) {
           throw new Error("INVALID_PARAMS");
@@ -147,7 +149,7 @@ export async function POST(request: Request) {
           });
         }
 
-        await tx.wmsMovement.create({
+        const movement = await tx.wmsMovement.create({
           data: {
             itemId: item.id,
             itemSku: item.sku,
@@ -159,19 +161,54 @@ export async function POST(request: Request) {
             performedBy: sessionUser,
             reason: reason || null,
             relatedOrderOrEq: relatedOrderOrEq || null,
+            workOrderId: workOrderId || null,
+          }
+        });
+
+        // Запись события в Transactional Outbox
+        await recordWmsOutboxEvent(tx, {
+          eventName: "wms.movement.created",
+          aggregateType: "WmsMovement",
+          aggregateId: movement.id,
+          payload: {
+            movementId: movement.id,
+            itemId: item.id,
+            itemSku: item.sku,
+            itemName: item.name,
+            type,
+            quantity: numQty,
+            warehouse: item.warehouse,
+            warehouseId: item.warehouseId,
+            performedBy: sessionUser,
+            relatedOrderOrEq: relatedOrderOrEq || null,
+            workOrderId: workOrderId || null,
           }
         });
 
         if (type === "OUTGOING" && relatedOrderOrEq) {
-          await tx.wmsWriteOff.create({
+          const writeOff = await tx.wmsWriteOff.create({
             data: {
               itemId: item.id,
               itemSku: item.sku,
               itemName: item.name,
               equipmentId: relatedOrderOrEq,
+              workOrderId: workOrderId || null,
               quantity: numQty,
               reason: "EQUIPMENT_REPAIR",
               comments: reason || "Списание на ремонт/обслуживание оборудования",
+              performedBy: sessionUser
+            }
+          });
+
+          await recordWmsOutboxEvent(tx, {
+            eventName: "wms.write_off.created",
+            aggregateType: "WmsWriteOff",
+            aggregateId: writeOff.id,
+            payload: {
+              writeOffId: writeOff.id,
+              itemId: item.id,
+              equipmentId: relatedOrderOrEq,
+              quantity: numQty,
               performedBy: sessionUser
             }
           });

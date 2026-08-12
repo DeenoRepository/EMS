@@ -79,6 +79,9 @@ export interface WmsItem {
   warehouse: string;
   zone?: string | null;
   cell?: string | null;
+  warehouseId?: string | null;
+  zoneId?: string | null;
+  cellId?: string | null;
   batchNumber?: string | null;
   serialNumber?: string | null;
   quantity: number;
@@ -100,6 +103,9 @@ export interface WmsItem {
   barcode?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  warehouseRef?: Warehouse;
+  zoneRef?: WmsZone;
+  cellRef?: StorageCell;
 }
 
 export interface WmsMovement {
@@ -115,6 +121,7 @@ export interface WmsMovement {
   recipientUser?: string | null;
   reason?: string | null;
   relatedOrderOrEq?: string | null;
+  workOrderId?: string | null;
   createdAt: string;
 }
 

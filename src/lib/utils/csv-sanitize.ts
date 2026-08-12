@@ -1,19 +1,12 @@
 /**
- * Экранирует управляющие символы и формулы в CSV значениях (SEC-15)
- * Защищает от уязвимости CSV Formula Injection / Macro Execution в Excel и LibreOffice
+ * SEC-15: CSV Formula Injection Prevention
+ * Sanitizes input text before export to CSV to prevent Excel/Spreadsheet formula execution.
  */
-export function sanitizeCsvValue(value: string | number | boolean | null | undefined): string {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  const str = String(value);
-  const trimmed = str.trim();
-
-  // Если строка начинается с =, +, -, @, \t, \r — дополняем её одиночной кавычкой '
-  if (/^[=+\-@\t\r]/.test(trimmed)) {
+export function sanitizeCsvValue(val: any): string {
+  if (val === null || val === undefined) return "";
+  const str = String(val);
+  if (/^[=+\-@\t\r]/.test(str)) {
     return `'${str}`;
   }
-
   return str;
 }

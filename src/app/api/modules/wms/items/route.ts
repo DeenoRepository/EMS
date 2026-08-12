@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { WmsItemType } from "@prisma/client";
 import { getUserResponsibleWarehouses } from "@/lib/auth/wms-rbac";
 import { getSession } from "@/lib/auth/session";
 import { createWmsItemSchema } from "@/lib/validations/wms";
+import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("query");
   const warehouse = searchParams.get("warehouse");
+  const warehouseId = searchParams.get("warehouseId");
   const category = searchParams.get("category");
   const status = searchParams.get("status");
 
@@ -21,36 +22,47 @@ export async function GET(request: Request) {
       if (responsibleWarehouses.length === 0) {
         return NextResponse.json({ items: [], total: 0 });
       }
-      where.warehouse = { in: responsibleWarehouses };
+      where.OR = [
+        { warehouse: { in: responsibleWarehouses } },
+        { warehouseId: { in: responsibleWarehouses } }
+      ];
     }
 
     if (query) {
-      where.OR = [
-        { name: { contains: query, mode: "insensitive" } },
-        { sku: { contains: query, mode: "insensitive" } },
-        { batchNumber: { contains: query, mode: "insensitive" } },
-        { serialNumber: { contains: query, mode: "insensitive" } },
-        { category: { contains: query, mode: "insensitive" } },
-        { cell: { contains: query, mode: "insensitive" } }
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { sku: { contains: query, mode: "insensitive" } },
+            { batchNumber: { contains: query, mode: "insensitive" } },
+            { serialNumber: { contains: query, mode: "insensitive" } },
+            { category: { contains: query, mode: "insensitive" } },
+            { cell: { contains: query, mode: "insensitive" } }
+          ]
+        }
       ];
     }
-    if (warehouse) {
-      if (responsibleWarehouses !== null) {
-        if (responsibleWarehouses.includes(warehouse)) {
-          where.warehouse = warehouse;
-        } else {
-          return NextResponse.json({ items: [], total: 0 });
-        }
-      } else {
-        where.warehouse = warehouse;
+    if (warehouseId) {
+      where.warehouseId = warehouseId;
+    } else if (warehouse) {
+      if (responsibleWarehouses !== null && !responsibleWarehouses.includes(warehouse)) {
+        return NextResponse.json({ items: [], total: 0 });
       }
+      where.warehouse = warehouse;
     }
     if (category) where.category = category;
     if (status) where.status = status;
 
     const items = await prisma.wmsItem.findMany({
       where,
-      orderBy: { updatedAt: "desc" }
+      orderBy: { updatedAt: "desc" },
+      include: {
+        warehouseRef: { select: { id: true, name: true, code: true } },
+        zoneRef: { select: { id: true, name: true, code: true } },
+        cellRef: { select: { id: true, code: true } },
+        equipment: { select: { id: true, name: true, equipmentCode: true } }
+      }
     });
 
     return NextResponse.json({ items, total: items.length });
@@ -92,34 +104,50 @@ export async function POST(request: Request) {
     }
 
     const incomingQty = body.quantity || 1;
+    const sessionUser = session.displayName || session.username;
+
+    // Поиск объекта склада для получения warehouseId
+    const targetWarehouseObj = await prisma.warehouse.findFirst({
+      where: {
+        OR: [
+          { name: body.warehouse },
+          { id: rawBody.warehouseId || "" }
+        ]
+      }
+    });
+
+    const targetWarehouseId = targetWarehouseObj?.id || rawBody.warehouseId || null;
 
     // 1. Поиск существующей номенклатурной единицы по артикулу (SKU) на выбранном складе
     const existingNomenclature = await prisma.wmsItem.findFirst({
       where: {
         sku: body.sku,
-        warehouse: body.warehouse
+        OR: [
+          { warehouse: body.warehouse },
+          ...(targetWarehouseId ? [{ warehouseId: targetWarehouseId }] : [])
+        ]
       }
     });
 
-    const sessionUser = session.displayName || session.username;
-
     if (existingNomenclature) {
-      // 2. Номенклатурная единица уже присутствует -> Обновление остатков и подгруженных параметров
       const updatedQty = existingNomenclature.quantity + incomingQty;
       const updatedStatus = updatedQty <= 0 ? "OUT_OF_STOCK" : updatedQty <= existingNomenclature.minQuantity ? "LOW_STOCK" : "IN_STOCK";
 
-      const [updatedItem] = await prisma.$transaction([
-        prisma.wmsItem.update({
+      const updatedItem = await prisma.$transaction(async (tx) => {
+        const item = await tx.wmsItem.update({
           where: { id: existingNomenclature.id },
           data: {
             quantity: updatedQty,
             unitPrice: body.unitPrice ?? existingNomenclature.unitPrice,
             cell: body.cell || existingNomenclature.cell,
+            warehouseId: targetWarehouseId || existingNomenclature.warehouseId,
+            equipmentId: rawBody.equipmentId || existingNomenclature.equipmentId,
             status: updatedStatus,
             updatedAt: new Date()
           }
-        }),
-        prisma.wmsMovement.create({
+        });
+
+        const movement = await tx.wmsMovement.create({
           data: {
             itemId: existingNomenclature.id,
             itemSku: existingNomenclature.sku,
@@ -131,47 +159,85 @@ export async function POST(request: Request) {
             performedBy: sessionUser,
             reason: `Приход номенклатурной единицы (${incomingQty} ${existingNomenclature.unit})`,
           }
-        })
-      ]);
+        });
+
+        await recordWmsOutboxEvent(tx, {
+          eventName: "wms.stock.received",
+          aggregateType: "WmsItem",
+          aggregateId: item.id,
+          payload: {
+            itemId: item.id,
+            sku: item.sku,
+            quantity: incomingQty,
+            totalQuantity: updatedQty,
+            movementId: movement.id,
+            performedBy: sessionUser,
+          }
+        });
+
+        return item;
+      });
 
       return NextResponse.json({ item: updatedItem, isExisting: true, success: true }, { status: 200 });
     }
 
-    // 3. Номенклатурной единицы нет -> Создание новой в общесистемном каталоге
-    const newItem = await prisma.wmsItem.create({
-      data: {
-        sku: body.sku,
-        name: body.name,
-        category: body.category,
-        type: body.type,
-        unit: body.unit,
-        warehouse: body.warehouse,
-        cell: body.cell || "Яч-01",
-        batchNumber: body.batchNumber || null,
-        serialNumber: body.serialNumber || null,
-        quantity: incomingQty,
-        minQuantity: body.minQuantity,
-        maxQuantity: body.maxQuantity,
-        unitPrice: body.unitPrice,
-        currency: body.currency,
-        status: incomingQty <= body.minQuantity ? "LOW_STOCK" : "IN_STOCK",
-        supplier: body.supplier || "Поставщик",
-        description: body.description || null,
-      }
-    });
+    // 2. Создание новой номенклатурной единицы в каталоге
+    const newItem = await prisma.$transaction(async (tx) => {
+      const item = await tx.wmsItem.create({
+        data: {
+          sku: body.sku,
+          name: body.name,
+          category: body.category,
+          type: body.type,
+          unit: body.unit,
+          warehouse: body.warehouse,
+          cell: body.cell || "Яч-01",
+          warehouseId: targetWarehouseId,
+          equipmentId: rawBody.equipmentId || null,
+          batchNumber: body.batchNumber || null,
+          serialNumber: body.serialNumber || null,
+          quantity: incomingQty,
+          minQuantity: body.minQuantity,
+          maxQuantity: body.maxQuantity,
+          unitPrice: body.unitPrice,
+          currency: body.currency,
+          status: incomingQty <= body.minQuantity ? "LOW_STOCK" : "IN_STOCK",
+          supplier: body.supplier || "Поставщик",
+          description: body.description || null,
+        }
+      });
 
-    await prisma.wmsMovement.create({
-      data: {
-        itemId: newItem.id,
-        itemSku: newItem.sku,
-        itemName: newItem.name,
-        type: "INCOMING",
-        quantity: incomingQty,
-        fromLocation: "Поставщик / Новая номенклатура",
-        toLocation: body.cell || "Яч-01",
-        performedBy: sessionUser,
-        reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit})`,
-      }
+      const movement = await tx.wmsMovement.create({
+        data: {
+          itemId: item.id,
+          itemSku: item.sku,
+          itemName: item.name,
+          type: "INCOMING",
+          quantity: incomingQty,
+          fromLocation: "Поставщик / Новая номенклатура",
+          toLocation: body.cell || "Яч-01",
+          performedBy: sessionUser,
+          reason: `Первичный приход новой номенклатурной единицы (${incomingQty} ${body.unit})`,
+        }
+      });
+
+      await recordWmsOutboxEvent(tx, {
+        eventName: "wms.item.created",
+        aggregateType: "WmsItem",
+        aggregateId: item.id,
+        payload: {
+          itemId: item.id,
+          sku: item.sku,
+          name: item.name,
+          warehouse: item.warehouse,
+          warehouseId: targetWarehouseId,
+          quantity: incomingQty,
+          movementId: movement.id,
+          performedBy: sessionUser,
+        }
+      });
+
+      return item;
     });
 
     return NextResponse.json({ item: newItem, isExisting: false, success: true }, { status: 201 });
