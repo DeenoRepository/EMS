@@ -17,48 +17,102 @@ const ContentSecurityPolicy = `
   ${isDev ? "" : "upgrade-insecure-requests;"}
 `.replace(/\s{2,}/g, " ").trim();
 
+/**
+ * CORS configuration (SEC-16)
+ *
+ * Allowed origins are configured via CORS_ALLOWED_ORIGINS env variable
+ * (comma-separated list). In development, localhost variants are allowed.
+ */
+const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((o: string) => o.trim())
+  .filter(Boolean);
+
+const defaultDevOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+];
+
+const allowedOrigins = isDev
+  ? Array.from(new Set([...defaultDevOrigins, ...corsAllowedOrigins]))
+  : corsAllowedOrigins;
+
 const nextConfig: NextConfig = {
   output: "standalone",
   env: {
-    NEXT_PUBLIC_APP_VERSION: pkg.version
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
   async headers() {
-    return [
+    const baseHeaders = [
+      {
+        key: "Content-Security-Policy",
+        value: ContentSecurityPolicy,
+      },
+      {
+        key: "X-DNS-Prefetch-Control",
+        value: "on",
+      },
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+      {
+        key: "X-Frame-Options",
+        value: "DENY",
+      },
+      {
+        key: "X-Content-Type-Options",
+        value: "nosniff",
+      },
+      {
+        key: "Referrer-Policy",
+        value: "origin-when-cross-origin",
+      },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+    ];
+
+    const headers: Array<{ source: string; headers: Array<{ key: string; value: string }> }> = [
       {
         source: "/(.*)",
+        headers: baseHeaders,
+      },
+    ];
+
+    // CORS headers for API endpoints (SEC-16)
+    if (allowedOrigins.length > 0) {
+      headers.push({
+        source: "/api/:path*",
         headers: [
           {
-            key: "Content-Security-Policy",
-            value: ContentSecurityPolicy
+            key: "Access-Control-Allow-Origin",
+            value: allowedOrigins.join(" "),
           },
           {
-            key: "X-DNS-Prefetch-Control",
-            value: "on"
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
           },
           {
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload"
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization, X-Requested-With, X-CSRF-Token",
           },
           {
-            key: "X-Frame-Options",
-            value: "DENY"
+            key: "Access-Control-Allow-Credentials",
+            value: "true",
           },
           {
-            key: "X-Content-Type-Options",
-            value: "nosniff"
+            key: "Access-Control-Max-Age",
+            value: "86400",
           },
-          {
-            key: "Referrer-Policy",
-            value: "origin-when-cross-origin"
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()"
-          }
-        ]
-      }
-    ];
-  }
+        ],
+      });
+    }
+
+    return headers;
+  },
 };
 
 export default nextConfig;

@@ -1,10 +1,14 @@
 /**
- * Token Blacklist & Session Revocation Service (SEC-11)
+ * Token Blacklist & Session Revocation Service (SEC-03, SEC-11)
+ *
  * Поддержка мгновенного отзыва JWT-токенов по хэшу от их уникального `jti`.
- * Совместимо с Edge Runtime (Next.js Middleware).
+ * Использует Redis для работы в multi-instance окружениях.
+ * Fallback на in-memory для development/test.
  */
 
-const revokedJtiHashes = new Map<string, number>();
+import { setWithTTL, get, del } from "@/lib/db/redis";
+
+const BLACKLIST_PREFIX = "token:blacklist:";
 
 /**
  * Вычисляет хэш идентификатора `jti`.
@@ -34,43 +38,35 @@ export function hashJti(jti: string): string {
 }
 
 /**
- * Вносит `jti` токена в реестр отозванных по его хэшу
+ * Вносит `jti` токена в реестр отозванных (SEC-03)
+ *
  * @param jtiOrToken - Уникальный jti или JWT токен
  * @param ttlSeconds - время жизни отзыва в секундах (по умолчанию 2 часа)
  */
-export function revokeToken(jtiOrToken: string, ttlSeconds = 2 * 60 * 60): void {
+export async function revokeToken(jtiOrToken: string, ttlSeconds = 2 * 60 * 60): Promise<void> {
   if (!jtiOrToken) return;
   const hash = hashJti(jtiOrToken);
-  const expiresAt = Date.now() + ttlSeconds * 1000;
-  revokedJtiHashes.set(hash, expiresAt);
+  const key = `${BLACKLIST_PREFIX}${hash}`;
+  await setWithTTL(key, "1", ttlSeconds);
 }
 
 /**
- * Проверяет, отозван ли токен по хэшу его `jti`
+ * Проверяет, отозван ли токен по хэшу его `jti` (SEC-03)
  */
-export function isTokenRevoked(jtiOrToken: string): boolean {
+export async function isTokenRevoked(jtiOrToken: string): Promise<boolean> {
   if (!jtiOrToken) return false;
   const hash = hashJti(jtiOrToken);
-  const expiresAt = revokedJtiHashes.get(hash);
-
-  if (!expiresAt) return false;
-
-  if (Date.now() > expiresAt) {
-    revokedJtiHashes.delete(hash);
-    return false;
-  }
-
-  return true;
+  const key = `${BLACKLIST_PREFIX}${hash}`;
+  const result = await get(key);
+  return result !== null;
 }
 
-// Периодическая очистка просроченных записей
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [hash, expiresAt] of revokedJtiHashes.entries()) {
-      if (now > expiresAt) {
-        revokedJtiHashes.delete(hash);
-      }
-    }
-  }, 15 * 60 * 1000);
+/**
+ * Удаляет токен из blacklist (для тестов)
+ */
+export async function unrevokeToken(jtiOrToken: string): Promise<void> {
+  if (!jtiOrToken) return;
+  const hash = hashJti(jtiOrToken);
+  const key = `${BLACKLIST_PREFIX}${hash}`;
+  await del(key);
 }

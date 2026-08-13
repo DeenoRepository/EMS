@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { MOCK_USERS } from "@/lib/auth/rbac";
-import { createSessionToken, setSessionCookie } from "@/lib/auth/session";
+import { createSessionToken, setSessionCookie, getCookieOptions } from "@/lib/auth/session";
 import { authenticateLdapUser } from "@/lib/auth/ldap";
 import { logEvent } from "@/lib/telemetry/logger";
 import bcrypt from "bcryptjs";
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const rateLimitIdentifier = `${clientIp}:${cleanUsername}`;
 
     // SEC-14: Проверка Rate Limiting для предотвращения Brute-Force атак
-    const rateCheck = checkLoginRateLimit(rateLimitIdentifier);
+    const rateCheck = await checkLoginRateLimit(rateLimitIdentifier);
     if (rateCheck.isBlocked) {
       logEvent({
         level: "warn",
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         }
 
         if (!dbUser.isActive) {
-          registerFailedLoginAttempt(rateLimitIdentifier);
+          await registerFailedLoginAttempt(rateLimitIdentifier);
           logEvent({
             level: "warn",
             module: "AUTH",
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
 
         const token = await createSessionToken(sessionPayload);
         await setSessionCookie(token);
-        resetLoginAttempts(rateLimitIdentifier);
+        await resetLoginAttempts(rateLimitIdentifier);
 
         logEvent({
           level: "audit",
@@ -140,13 +140,7 @@ export async function POST(request: Request) {
         });
 
         const response = createSuccessResponse({ success: true, user: sessionPayload }, request);
-        response.cookies.set("ems_session", token, {
-          httpOnly: true,
-          secure: process.env.COOKIE_SECURE === "true",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 2 * 60 * 60,
-        });
+        response.cookies.set("ems_session", token, getCookieOptions());
 
         return response;
       }
@@ -213,7 +207,7 @@ export async function POST(request: Request) {
             console.warn("Set session cookie warning:", cErr);
           }
 
-          resetLoginAttempts(rateLimitIdentifier);
+          await resetLoginAttempts(rateLimitIdentifier);
 
           logEvent({
             level: "audit",
@@ -228,17 +222,11 @@ export async function POST(request: Request) {
             { success: true, user: sessionPayload },
             request
           );
-          response.cookies.set("ems_session", token, {
-            httpOnly: true,
-            secure: process.env.COOKIE_SECURE === "true",
-            sameSite: "lax",
-            path: "/",
-            maxAge: 2 * 60 * 60,
-          });
+          response.cookies.set("ems_session", token, getCookieOptions());
 
           return response;
         } else if (dbUser.passwordHash) {
-          registerFailedLoginAttempt(rateLimitIdentifier);
+          await registerFailedLoginAttempt(rateLimitIdentifier);
           logEvent({
             level: "warn",
             module: "AUTH",
@@ -259,15 +247,16 @@ export async function POST(request: Request) {
       console.warn("Auth DB lookup skipped/failed, falling back to mock auth provider:", dbErr);
     }
 
-    // 2. Фоллбек на MOCK_USERS исключительно для локальной разработки (dev/test)
-    if (process.env.NODE_ENV === "production" || process.env.ENABLE_MOCK_AUTH === "false") {
-      registerFailedLoginAttempt(rateLimitIdentifier);
+    // SEC-02: MOCK_USERS доступны ТОЛЬКО в development/test
+    // В production — жёсткий запрет на fallback к mock-аутентификации
+    if (process.env.NODE_ENV === "production") {
+      await registerFailedLoginAttempt(rateLimitIdentifier);
       logEvent({
-        level: "warn",
+        level: "error", // Повышенный уровень — попытка использования mock в prod
         module: "AUTH",
-        action: "LOGIN_FAILED_NO_MOCK",
+        action: "LOGIN_MOCK_BLOCKED_IN_PRODUCTION",
         requestId: correlationId,
-        details: { username: cleanUsername },
+        details: { username: cleanUsername, severity: "CRITICAL" },
       });
       return createErrorResponse(
         "INVALID_CREDENTIALS",
@@ -280,7 +269,7 @@ export async function POST(request: Request) {
 
     const userEntry = MOCK_USERS[cleanUsername];
     if (!userEntry || userEntry._devPassword !== password) {
-      registerFailedLoginAttempt(rateLimitIdentifier);
+      await registerFailedLoginAttempt(rateLimitIdentifier);
       logEvent({
         level: "warn",
         module: "AUTH",
@@ -312,7 +301,7 @@ export async function POST(request: Request) {
       console.warn("Set session cookie warning:", cErr);
     }
 
-    resetLoginAttempts(rateLimitIdentifier);
+    await resetLoginAttempts(rateLimitIdentifier);
 
     logEvent({
       level: "audit",
@@ -324,13 +313,7 @@ export async function POST(request: Request) {
     });
 
     const response = createSuccessResponse({ success: true, user: sessionPayload }, request);
-    response.cookies.set("ems_session", token, {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 2 * 60 * 60,
-    });
+    response.cookies.set("ems_session", token, getCookieOptions());
 
     return response;
   } catch (err) {

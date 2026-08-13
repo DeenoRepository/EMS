@@ -1,4 +1,5 @@
 import { logEvent } from "@/lib/telemetry/logger";
+import { setWithTTL, get, del } from "@/lib/db/redis";
 
 export type ModuleHealthStatus = "ONLINE" | "DEGRADED" | "OFFLINE";
 
@@ -11,9 +12,12 @@ export interface ModuleHealthInfo {
   errorMessage?: string;
 }
 
+const HEALTH_PREFIX = "circuit:health:";
+const HEALTH_TTL = 24 * 60 * 60; // 24 часа
+
 class ModuleCircuitBreakerManager {
-  private healthMap: Map<string, ModuleHealthInfo> = new Map();
   private readonly FAILURE_THRESHOLD = 3;
+  private readonly memoryFallback = new Map<string, ModuleHealthInfo>();
 
   constructor() {
     // Инициализация базовых модулей
@@ -21,19 +25,49 @@ class ModuleCircuitBreakerManager {
     this.initModule("wms");
   }
 
-  private initModule(moduleId: string) {
-    if (!this.healthMap.has(moduleId)) {
-      this.healthMap.set(moduleId, {
+  private async initModule(moduleId: string) {
+    const key = `${HEALTH_PREFIX}${moduleId}`;
+    const existing = await get(key);
+    if (!existing) {
+      const info: ModuleHealthInfo = {
         moduleId,
         status: "ONLINE",
         consecutiveFailures: 0,
-      });
+      };
+      await this.saveHealth(moduleId, info);
     }
   }
 
-  public recordSuccess(moduleId: string) {
-    this.initModule(moduleId);
-    const info = this.healthMap.get(moduleId)!;
+  private async saveHealth(moduleId: string, info: ModuleHealthInfo) {
+    const key = `${HEALTH_PREFIX}${moduleId}`;
+    await setWithTTL(key, JSON.stringify(info), HEALTH_TTL);
+    this.memoryFallback.set(moduleId, info);
+  }
+
+  private async loadHealth(moduleId: string): Promise<ModuleHealthInfo> {
+    const key = `${HEALTH_PREFIX}${moduleId}`;
+    const data = await get(key);
+    if (data) {
+      try {
+        return JSON.parse(data) as ModuleHealthInfo;
+      } catch {
+        // Fallback на in-memory
+      }
+    }
+    const fallback = this.memoryFallback.get(moduleId);
+    if (fallback) return fallback;
+
+    const defaultInfo: ModuleHealthInfo = {
+      moduleId,
+      status: "ONLINE",
+      consecutiveFailures: 0,
+    };
+    return defaultInfo;
+  }
+
+  public async recordSuccess(moduleId: string) {
+    await this.initModule(moduleId);
+    const info = await this.loadHealth(moduleId);
     info.consecutiveFailures = 0;
     info.lastSuccessTime = new Date().toISOString();
 
@@ -47,11 +81,13 @@ class ModuleCircuitBreakerManager {
         details: { moduleId, status: "ONLINE" },
       });
     }
+
+    await this.saveHealth(moduleId, info);
   }
 
-  public recordFailure(moduleId: string, error?: string) {
-    this.initModule(moduleId);
-    const info = this.healthMap.get(moduleId)!;
+  public async recordFailure(moduleId: string, error?: string) {
+    await this.initModule(moduleId);
+    const info = await this.loadHealth(moduleId);
     info.consecutiveFailures += 1;
     info.lastFailureTime = new Date().toISOString();
     info.errorMessage = error;
@@ -65,16 +101,27 @@ class ModuleCircuitBreakerManager {
         details: { moduleId, failures: info.consecutiveFailures, error },
       });
     }
+
+    await this.saveHealth(moduleId, info);
   }
 
-  public getModuleHealth(moduleId: string): ModuleHealthInfo {
-    this.initModule(moduleId);
-    return this.healthMap.get(moduleId)!;
+  public async getModuleHealth(moduleId: string): Promise<ModuleHealthInfo> {
+    await this.initModule(moduleId);
+    return await this.loadHealth(moduleId);
   }
 
-  public isModuleAvailable(moduleId: string): boolean {
-    const health = this.getModuleHealth(moduleId);
+  public async isModuleAvailable(moduleId: string): Promise<boolean> {
+    const health = await this.getModuleHealth(moduleId);
     return health.status !== "OFFLINE";
+  }
+
+  /**
+   * Сброс состояния модуля (для тестов)
+   */
+  public async resetModule(moduleId: string): Promise<void> {
+    const key = `${HEALTH_PREFIX}${moduleId}`;
+    await del(key);
+    this.memoryFallback.delete(moduleId);
   }
 }
 

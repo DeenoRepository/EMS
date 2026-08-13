@@ -3,20 +3,41 @@ import { cookies } from "next/headers";
 import { UserSession } from "./rbac";
 import { isTokenRevoked } from "./token-blacklist";
 import { jwtPayloadSchema } from "./jwt-schema";
+import { env, isProduction } from "@/lib/config/env";
 
+/**
+ * Возвращает секрет для подписи JWT токенов (SEC-01)
+ *
+ * В production — fail-fast при отсутствии JWT_SECRET.
+ * В development — используется валидированный env.JWT_SECRET.
+ */
 function getJwtSecret(): Uint8Array {
-  const secretKey =
-    process.env.JWT_SECRET ||
-    (process.env.NODE_ENV !== "production" ? "ems-dev-jwt-secret-key-for-local-development-only-32bytes" : "");
-  if (!secretKey) {
-    throw new Error("CRITICAL SECURITY ERROR: JWT_SECRET environment variable is mandatory!");
-  }
-  return new TextEncoder().encode(secretKey);
+  // SEC-01: Секрет всегда берётся из env, никаких fallback'ов
+  return new TextEncoder().encode(env.JWT_SECRET);
 }
 
 const SESSION_COOKIE_NAME = "ems_session";
 const JWT_ISSUER = "ems-auth-service";
 const JWT_AUDIENCE = "ems-app";
+const SESSION_TTL_SECONDS = 2 * 60 * 60; // 2 часа (SEC-10)
+
+/**
+ * Настройки cookie для сессии (SEC-09, SEC-10)
+ *
+ * - httpOnly: защита от XSS
+ * - secure: автоматически true в production
+ * - sameSite: "strict" в production для защиты от CSRF
+ * - maxAge: соответствует JWT TTL
+ */
+export function getCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: isProduction, // SEC-10: автоматически true в production
+    sameSite: isProduction ? ("strict" as const) : ("lax" as const), // SEC-09
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  };
+}
 
 export async function createSessionToken(payload: UserSession): Promise<string> {
   const jti = `jti_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -38,7 +59,7 @@ export async function createSessionToken(payload: UserSession): Promise<string> 
 
 export async function verifySessionToken(token: string): Promise<UserSession | null> {
   try {
-    if (isTokenRevoked(token)) {
+    if (await isTokenRevoked(token)) {
       console.warn("[verifySessionToken] Token is revoked");
       return null;
     }
@@ -80,13 +101,7 @@ export async function getSession(): Promise<UserSession | null> {
 export async function setSessionCookie(token: string) {
   try {
     const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 2 * 60 * 60 // 2 hours TTL (SEC-10)
-    });
+    cookieStore.set(SESSION_COOKIE_NAME, token, getCookieOptions());
   } catch (err) {
     console.warn("Could not set cookie directly:", err);
   }

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import { realpath } from "fs/promises";
 import { validateFileBuffer } from "./validation";
 
 export interface SecureStorageUploadOptions {
@@ -22,17 +23,52 @@ const ROOT_STORAGE_DIR = path.resolve(
 );
 
 /**
- * Валидирует безопасный путь локального файла с проверкой Path Containment (SEC-06)
+ * Валидирует безопасный путь локального файла с проверкой Path Containment (SEC-07)
+ *
+ * Защита от:
+ * - Path traversal (../../etc/passwd)
+ * - Абсолютных путей (/etc/passwd)
+ * - Символических ссылок
+ * - UNC путей (\\server\share)
  */
-export function getSanitizedAbsolutePath(relativePath: string): string {
+export async function getSanitizedAbsolutePath(relativePath: string): Promise<string> {
+  // Убираем префикс uploads/ если есть
   const normalizedRelative = relativePath.replace(/^uploads[/\\]/, "");
-  const resolved = path.resolve(ROOT_STORAGE_DIR, normalizedRelative);
 
-  if (!resolved.startsWith(ROOT_STORAGE_DIR + path.sep) && resolved !== ROOT_STORAGE_DIR) {
-    throw new Error("CRITICAL SECURITY ERROR: Path traversal attempt detected (SEC-06)");
+  // SEC-07: Проверка на абсолютные пути и UNC
+  if (path.isAbsolute(normalizedRelative) || normalizedRelative.startsWith("\\\\")) {
+    throw new Error("CRITICAL SECURITY ERROR: Absolute paths are not allowed (SEC-07)");
   }
 
-  return resolved;
+  // SEC-07: Проверка на path traversal
+  if (normalizedRelative.includes("..")) {
+    throw new Error("CRITICAL SECURITY ERROR: Path traversal attempt detected (SEC-07)");
+  }
+
+  const resolved = path.resolve(ROOT_STORAGE_DIR, normalizedRelative);
+
+  // SEC-07: Проверка что путь находится внутри ROOT_STORAGE_DIR
+  const normalizedRoot = path.resolve(ROOT_STORAGE_DIR);
+  if (!resolved.startsWith(normalizedRoot + path.sep) && resolved !== normalizedRoot) {
+    throw new Error("CRITICAL SECURITY ERROR: Path outside storage root (SEC-07)");
+  }
+
+  // SEC-07: Проверка реального пути (защита от symlink attacks)
+  try {
+    const realResolved = await realpath(resolved);
+    const realRoot = await realpath(normalizedRoot);
+    if (!realResolved.startsWith(realRoot)) {
+      throw new Error("CRITICAL SECURITY ERROR: Symlink points outside storage root (SEC-07)");
+    }
+    return realResolved;
+  } catch (err) {
+    // Если файл не существует, возвращаем resolved путь
+    // (для операций записи файл ещё не создан)
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return resolved;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -56,9 +92,16 @@ export async function storeSecureFile(
   const ext = path.extname(fileName).replace(/[^a-zA-Z0-9]/g, "");
   const safeRandomName = `${Date.now()}_${crypto.randomBytes(8).toString("hex")}${ext ? "." + ext : ""}`;
 
+  // SEC-07: Валидация folder параметра
+  if (folder.includes("..") || path.isAbsolute(folder)) {
+    throw new Error("CRITICAL SECURITY ERROR: Invalid folder parameter (SEC-07)");
+  }
+
   const targetFolder = path.resolve(ROOT_STORAGE_DIR, folder);
-  if (!targetFolder.startsWith(ROOT_STORAGE_DIR)) {
-    throw new Error("SECURITY ERROR: Target folder outside root storage");
+  const normalizedRoot = path.resolve(ROOT_STORAGE_DIR);
+
+  if (!targetFolder.startsWith(normalizedRoot)) {
+    throw new Error("SECURITY ERROR: Target folder outside root storage (SEC-07)");
   }
 
   await fs.mkdir(targetFolder, { recursive: true });
@@ -77,12 +120,12 @@ export async function storeSecureFile(
 }
 
 /**
- * Чтение локального файла с гарантированной проверкой выхода за границы каталога (SEC-06)
+ * Чтение локального файла с гарантированной проверкой выхода за границы каталога (SEC-07)
  */
 export async function readSecureFile(
   relativePath: string
 ): Promise<{ bytes: Buffer; fileName: string }> {
-  const safeAbsolutePath = getSanitizedAbsolutePath(relativePath);
+  const safeAbsolutePath = await getSanitizedAbsolutePath(relativePath);
   const bytes = await fs.readFile(safeAbsolutePath);
   const fileName = path.basename(safeAbsolutePath);
 

@@ -17,65 +17,10 @@ export interface UserSession {
   department?: string;
 }
 
-// MOCK_USERS используется ИСКЛЮЧИТЕЛЬНО в режиме разработки/демонстрации без внешней БД LDAP
-export const MOCK_USERS: Record<string, UserSession & { _devPassword: string }> = {
-  admin: {
-    id: "usr-admin",
-    username: "admin",
-    displayName: "Администратор EMS",
-    email: "admin@ems.local",
-    roles: ["ADMIN"],
-    permissions: ["*"],
-    _devPassword: "admin123"
-  },
-  storekeeper: {
-    id: "usr-storekeeper",
-    username: "storekeeper",
-    displayName: "Сидоров И.К. (Кладовщик WMS)",
-    email: "storekeeper@ems.local",
-    roles: ["wms_storekeeper"],
-    permissions: [
-      "wms.items.read", "wms.items.create", "wms.items.update",
-      "wms.movements.execute", "wms.personal_cards.manage",
-      "wms.transfers.manage", "wms.writeoffs.manage", "wms.topology.manage",
-      "eps.equipment.read"
-    ],
-    _devPassword: "storekeeper123"
-  },
-  editor: {
-    id: "usr-editor",
-    username: "editor",
-    displayName: "Инженер Редактор",
-    email: "editor@ems.local",
-    roles: ["eps_engineer"],
-    permissions: [
-      "eps.equipment.read", "eps.equipment.create", "eps.equipment.update",
-      "eps.documents.manage", "eps.reports.export", "wms.items.read"
-    ],
-    _devPassword: "editor123"
-  },
-  approver: {
-    id: "usr-approver",
-    username: "approver",
-    displayName: "Руководитель Согласующий",
-    email: "approver@ems.local",
-    roles: ["eps_approver"],
-    permissions: [
-      "eps.equipment.read", "eps.approvals.decide", "eps.reports.export",
-      "wms.items.read", "wms.transfers.manage"
-    ],
-    _devPassword: "approver123"
-  },
-  viewer: {
-    id: "usr-viewer",
-    username: "viewer",
-    displayName: "Наблюдатель Оборудования",
-    email: "viewer@ems.local",
-    roles: ["viewer_readonly"],
-    permissions: ["eps.equipment.read", "wms.items.read"],
-    _devPassword: "viewer123"
-  }
-};
+// SEC-02: MOCK_USERS перемещены в отдельный dev-only файл
+// Импортируйте из "@/lib/auth/mock-users.dev" только в development/test
+// В production этот модуль возвращает пустой объект
+export { MOCK_USERS } from "./mock-users.dev";
 
 export function hasRole(user: UserSession | null, requiredRoles: Role[]): boolean {
   if (!user) return false;

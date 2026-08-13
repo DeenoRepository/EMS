@@ -3,6 +3,7 @@ import { clearSessionCookie } from "@/lib/auth/session";
 import { revokeToken } from "@/lib/auth/token-blacklist";
 import { logEvent } from "@/lib/telemetry/logger";
 import { createSuccessResponse, createErrorResponse } from "@/lib/shell/api-response";
+import { isProduction } from "@/lib/config/env";
 
 /**
  * POST /api/auth/logout
@@ -17,7 +18,7 @@ export async function POST() {
     const token = cookieStore.get("ems_session")?.value;
 
     if (token) {
-      revokeToken(token);
+      await revokeToken(token);
     }
 
     await clearSessionCookie();
@@ -35,8 +36,8 @@ export async function POST() {
     });
     response.cookies.set("ems_session", "", {
       httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
       path: "/",
       maxAge: 0,
     });
