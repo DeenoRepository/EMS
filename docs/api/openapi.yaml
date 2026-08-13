@@ -1,0 +1,763 @@
+openapi: 3.0.3
+info:
+  title: EMS Platform API
+  description: |
+    Корпоративная модульная платформа EMS (Equipment Management System + Warehouse Management System).
+
+    ## Аутентификация
+    Все защищённые endpoints требуют валидную сессию (cookie `session_token`).
+    API ключи передаются через заголовок `X-API-Key`.
+
+    ## Rate Limiting
+    - Login: 5 запросов/минуту
+    - Upload: 10 запросов/минуту
+    - Admin: 10 запросов/секунду
+    - API: 30 запросов/секунду
+
+    ## Версионирование
+    Текущая версия API: v1
+  version: 2.3.7
+  contact:
+    name: EMS Team
+    email: ems-support@company.local
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://ems.company.local
+    description: Production
+  - url: https://staging.ems.company.local
+    description: Staging
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Аутентификация и управление сессиями
+  - name: Health
+    description: Health check endpoints
+  - name: EPS
+    description: Equipment Passport System
+  - name: WMS
+    description: Warehouse Management System
+  - name: Admin
+    description: Административные endpoints
+  - name: Files
+    description: Управление файлами
+  - name: Shell
+    description: Shell endpoints (events, modules, cron)
+
+paths:
+  # ============================================================================
+  # Health
+  # ============================================================================
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Публичный health check
+      description: Возвращает базовый статус приложения без чувствительной информации
+      responses:
+        '200':
+          description: Сервис работает
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/health/detailed:
+    get:
+      tags: [Health]
+      summary: Детальный health check (только ADMIN)
+      description: Возвращает полную информацию о состоянии всех сервисов
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Детальная информация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailedHealth'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================================
+  # Auth
+  # ============================================================================
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      description: |
+        Аутентификация по username/password или через LDAP/AD.
+        При успешном входе создаётся сессия и возвращается cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: session_token cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Выход из системы
+      description: Отзывает текущую сессию и очищает cookie
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Успешный выход
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь
+      description: Возвращает информацию о текущей сессии
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Информация о пользователе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================================
+  # EPS - Equipment
+  # ============================================================================
+  /api/modules/eps/equipment:
+    get:
+      tags: [EPS]
+      summary: Список оборудования
+      description: Получить список оборудования с фильтрацией и пагинацией
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Поисковый запрос
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, ACTIVE, INACTIVE, DECOMMISSIONED]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Список оборудования
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Equipment'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [EPS]
+      summary: Создать оборудование
+      description: Создаёт новый паспорт оборудования с начальной версией
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentCreate'
+      responses:
+        '200':
+          description: Оборудование создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Equipment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/modules/eps/equipment/{id}:
+    get:
+      tags: [EPS]
+      summary: Получить оборудование по ID
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Оборудование
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Equipment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [EPS]
+      summary: Обновить оборудование
+      description: Создаёт новую версию оборудования
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentUpdate'
+      responses:
+        '200':
+          description: Оборудование обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Equipment'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================================
+  # Files
+  # ============================================================================
+  /api/files/download:
+    get:
+      tags: [Files]
+      summary: Скачать файл
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Файл
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/files/upload:
+    post:
+      tags: [Files]
+      summary: Загрузить файл
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                path:
+                  type: string
+      responses:
+        '200':
+          description: Файл загружен
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ============================================================================
+  # Shell - SSE Events
+  # ============================================================================
+  /api/shell/events/sse:
+    get:
+      tags: [Shell]
+      summary: Server-Sent Events stream
+      description: |
+        Подключение к шине событий. Требует авторизации.
+        События фильтруются по правам пользователя.
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/shell/cron:
+    get:
+      tags: [Shell]
+      summary: Список cron задач (только ADMIN)
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Список задач
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags: [Shell]
+      summary: Запустить cron задачу (только ADMIN)
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                taskId:
+                  type: string
+              required: [taskId]
+      responses:
+        '200':
+          description: Задача выполнена
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ============================================================================
+  # Admin
+  # ============================================================================
+  /api/admin/audit:
+    get:
+      tags: [Admin]
+      summary: Получить audit log (только ADMIN)
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - name: actorId
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Audit log entries
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: Список пользователей (только ADMIN)
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Список пользователей
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/roles:
+    get:
+      tags: [Admin]
+      summary: Список ролей (только ADMIN)
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Список ролей
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+# ============================================================================
+# Security
+# ============================================================================
+security:
+  - sessionAuth: []
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session_token
+      description: Session cookie, создаётся при login
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API ключ для service-to-service вызовов
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Не авторизован
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Доступ запрещён
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Не найдено
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: Превышен лимит запросов
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            session:
+              $ref: '#/components/schemas/Session'
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        isActive:
+          type: boolean
+
+    Equipment:
+      type: object
+      properties:
+        id:
+          type: string
+        equipmentCode:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        category:
+          type: string
+        model:
+          type: string
+        serialNumber:
+          type: string
+        inventoryNumber:
+          type: string
+        department:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, INACTIVE, DECOMMISSIONED]
+        lifecycleStage:
+          type: string
+          enum: [PLANNED, COMMISSIONED, IN_OPERATION, MAINTENANCE, RETIRED]
+        criticality:
+          type: string
+          enum: [A, B, C]
+        manufacturer:
+          type: string
+        supplier:
+          type: string
+        productionDate:
+          type: string
+          format: date-time
+        commissioningDate:
+          type: string
+          format: date-time
+        serviceDueDate:
+          type: string
+          format: date-time
+        currentVersion:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EquipmentCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 2
+        type:
+          type: string
+        category:
+          type: string
+        model:
+          type: string
+        serialNumber:
+          type: string
+        inventoryNumber:
+          type: string
+        department:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, INACTIVE, DECOMMISSIONED]
+        lifecycleStage:
+          type: string
+          enum: [PLANNED, COMMISSIONED, IN_OPERATION, MAINTENANCE, RETIRED]
+        criticality:
+          type: string
+          enum: [A, B, C]
+        manufacturer:
+          type: string
+        supplier:
+          type: string
+        productionDate:
+          type: string
+          format: date-time
+        commissioningDate:
+          type: string
+          format: date-time
+        serviceDueDate:
+          type: string
+          format: date-time
+
+    EquipmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        category:
+          type: string
+        model:
+          type: string
+        serialNumber:
+          type: string
+        department:
+          type: string
+        location:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, INACTIVE, DECOMMISSIONED]
+        lifecycleStage:
+          type: string
+          enum: [PLANNED, COMMISSIONED, IN_OPERATION, MAINTENANCE, RETIRED]
+        criticality:
+          type: string
+          enum: [A, B, C]
+        manufacturer:
+          type: string
+        supplier:
+          type: string
+        serviceDueDate:
+          type: string
+          format: date-time
+
+    DetailedHealth:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, down]
+        version:
+          type: string
+        uptime:
+          type: number
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                latencyMs:
+                  type: number
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+                latencyMs:
+                  type: number
+            storage:
+              type: object
+              properties:
+                status:
+                  type: string
+        modules:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ONLINE, DEGRADED, OFFLINE]

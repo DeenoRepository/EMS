@@ -1,0 +1,326 @@
+# Prometheus Alerting Rules for EMS Platform
+# Phase 5: MONITOR-01
+
+groups:
+  # ============================================================================
+  # Security Alerts
+  # ============================================================================
+  - name: security
+    interval: 30s
+    rules:
+      # Множественные неудачные попытки входа
+      - alert: HighFailedLoginRate
+        expr: rate(ems_auth_failed_logins_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High rate of failed login attempts"
+          description: "More than 10 failed logins per second for 2 minutes. Possible brute-force attack."
+
+      # Критическое количество неудачных попыток
+      - alert: CriticalFailedLoginRate
+        expr: rate(ems_auth_failed_logins_total[1m]) > 50
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Critical rate of failed login attempts"
+          description: "More than 50 failed logins per second. Immediate investigation required."
+
+      # Подозрительная активность API ключей
+      - alert: SuspiciousApiKeyUsage
+        expr: rate(ems_api_key_requests_total{status="unauthorized"}[5m]) > 20
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Suspicious API key usage detected"
+          description: "High rate of unauthorized API key requests. Possible key compromise."
+
+      # Rate limit срабатывания
+      - alert: HighRateLimitHits
+        expr: rate(ems_rate_limit_hits_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High rate of rate limit hits"
+          description: "More than 100 rate limit hits per 5 minutes. Possible abuse."
+
+  # ============================================================================
+  # Application Health Alerts
+  # ============================================================================
+  - name: application
+    interval: 30s
+    rules:
+      # Сервис недоступен
+      - alert: ServiceDown
+        expr: up{job="ems-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "EMS application is down"
+          description: "EMS application has been down for more than 1 minute."
+
+      # Высокая latency
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(ems_http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High request latency (p95 > 2s)"
+          description: "95th percentile request latency is above 2 seconds for 5 minutes."
+
+      # Критическая latency
+      - alert: CriticalRequestLatency
+        expr: histogram_quantile(0.95, rate(ems_http_request_duration_seconds_bucket[5m])) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "Critical request latency (p95 > 5s)"
+          description: "95th percentile request latency is above 5 seconds."
+
+      # Высокий error rate
+      - alert: HighErrorRate
+        expr: rate(ems_http_requests_total{status=~"5.."}[5m]) / rate(ems_http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "High error rate (>5%)"
+          description: "More than 5% of requests are returning 5xx errors."
+
+      # Критический error rate
+      - alert: CriticalErrorRate
+        expr: rate(ems_http_requests_total{status=~"5.."}[5m]) / rate(ems_http_requests_total[5m]) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "Critical error rate (>20%)"
+          description: "More than 20% of requests are returning 5xx errors."
+
+  # ============================================================================
+  # Database Alerts
+  # ============================================================================
+  - name: database
+    interval: 30s
+    rules:
+      # Database недоступна
+      - alert: DatabaseDown
+        expr: ems_db_connection_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Database is unreachable"
+          description: "Cannot connect to PostgreSQL database."
+
+      # Высокая DB latency
+      - alert: HighDatabaseLatency
+        expr: histogram_quantile(0.95, rate(ems_db_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "High database query latency (p95 > 1s)"
+          description: "95th percentile database query latency is above 1 second."
+
+      # Много активных соединений
+      - alert: HighDbConnections
+        expr: ems_db_connections_active / ems_db_connections_max > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "High database connection usage (>80%)"
+          description: "More than 80% of database connections are in use."
+
+      # Медленные запросы
+      - alert: SlowQueries
+        expr: rate(ems_db_slow_queries_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "High rate of slow database queries"
+          description: "More than 5 slow queries per second."
+
+  # ============================================================================
+  # Redis Alerts
+  # ============================================================================
+  - name: redis
+    interval: 30s
+    rules:
+      # Redis недоступен
+      - alert: RedisDown
+        expr: ems_redis_connection_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis is unreachable"
+          description: "Cannot connect to Redis. Rate limiting and sessions may be affected."
+
+      # Высокое использование памяти Redis
+      - alert: HighRedisMemoryUsage
+        expr: ems_redis_memory_used_bytes / ems_redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "High Redis memory usage (>85%)"
+          description: "Redis is using more than 85% of allocated memory."
+
+      # Много отключений от Redis
+      - alert: RedisReconnections
+        expr: rate(ems_redis_reconnections_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "High rate of Redis reconnections"
+          description: "More than 10 Redis reconnections per 5 minutes."
+
+  # ============================================================================
+  # Storage Alerts
+  # ============================================================================
+  - name: storage
+    interval: 30s
+    rules:
+      # Storage недоступен
+      - alert: StorageDown
+        expr: ems_storage_connection_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: storage
+        annotations:
+          summary: "Object storage is unreachable"
+          description: "Cannot connect to S3/MinIO storage."
+
+      # Много failed uploads
+      - alert: HighUploadFailureRate
+        expr: rate(ems_storage_upload_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: storage
+        annotations:
+          summary: "High rate of upload failures"
+          description: "More than 5 upload failures per 5 minutes."
+
+  # ============================================================================
+  # Module Health Alerts (Circuit Breaker)
+  # ============================================================================
+  - name: modules
+    interval: 30s
+    rules:
+      # Модуль degraded
+      - alert: ModuleDegraded
+        expr: ems_module_status{status="DEGRADED"} == 1
+        for: 5m
+        labels:
+          severity: warning
+          category: modules
+        annotations:
+          summary: "Module {{ $labels.module }} is degraded"
+          description: "Module {{ $labels.module }} has been in DEGRADED state for 5 minutes."
+
+      # Модуль offline
+      - alert: ModuleOffline
+        expr: ems_module_status{status="OFFLINE"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          category: modules
+        annotations:
+          summary: "Module {{ $labels.module }} is offline"
+          description: "Module {{ $labels.module }} has been OFFLINE for 2 minutes."
+
+  # ============================================================================
+  # Cron Engine Alerts
+  # ============================================================================
+  - name: cron
+    interval: 60s
+    rules:
+      # Cron задача не выполнялась давно
+      - alert: CronTaskStalled
+        expr: time() - ems_cron_task_last_run_timestamp > 7200
+        for: 10m
+        labels:
+          severity: warning
+          category: cron
+        annotations:
+          summary: "Cron task {{ $labels.task }} has not run for 2+ hours"
+          description: "Cron task {{ $labels.task }} last ran more than 2 hours ago."
+
+      # Cron задача завершилась с ошибкой
+      - alert: CronTaskFailing
+        expr: rate(ems_cron_task_errors_total[1h]) > 3
+        for: 30m
+        labels:
+          severity: warning
+          category: cron
+        annotations:
+          summary: "Cron task {{ $labels.task }} is failing repeatedly"
+          description: "Cron task {{ $labels.task }} has failed more than 3 times in the last hour."
+
+  # ============================================================================
+  # Resource Alerts
+  # ============================================================================
+  - name: resources
+    interval: 30s
+    rules:
+      # Высокое использование CPU
+      - alert: HighCpuUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High CPU usage (>80%)"
+          description: "Process CPU usage is above 80% for 10 minutes."
+
+      # Высокое использование памяти
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 1024
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High memory usage (>1GB)"
+          description: "Process is using more than 1GB of resident memory."
+
+      # Мало места на диске
+      - alert: LowDiskSpace
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "Low disk space (<10%)"
+          description: "Less than 10% disk space remaining on root partition."

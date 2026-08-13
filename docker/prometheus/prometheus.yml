@@ -1,0 +1,63 @@
+# Prometheus configuration for EMS Platform
+# Phase 5: MONITOR-01
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: "ems-monitor"
+    environment: "production"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+# Load alerting rules
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # EMS Application metrics
+  - job_name: "ems-app"
+    metrics_path: "/api/metrics"
+    scheme: "https"
+    static_configs:
+      - targets: ["nginx:443"]
+        labels:
+          service: "ems"
+          component: "application"
+
+  # Node Exporter (system metrics)
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: "ems"
+          component: "system"
+
+  # PostgreSQL Exporter
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          service: "ems"
+          component: "database"
+
+  # Redis Exporter
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          service: "ems"
+          component: "cache"
+
+  # Nginx Exporter
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+        labels:
+          service: "ems"
+          component: "proxy"
