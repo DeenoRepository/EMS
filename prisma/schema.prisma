@@ -198,6 +198,8 @@ model Equipment {
   @@index([type, category])
   @@index([department, location])
   @@index([serviceDueDate, warrantyExpiration])
+  @@index([responsibleUserId])
+  @@index([lifecycleStage, status])
 }
 
 model EquipmentTypeAttribute {
@@ -438,6 +440,8 @@ model Warehouse {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   keepers             WarehouseKeeper[]
+
+  @@index([responsibleUser, responsibleUsername])
   zones               WmsZone[]
   storageCells        StorageCell[]
   wmsItems            WmsItem[]

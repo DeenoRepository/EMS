@@ -31,6 +31,8 @@ export async function getUserResponsibleWarehouseIds(): Promise<string[] | null>
 /**
  * Возвращает расширенную информацию о правах доступа пользователя ко всем складам WMS
  * с учетом моделей WarehouseKeeper, RoleScope из RBAC и legacy полей.
+ *
+ * Оптимизировано (PERF-01): запросы к WarehouseKeeper и UserRole выполняются параллельно.
  */
 export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
   try {
@@ -45,17 +47,26 @@ export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
     const warehouseIdsSet = new Set<string>();
     const rolesByWarehouse: Record<string, WmsRole> = {};
 
-    // 1. Поиск по N:M модели WarehouseKeeper
-    const keepers = await prisma.warehouseKeeper.findMany({
-      where: {
-        OR: [
-          { userId: session.id },
-          { username: { equals: session.username, mode: "insensitive" } }
-        ]
-      },
-      include: { warehouse: { select: { id: true, name: true } } }
-    });
+    // PERF-01: Параллельное выполнение запросов вместо последовательных
+    const [keepers, userRoles] = await Promise.all([
+      // 1. Поиск по N:M модели WarehouseKeeper
+      prisma.warehouseKeeper.findMany({
+        where: {
+          OR: [
+            { userId: session.id },
+            { username: { equals: session.username, mode: "insensitive" } }
+          ]
+        },
+        include: { warehouse: { select: { id: true, name: true } } }
+      }),
+      // 2. Поиск по RBAC RoleScope.allowedWarehouses
+      prisma.userRole.findMany({
+        where: { userId: session.id },
+        include: { role: { include: { scope: true } } }
+      }),
+    ]);
 
+    // Обработка результатов WarehouseKeeper
     for (const keeper of keepers) {
       warehouseNamesSet.add(keeper.warehouse.name);
       warehouseIdsSet.add(keeper.warehouse.id);
@@ -63,12 +74,7 @@ export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
       rolesByWarehouse[keeper.warehouse.id] = keeper.role;
     }
 
-    // 2. Поиск по RBAC RoleScope.allowedWarehouses
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId: session.id },
-      include: { role: { include: { scope: true } } }
-    });
-
+    // Обработка результатов UserRole
     for (const ur of userRoles) {
       if (ur.role.scope) {
         if (ur.role.scope.isGlobal) {
@@ -88,6 +94,7 @@ export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
     }
 
     // 3. Фолбэк на старые поля Warehouse.responsibleUser/responsibleUsername
+    // Выполняется только если не нашли складов через keepers/roles
     if (warehouseNamesSet.size === 0) {
       const legacyWarehouses = await prisma.warehouse.findMany({
         where: {
@@ -106,14 +113,19 @@ export async function getUserWarehouseAccess(): Promise<UserWarehouseAccess> {
       }
     }
 
-    // Заполняем ID складов для найденных по имени
-    if (warehouseNamesSet.size > 0 && warehouseIdsSet.size === 0) {
-      const matchedWarehouses = await prisma.warehouse.findMany({
-        where: { name: { in: Array.from(warehouseNamesSet) } },
-        select: { id: true, name: true }
-      });
-      for (const w of matchedWarehouses) {
-        warehouseIdsSet.add(w.id);
+    // Заполняем ID складов для найденных по имени (если есть имена без ID)
+    if (warehouseNamesSet.size > 0 && warehouseIdsSet.size < warehouseNamesSet.size) {
+      const namesWithoutIds = Array.from(warehouseNamesSet).filter(
+        (name) => !Array.from(warehouseIdsSet).some((id) => id === name)
+      );
+      if (namesWithoutIds.length > 0) {
+        const matchedWarehouses = await prisma.warehouse.findMany({
+          where: { name: { in: namesWithoutIds } },
+          select: { id: true, name: true }
+        });
+        for (const w of matchedWarehouses) {
+          warehouseIdsSet.add(w.id);
+        }
       }
     }
 

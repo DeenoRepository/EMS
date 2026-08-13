@@ -212,7 +212,7 @@ export async function POST(request: Request) {
           techSpecs: data.techSpecs,
           lifecycleStage: data.lifecycleStage || "IN_OPERATION",
           currentVersion: 1,
-        } as unknown as Prisma.EquipmentCreateInput,
+        },
       });
 
       await tx.equipmentVersion.create({
