@@ -12,7 +12,7 @@ interface CacheEntry<T> {
     expiresAt: number;
 }
 
-class TTLCache {
+export class TTLCache {
     private store = new Map<string, CacheEntry<unknown>>();
     private defaultTTL: number;
 
