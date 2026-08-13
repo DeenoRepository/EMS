@@ -1,6 +1,7 @@
 # EMS Shell — Обзор архитектуры и правила интеграции
 
-> **Версия документа:** 2.3.7  
+> **Версия документа:** 2.4.0
+> **Обновлено:** 2026-08-13 — добавлены секции по Redis, LDAP, HTTPS, OpenTelemetry  
 > **Назначение:** Контекст для разработчиков, интегрирующих новые модули в платформу EMS  
 > **Аудитория:** Backend/Frontend инженеры, архитекторы, DevOps
 
@@ -199,3 +200,32 @@ export const MODULES_CONFIG = {
 - **Документация:** `/docs/rules/`
 - **Архитектурные решения:** обсуждаются через ADR (Architecture Decision Records)
 - **Безопасность:** все SEC-* метки в коде указывают на конкретные требования
+
+---
+
+## 8. Изменения в v2.4.0
+
+### 8.1. Новые компоненты
+
+- **Redis** — для in-memory хранилищ в multi-instance
+- **LDAP/AD** — реальная интеграция через ldapjs
+- **HTTPS** — SSL/TLS termination в nginx
+- **OpenTelemetry** — distributed tracing
+- **Prometheus** — метрики и alerting
+- **PostgreSQL Backup** — автоматический backup
+
+### 8.2. Новые утилиты
+
+- [`src/lib/utils/cache.ts`](../../src/lib/utils/cache.ts) — TTL кеш
+- [`src/lib/utils/prisma-helpers.ts`](../../src/lib/utils/prisma-helpers.ts) — конвертация типов
+- [`src/lib/telemetry/tracing.ts`](../../src/lib/telemetry/tracing.ts) — OpenTelemetry
+
+### 8.3. Новая документация
+
+- [`docs/api/openapi.yaml`](../api/openapi.yaml) — OpenAPI спецификация
+- [`docs/adr/`](../adr/) — Architecture Decision Records
+- [`docker/prometheus/alerts.yml`](../../docker/prometheus/alerts.yml) — Prometheus alerts
+
+### 8.4. CI/CD
+
+- [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — автоматический pipeline

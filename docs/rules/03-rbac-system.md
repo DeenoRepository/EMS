@@ -1,6 +1,5 @@
 # RBAC System
 
-> **Версия:** 2.3.7  
 > **Расположение кода:** [`src/lib/auth/`](../../src/lib/auth/), [`src/middleware.ts`](../../src/middleware.ts)
 
 ---

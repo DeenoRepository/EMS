@@ -1,6 +1,5 @@
 # API Conventions
 
-> **Версия:** 2.3.7  
 > **Расположение кода:** [`src/lib/shell/api-response.ts`](../../src/lib/shell/api-response.ts), [`src/app/api/`](../../src/app/api/)
 
 ---

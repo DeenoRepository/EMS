@@ -1,6 +1,7 @@
 # Storage
 
-> **Версия:** 2.3.7  
+> **Версия:** 2.4.0
+> **Обновлено:** 2026-08-13 — добавлены секции по Redis, LDAP, HTTPS, OpenTelemetry  
 > **Расположение кода:** [`src/lib/storage/`](../../src/lib/storage/)
 
 ---
@@ -316,7 +317,8 @@ export async function POST(request: Request) {
   }
   
   // Валидация
-  if (file.size > 20 * 1024 * 1024) {
+  if (file.size > **Версия:** 2.4.0
+> 20 * 1024 * 1024) {
     return NextResponse.json({ error: "Файл слишком большой" }, { status: 400 });
   }
   

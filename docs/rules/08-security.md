@@ -1,6 +1,7 @@
 # Security
 
-> **Версия:** 2.3.7  
+> **Версия:** 2.4.0
+> **Обновлено:** 2026-08-13 — добавлены секции по Redis, LDAP, HTTPS, OpenTelemetry  
 > **Расположение кода:** [`src/lib/auth/`](../../src/lib/auth/), [`src/middleware.ts`](../../src/middleware.ts), [`next.config.ts`](../../next.config.ts), [`nginx.conf`](../../nginx.conf)
 
 ---
@@ -292,10 +293,12 @@ React автоматически экранирует значения в JSX:
 
 ```typescript
 // ✅ Безопасно (React экранирует)
-<div>{userInput}</div>
+<div> **Версия:** 2.4.0
+>{userInput}</div>
 
 // ❌ Опасно (dangerouslySetInnerHTML)
-<div dangerouslySetInnerHTML={{ __html: userInput }} />
+<div dangerouslySetInnerHTML={{ __html: userInput }} /> **Версия:** 2.4.0
+>
 ```
 
 **Правило:** Никогда не использовать `dangerouslySetInnerHTML` без санитизации.
@@ -519,9 +522,12 @@ function generateWebhookSignature(payload: string, secret: string): string {
 ### 12.2. Headers
 
 ```
-X-EMS-Signature: <hmac-sha256>
-X-EMS-Event: <event-type>
-X-EMS-Event-Id: <event-id>
+X-EMS-Signature: <hmac-sha256> **Версия:** 2.4.0
+>
+X-EMS-Event: <event-type> **Версия:** 2.4.0
+>
+X-EMS-Event-Id: <event-id> **Версия:** 2.4.0
+>
 ```
 
 ### 12.3. Проверка на стороне получателя
@@ -530,7 +536,8 @@ X-EMS-Event-Id: <event-id>
 import hmac
 import hashlib
 
-def verify_webhook(payload: str, signature: str, secret: str) -> bool:
+def verify_webhook(payload: str, signature: str, secret: str) -> **Версия:** 2.4.0
+> bool:
     expected = hmac.new(
         secret.encode('utf-8'),
         payload.encode('utf-8'),
@@ -549,11 +556,16 @@ def verify_webhook(payload: str, signature: str, secret: str) -> bool:
 
 ```bash
 # .env (НЕ коммитить!)
-JWT_SECRET=<32+ random bytes>
-POSTGRES_PASSWORD=<strong password>
-S3_ACCESS_KEY=<access key>
-S3_SECRET_KEY=<secret key>
-LDAP_BIND_PASSWORD=<password>
+JWT_SECRET=<32+ random bytes> **Версия:** 2.4.0
+>
+POSTGRES_PASSWORD=<strong password> **Версия:** 2.4.0
+>
+S3_ACCESS_KEY=<access key> **Версия:** 2.4.0
+>
+S3_SECRET_KEY=<secret key> **Версия:** 2.4.0
+>
+LDAP_BIND_PASSWORD=<password> **Версия:** 2.4.0
+>
 ```
 
 ### 13.2. .env.example
@@ -684,3 +696,59 @@ secrets:
 - Не отключать security headers
 - Не игнорировать warnings от линтеров
 - Не коммитить `.env` файлы
+
+---
+
+## 15. Изменения в v2.4.0
+
+### 15.1. Cookie Security
+
+- Cookie name: `session_token` (было `ems_session`)
+- `sameSite: "strict"` в production (было `"lax"`)
+- `secure: true` автоматически в production
+- Управление через единую функцию `getCookieOptions()`
+
+### 15.2. Env Validation
+
+Все env переменные валидируются через Zod при старте:
+- [`src/lib/config/env.ts`](../../src/lib/config/env.ts)
+- Fail-fast при отсутствии обязательных переменных
+- Запрет дефолтных секретов в production
+
+### 15.3. MOCK_USERS
+
+- Перемещены в [`src/lib/auth/mock-users.dev.ts`](../../src/lib/auth/mock-users.dev.ts)
+- Доступны только в development/test
+- В production возвращают пустой объект
+
+### 15.4. LDAP Integration
+
+- Реальная аутентификация через `ldapjs`
+- Service bind + User bind + Group search
+- Маппинг AD групп → EMS роли через env
+
+### 15.5. HTTPS
+
+- SSL/TLS termination в nginx
+- TLS 1.2/1.3, HSTS, OCSP Stapling
+- HTTP → HTTPS автоматический редирект
+
+### 15.6. Rate Limiting
+
+Многоуровневая защита в nginx:
+- Login: 5 req/min
+- Upload: 10 req/min
+- Admin: 10 req/s
+- API: 30 req/s
+
+### 15.7. CORS
+
+- Конфигурация через `CORS_ALLOWED_ORIGINS` env
+- Безопасная политика по умолчанию
+- Поддержка credentials для cookie-based auth
+
+### 15.8. Audit Logging
+
+- POST endpoint `/api/admin/audit` удалён
+- Audit записи создаются только через `logEvent()` в коде
+- Защита от подделки audit логов

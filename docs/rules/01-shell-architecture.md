@@ -1,6 +1,7 @@
 # Shell Architecture
 
-> **Версия:** 2.3.7  
+> **Версия:** 2.4.0
+> **Обновлено:** 2026-08-13 — добавлены секции по Redis, LDAP, HTTPS, OpenTelemetry  
 > **Расположение кода:** [`src/lib/shell/`](../../src/lib/shell/), [`src/middleware.ts`](../../src/middleware.ts)
 
 ---
@@ -84,12 +85,14 @@ await ShellEventBus.publish(
 );
 
 // Подписка на событие
-const unsubscribe = ShellEventBus.subscribe("eps.equipment.created", async (event) => {
+const unsubscribe = ShellEventBus.subscribe("eps.equipment.created", async (event) => **Версия:** 2.4.0
+> {
   console.log("Equipment created:", event.payload);
 });
 
 // Подписка на все события (wildcard)
-ShellEventBus.subscribe("*", async (event) => {
+ShellEventBus.subscribe("*", async (event) => **Версия:** 2.4.0
+> {
   // Обработка любого события
 });
 ```
@@ -146,7 +149,8 @@ ShellCronEngine.registerTask({
   module: "MYMODULE",
   scheduleIntervalMs: 60 * 60 * 1000, // 1 час
   status: "idle",
-  handler: async () => {
+  handler: async () => **Версия:** 2.4.0
+> {
     // Логика задачи
     return { processed: 42 };
   }
@@ -328,3 +332,53 @@ Real-time события доступны через `/api/shell/events/sse` д�
 - Не хранить состояние в глобальных переменных (использовать сервисы)
 - Не обходить middleware (все запросы проходят через RBAC)
 - Не публиковать чувствительные данные в событиях
+
+---
+
+## 4. Инфраструктурный слой (v2.4.0)
+
+Начиная с версии 2.4.0 платформа поддерживает работу в multi-instance окружении через Redis.
+
+### 4.1. Redis ([`src/lib/db/redis.ts`](../../src/lib/db/redis.ts))
+
+Используется для:
+- **Token Blacklist** — отзыв JWT токенов
+- **Rate Limiter** — защита от brute-force
+- **Event Bus** — Pub/Sub для межинстансных событий
+- **Circuit Breaker** — состояние модулей
+- **Cron Engine** — distributed locking
+- **Webhook Subscriptions** — реестр подписок
+- **API Keys** — хранение ключей
+
+Fallback на in-memory для development/test.
+
+### 4.2. LDAP/AD ([`src/lib/auth/ldap.ts`](../../src/lib/auth/ldap.ts))
+
+Интеграция с корпоративным Active Directory через `ldapjs`:
+- Service bind для поиска пользователя
+- User bind для проверки пароля
+- Group search и маппинг на EMS роли
+- Конфигурация через env переменные
+
+### 4.3. HTTPS ([`nginx.conf`](../../nginx.conf))
+
+SSL/TLS termination на nginx:
+- TLS 1.2/1.3
+- HSTS с preload
+- OCSP Stapling
+- HTTP → HTTPS редирект
+- ACME challenge для Let's Encrypt
+
+### 4.4. Rate Limiting
+
+Многоуровневая защита:
+- Login: 5 req/min
+- Upload: 10 req/min
+- Admin: 10 req/s
+- API: 30 req/s
+
+### 4.5. Monitoring
+
+- **Prometheus** — метрики через `/api/metrics`
+- **OpenTelemetry** — distributed tracing
+- **Alerting rules** — 25 правил в [`docker/prometheus/alerts.yml`](../../docker/prometheus/alerts.yml)

@@ -1,6 +1,7 @@
 # Event Bus
 
-> **Версия:** 2.3.7  
+> **Версия:** 2.4.0
+> **Обновлено:** 2026-08-13 — добавлены секции по Redis, LDAP, HTTPS, OpenTelemetry  
 > **Расположение кода:** [`src/lib/shell/event-bus.ts`](../../src/lib/shell/event-bus.ts), [`src/lib/events/event-bus.ts`](../../src/lib/events/event-bus.ts), [`src/lib/wms/outbox-processor.ts`](../../src/lib/wms/outbox-processor.ts)
 
 ---
@@ -79,7 +80,8 @@ import { ShellEventBus } from "@/lib/shell/event-bus";
 
 const unsubscribe = ShellEventBus.subscribe(
   "eps.equipment.created",
-  async (event) => {
+  async (event) => **Версия:** 2.4.0
+> {
     console.log("Equipment created:", event.payload);
     // Обработка события
   }
@@ -92,7 +94,8 @@ unsubscribe();
 #### Подписка на все события (wildcard)
 
 ```typescript
-ShellEventBus.subscribe("*", async (event) => {
+ShellEventBus.subscribe("*", async (event) => **Версия:** 2.4.0
+> {
   console.log(`[${event.sourceModule}] ${event.name}:`, event.payload);
 });
 ```
@@ -100,7 +103,8 @@ ShellEventBus.subscribe("*", async (event) => {
 ### 2.3. Структура события
 
 ```typescript
-interface ShellEvent<T = Record<string, unknown>> {
+interface ShellEvent<T = Record<string, unknown> **Версия:** 2.4.0
+>> {
   id: string;              // "evt_1234567890_abc"
   name: string;            // "eps.equipment.created"
   sourceModule: string;    // "EPS"
@@ -121,7 +125,8 @@ import { ShellEventBus } from "@/lib/shell/event-bus";
 export async function GET() {
   const stream = new ReadableStream({
     start(controller) {
-      const unsubscribe = ShellEventBus.addSseClient((event) => {
+      const unsubscribe = ShellEventBus.addSseClient((event) => **Версия:** 2.4.0
+> {
         controller.enqueue(`data: ${JSON.stringify(event)}\n\n`);
       });
       
@@ -144,7 +149,8 @@ export async function GET() {
 // На стороне клиента
 const eventSource = new EventSource("/api/shell/events/sse");
 
-eventSource.onmessage = (event) => {
+eventSource.onmessage = (event) => **Версия:** 2.4.0
+> {
   const data = JSON.parse(event.data);
   console.log("Received event:", data);
 };
@@ -191,7 +197,8 @@ enum WmsOutboxStatus {
 import { prisma } from "@/lib/db/prisma";
 import { recordWmsOutboxEvent } from "@/lib/wms/outbox-processor";
 
-const result = await prisma.$transaction(async (tx) => {
+const result = await prisma.$transaction(async (tx) => **Версия:** 2.4.0
+> {
   // 1. Бизнес-операция
   const item = await tx.wmsItem.update({
     where: { id: itemId },
@@ -232,7 +239,8 @@ const result = await processWmsOutboxEvents(50);
    - Опубликовать в `ShellEventBus`
    - Опубликовать в `eventBus` (для webhook'ов)
    - При успехе → `status = PROCESSED`
-   - При ошибке → `retryCount++`, при `retryCount >= 5` → `status = FAILED`
+   - При ошибке → `retryCount++`, при `retryCount > **Версия:** 2.4.0
+>= 5` → `status = FAILED`
 
 ### 3.5. Триггеры обработки
 
@@ -357,16 +365,20 @@ const result = await processWmsOutboxEvents(50);
 
 ```typescript
 // src/lib/webhooks/webhook-service.ts
-eventBus.subscribe("*", (payload: SystemEventPayload) => {
+eventBus.subscribe("*", (payload: SystemEventPayload) => **Версия:** 2.4.0
+> {
   const activeSubs = subscriptions.filter(
-    (s) => s.isActive && (
+    (s) => **Версия:** 2.4.0
+> s.isActive && (
       s.subscribedEvents.includes("*") || 
       s.subscribedEvents.includes(payload.eventType)
     )
   );
   
-  activeSubs.forEach((sub) => {
-    dispatchWebhook(sub, payload).catch(() => {});
+  activeSubs.forEach((sub) => **Версия:** 2.4.0
+> {
+    dispatchWebhook(sub, payload).catch(() => **Версия:** 2.4.0
+> {});
   });
 });
 ```
@@ -377,7 +389,8 @@ eventBus.subscribe("*", (payload: SystemEventPayload) => {
 
 ```typescript
 // В ShellEventBus.publish()
-this.sseClients.forEach((clientFn) => {
+this.sseClients.forEach((clientFn) => **Версия:** 2.4.0
+> {
   try {
     clientFn(event);
   } catch (err) {
@@ -413,7 +426,8 @@ logEvent({
 Ошибки в одном handler'е не влияют на другие:
 
 ```typescript
-const promises = allHandlers.map(async (handler) => {
+const promises = allHandlers.map(async (handler) => **Версия:** 2.4.0
+> {
   try {
     await handler(event);
   } catch (err) {
@@ -440,7 +454,8 @@ catch (err) {
     data: {
       retryCount: { increment: 1 },
       lastError: String(err),
-      status: event.retryCount >= 4 ? "FAILED" : "PENDING"
+      status: event.retryCount > **Версия:** 2.4.0
+>= 4 ? "FAILED" : "PENDING"
     }
   });
 }
@@ -505,7 +520,8 @@ export async function POST(request: Request) {
   if (!validation.success) return NextResponse.json({ error: "..." }, { status: 400 });
   
   // 2. Транзакция с outbox
-  const equipment = await prisma.$transaction(async (tx) => {
+  const equipment = await prisma.$transaction(async (tx) => **Версия:** 2.4.0
+> {
     const eq = await tx.equipment.create({ data: validation.data });
     
     // 3. Запись в outbox
@@ -568,7 +584,8 @@ async function processOutbox() {
         data: {
           retryCount: { increment: 1 },
           lastError: String(err),
-          status: event.retryCount >= 4 ? "FAILED" : "PENDING"
+          status: event.retryCount > **Версия:** 2.4.0
+>= 4 ? "FAILED" : "PENDING"
         }
       });
     }
@@ -576,8 +593,49 @@ async function processOutbox() {
 }
 
 // 10. Подписчики получают событие
-ShellEventBus.subscribe("eps.equipment.created", async (event) => {
+ShellEventBus.subscribe("eps.equipment.created", async (event) => **Версия:** 2.4.0
+> {
   console.log("New equipment:", event.payload);
   // Отправить уведомление, обновить UI, и т.д.
 });
 ```
+
+---
+
+## 5. Redis Pub/Sub (v2.4.0)
+
+Начиная с версии 2.4.0 Event Bus поддерживает работу в multi-instance окружении через Redis Pub/Sub.
+
+### 5.1. Архитектура
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│   EMS Instance 1│     │   EMS Instance 2│
+│                 │     │                 │
+│  EventEmitter   │     │  EventEmitter   │
+│       ↓         │     │       ↓         │
+│  Redis Publish  │────►│  Redis Subscribe│
+└─────────────────┘     └─────────────────┘
+         │                       │
+         └───────────┬───────────┘
+                     ↓
+              ┌─────────────┐
+              │    Redis    │
+              │ ems:events  │
+              └─────────────┘
+```
+
+### 5.2. Конфигурация
+
+```bash
+REDIS_URL=redis://:password@redis:6379
+REDIS_PASSWORD=<минимум 32 символа>
+```
+
+### 5.3. Fallback
+
+В development без Redis используется in-process EventEmitter. В production Redis обязателен.
+
+### 5.4. Graceful Shutdown
+
+При остановке приложения subscriber корректно закрывается через `subscriber.quit()`.

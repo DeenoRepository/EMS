@@ -1,6 +1,7 @@
 # Webhooks
 
-> **Версия:** 2.3.7  
+> **Версия:** 2.4.0
+> **Обновлено:** 2026-08-13 — добавлены секции по Redis, LDAP, HTTPS, OpenTelemetry  
 > **Расположение кода:** [`src/lib/webhooks/webhook-service.ts`](../../src/lib/webhooks/webhook-service.ts)
 
 ---
@@ -143,7 +144,8 @@ function generateWebhookSignature(payload: string, secret: string): string {
 import hmac
 import hashlib
 
-def verify_webhook(payload: str, signature: str, secret: str) -> bool:
+def verify_webhook(payload: str, signature: str, secret: str) -> **Версия:** 2.4.0
+> bool:
     expected = hmac.new(
         secret.encode('utf-8'),
         payload.encode('utf-8'),
@@ -266,7 +268,8 @@ async function dispatchWithRetry(sub: WebhookSubscription, payload: SystemEventP
       }
     } catch (err) {
       if (attempt === maxRetries) throw err;
-      await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+      await new Promise(r => **Версия:** 2.4.0
+> setTimeout(r, Math.pow(2, attempt) * 1000));
     }
   }
 }
@@ -387,7 +390,8 @@ registerWebhook({
 ```typescript
 registerWebhook({
   name: "Telegram Notifications",
-  targetUrl: "https://api.telegram.org/bot<TOKEN>/sendMessage",
+  targetUrl: "https://api.telegram.org/bot<TOKEN> **Версия:** 2.4.0
+>/sendMessage",
   secretKey: "telegram-webhook-secret",
   subscribedEvents: [
     "eps.approval.submitted",
@@ -410,7 +414,8 @@ import express from "express";
 const app = express();
 app.use(express.json());
 
-app.post("/webhook", (req, res) => {
+app.post("/webhook", (req, res) => **Версия:** 2.4.0
+> {
   const signature = req.headers["x-ems-signature"];
   const event = req.headers["x-ems-event"];
   
@@ -422,7 +427,8 @@ app.post("/webhook", (req, res) => {
   res.status(200).json({ received: true });
 });
 
-app.listen(3001, () => console.log("Test webhook receiver on :3001"));
+app.listen(3001, () => **Версия:** 2.4.0
+> console.log("Test webhook receiver on :3001"));
 ```
 
 ### 10.2. Отправка тестового события
@@ -455,7 +461,8 @@ await ShellEventBus.publish(
 - Не использовать HTTP для production
 - Не игнорировать ошибки доставки
 - Не хранить secretKey в коде (использовать env)
-- Не отправлять большие payload (> 1 MB)
+- Не отправлять большие payload (> **Версия:** 2.4.0
+> 1 MB)
 
 ---
 
@@ -496,3 +503,27 @@ async function loadSubscriptions() {
   }
 }
 ```
+
+---
+
+## 6. Redis Storage (v2.4.0)
+
+Начиная с версии 2.4.0 webhook подписки хранятся в Redis для работы в multi-instance окружениях.
+
+### 6.1. Структура хранения
+
+```
+Redis Keys:
+  webhook:sub:{id}     → JSON подписки (TTL 90 дней)
+  webhook:index        → SET со списком всех ID подписок
+```
+
+### 6.2. API изменения
+
+- `registerWebhook()` теперь async
+- `getWebhooks()` теперь async
+- Добавлен `unregisterWebhook(id)` для удаления подписок
+
+### 6.3. Fallback
+
+В development без Redis используется in-memory Map. В production Redis обязателен.

@@ -1,6 +1,5 @@
 # UI Conventions
 
-> **Версия:** 2.3.7  
 > **Расположение кода:** [`src/components/`](../../src/components/), [`src/app/`](../../src/app/)
 
 ---
